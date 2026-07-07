@@ -1,0 +1,94 @@
+﻿<Window x:Class="DAS_LEBENSARCHIV.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DAS LEBENSARCHIV"
+        Height="700"
+        Width="1200"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+
+        <!-- Menü -->
+        <Menu DockPanel.Dock="Top">
+
+            <MenuItem Header="Datei">
+                <MenuItem Header="Neues Archiv"/>
+                <MenuItem Header="Archiv öffnen"/>
+                <Separator/>
+                <MenuItem Header="Speichern"/>
+                <Separator/>
+                <MenuItem Header="Beenden"/>
+            </MenuItem>
+
+            <MenuItem Header="Personen"/>
+            <MenuItem Header="Ereignisse"/>
+            <MenuItem Header="Dokumente"/>
+            <MenuItem Header="Suche"/>
+            <MenuItem Header="Hilfe"/>
+
+        </Menu>
+
+        <Grid Margin="20">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Eingabebereich -->
+
+            <StackPanel Grid.Column="0">
+
+                <TextBlock
+                    Name="TitelText"
+                    FontSize="28"
+                    FontWeight="Bold"
+                    Margin="0,0,0,20"
+                    Text="Willkommen im Lebensarchiv"/>
+
+                <TextBlock Text="Vorname"/>
+                <TextBox
+                    Name="VornameTextBox"
+                    Margin="0,5,0,10"/>
+
+                <TextBlock Text="Nachname"/>
+                <TextBox
+                    Name="NachnameTextBox"
+                    Margin="0,5,0,10"/>
+
+                <TextBlock Text="Geburtsdatum"/>
+                <TextBox
+                    Name="GeburtTextBox"
+                    Margin="0,5,0,10"/>
+
+                <TextBlock Text="Ort"/>
+                <TextBox
+                    Name="OrtTextBox"
+                    Margin="0,5,0,20"/>
+
+                <Button
+                    Name="SpeichernButton"
+                    Content="Speichern"
+                    Width="120"
+                    Height="35"
+                    Click="Speichern_Click"/>
+
+            </StackPanel>
+
+            <!-- Personenliste -->
+
+            <GroupBox
+                Grid.Column="2"
+                Header="Personen">
+
+                <ListBox
+                    Name="PersonenListe"/>
+
+            </GroupBox>
+
+        </Grid>
+
+    </DockPanel>
+
+</Window>

@@ -1,0 +1,245 @@
+﻿<Window x:Class="DAS_LEBENSARCHIV.ErinnerungenFenster"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Erinnerungen"
+        Height="650"
+        Width="750"
+        WindowStartupLocation="CenterOwner">
+
+    <!--
+    ============================================================
+    BUILD 2.9/3.0/3.1: JAMES ZEIGT ERINNERUNGEN AN, MIT KONTEXT
+    ============================================================
+    Architekturbeschluss: Etappe B.1 (Build 2.9) + B.2 (Build 3.0)
+    + B.3 (Build 3.1). Bewusst nur anzeigen - keine KI, keine
+    Bildanalyse, keine automatische Sortierung, kein Zoomen/
+    Drehen/Vollbild, kein Drag & Drop, keine Bearbeitung. Nur zwei
+    Zustände:
+
+    1. Übersicht - alle Erinnerungen als kleine Vorschaubilder
+    2. Großansicht - ein einzelnes Bild größer, darunter die
+       vorhandenen Informationen (Titel, Datum, Ort, Beschreibung,
+       zugeordnete Person(en)) - Build 3.0. Fehlende Angaben werden
+       einfach ausgeblendet, nie als Fehler oder Platzhalter gezeigt.
+
+    Build 3.1: zusätzlich "James, was weißt du bereits?" - reine
+    Auswertung bereits bestätigter Merkmale, keine neuen Begriffe.
+
+    Bewusst als eigenständiges Fenster (kein Overlay im Hauptfenster),
+    damit der Schreibtisch beim Schließen garantiert unverändert bleibt.
+    Verwendet ausschließlich Standard-WPF-Steuerelemente.
+    -->
+
+    <Grid Margin="20">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Name="UeberschriftText"
+            FontSize="16"
+            FontWeight="Bold"
+            TextWrapping="Wrap"
+            Margin="0,0,0,14"/>
+
+        <!-- Übersicht: Suchfeld + Sortierung + Trefferanzahl + Vorschaubilder -->
+        <Grid Grid.Row="1">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Build 4.0: Live-Suche über Titel/Ereignisbezeichnung und
+                 Personenname. Build 4.1: Enter öffnet den ersten Treffer. -->
+            <TextBox
+                Grid.Row="0"
+                Name="SucheTextBox"
+                Padding="6"
+                Margin="0,0,0,6"
+                TextChanged="SucheTextBox_TextChanged"
+                KeyDown="SucheTextBox_KeyDown"/>
+
+            <!-- Build 4.2: Sortierauswahl + Reihenfolge. Bewusst OHNE
+                 SelectedIndex in der XAML (siehe historischer Fehler in
+                 Build 1.2 mit der Beziehung-ComboBox) - die anfängliche
+                 Auswahl wird stattdessen im Code-Behind gesetzt, erst
+                 nachdem alle Steuerelemente sicher aufgebaut sind. -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock Text="Sortieren nach:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox
+                    Name="SortierungComboBox"
+                    Width="120"
+                    SelectionChanged="SortierungComboBox_SelectionChanged">
+                    <ComboBoxItem Content="Datum"/>
+                    <ComboBoxItem Content="Titel"/>
+                    <ComboBoxItem Content="Person"/>
+                </ComboBox>
+                <Button
+                    Name="SortierRichtungButton"
+                    Content="Aufsteigend ▲"
+                    Width="140"
+                    Margin="12,0,0,0"
+                    Click="SortierRichtungButton_Click"/>
+            </StackPanel>
+
+            <TextBlock
+                Grid.Row="2"
+                Name="TrefferAnzahlText"
+                Foreground="#555555"
+                Margin="0,0,0,10"/>
+
+            <ScrollViewer
+                Grid.Row="3"
+                Name="UebersichtScrollViewer"
+                VerticalScrollBarVisibility="Auto">
+                <WrapPanel Name="MiniaturenPanel"/>
+            </ScrollViewer>
+
+        </Grid>
+
+        <!-- Großansicht: ein einzelnes Bild + Kontext (Build 3.0) -->
+        <Grid
+            Grid.Row="1"
+            Name="GrossansichtGrid"
+            Visibility="Collapsed">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Build 3.1: Vor-/Zurück-Blättern innerhalb der Erinnerungen,
+                 in derselben Reihenfolge wie in der Übersicht. -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+
+                <Button
+                    Content="◀ Zurück zur Übersicht"
+                    Width="200"
+                    Height="36"
+                    Click="ZurueckZurUebersicht_Click"/>
+
+                <Button
+                    Name="VorherigeButton"
+                    Content="◀ Vorherige"
+                    Width="120"
+                    Height="36"
+                    Margin="24,0,0,0"
+                    Click="Vorherige_Click"/>
+
+                <Button
+                    Name="NaechsteButton"
+                    Content="Nächste ▶"
+                    Width="120"
+                    Height="36"
+                    Margin="8,0,0,0"
+                    Click="Naechste_Click"/>
+
+                <!-- Build 3.3: Positionsanzeige "Erinnerung X von Y" -->
+                <TextBlock
+                    Name="PositionsanzeigeText"
+                    VerticalAlignment="Center"
+                    Foreground="#555555"
+                    Margin="20,0,0,0"/>
+
+            </StackPanel>
+
+            <!-- Build 3.5: Zoom per Mausrad. RenderTransformOrigin in der
+                 Mitte, damit beim Zoomen der Bildmittelpunkt erhalten
+                 bleibt. ClipToBounds sorgt dafür, dass ein hineingezoomtes
+                 Bild sauber am Rand der Zeile abschneidet, statt andere
+                 Bereiche zu überdecken. -->
+            <Grid Grid.Row="1" ClipToBounds="True">
+                <Image
+                    Name="GrossesBild"
+                    Stretch="Uniform"
+                    RenderTransformOrigin="0.5,0.5"
+                    MouseWheel="GrossesBild_MouseWheel">
+                    <Image.RenderTransform>
+                        <ScaleTransform x:Name="BildZoomTransform"/>
+                    </Image.RenderTransform>
+                </Image>
+            </Grid>
+
+            <!-- Build 3.0: Kontext zur angezeigten Erinnerung. Jede Zeile
+                 blendet sich einzeln aus, wenn die jeweilige Angabe fehlt -
+                 das Fenster bleibt dadurch immer sauber, nie mit leeren
+                 Platzhaltern oder Fehlermeldungen. -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" MaxHeight="220">
+                <StackPanel Margin="0,14,0,0">
+
+                    <TextBlock
+                        Name="GrossansichtTitelText"
+                        FontSize="15"
+                        FontWeight="Bold"
+                        TextWrapping="Wrap"/>
+
+                    <TextBlock
+                        Name="GrossansichtDatumOrtText"
+                        Foreground="#555555"
+                        TextWrapping="Wrap"
+                        Margin="0,4,0,0"/>
+
+                    <TextBlock
+                        Name="GrossansichtPersonText"
+                        Foreground="#555555"
+                        TextWrapping="Wrap"
+                        Margin="0,4,0,0"/>
+
+                    <TextBlock
+                        Name="GrossansichtBeschreibungText"
+                        TextWrapping="Wrap"
+                        Margin="0,8,0,0"/>
+
+                    <TextBlock
+                        Name="GrossansichtBeteiligteText"
+                        Foreground="#777777"
+                        TextWrapping="Wrap"
+                        Margin="0,4,0,0"/>
+
+                    <!-- Etappe B (Build 2.9): James' visuelles Gedächtnis.
+                         Noch keine KI - ausschließlich vom Benutzer
+                         eingegebene Merkmale (siehe James' erstes Gesetz
+                         im Code-Behind). -->
+                    <TextBlock
+                        FontWeight="Bold"
+                        Margin="0,14,0,4"
+                        Text="James hat sich zu dieser Erinnerung gemerkt:"/>
+
+                    <WrapPanel Name="MerkmalePanel" Margin="0,0,0,6"/>
+
+                    <Button
+                        Content="James etwas beibringen"
+                        Width="200"
+                        Height="30"
+                        HorizontalAlignment="Left"
+                        Margin="0,0,0,4"
+                        Click="JamesEtwasBeibringen_Click"/>
+
+                    <!-- Build 3.1 (Etappe B.3): "James erinnert sich" -
+                         zeigt ausschließlich bereits bestätigtes Wissen
+                         an, nichts Neues, keine Vermutungen. -->
+                    <Button
+                        Content="James, was weißt du bereits?"
+                        Width="220"
+                        Height="30"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,4"
+                        Click="JamesWasWeisstDuBereits_Click"/>
+
+                    <StackPanel Name="BekanntesWissenPanel" Visibility="Collapsed" Margin="0,10,0,0"/>
+
+                </StackPanel>
+            </ScrollViewer>
+
+        </Grid>
+
+    </Grid>
+
+</Window>

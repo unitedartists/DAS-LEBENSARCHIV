@@ -1,0 +1,83 @@
+﻿<Window x:Class="DAS_LEBENSARCHIV.JamesLerntFenster"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="James etwas beibringen"
+        Height="420"
+        Width="380"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <!--
+    ============================================================
+    BUILD 3.0: JAMES BEGINNT ZU LERNEN
+    ============================================================
+    Architekturbeschluss: Etappe B.2 (Build 3.0), Auftrag des
+    Architekten. James lernt ausschließlich durch seinen Besitzer -
+    dieses Fenster zeigt die bereits bekannten Merkmale zu genau einer
+    Erinnerung und erlaubt es, ein neues Merkmal samt Kategorie zu
+    ergänzen. Noch keine KI, keine automatischen Vorschläge.
+    Bewusst als eigenständiger, einfacher Dialog (kein Overlay),
+    passend zum restlichen Programm.
+    -->
+
+    <Grid Margin="20">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            FontSize="15"
+            FontWeight="Bold"
+            TextWrapping="Wrap"
+            Margin="0,0,0,10"
+            Text="Bereits bekannte Merkmale"/>
+
+        <TextBlock
+            Grid.Row="1"
+            Name="KeineMerkmaleText"
+            Foreground="#888888"
+            FontStyle="Italic"
+            Margin="0,0,0,10"
+            Text="Noch keine Merkmale bekannt."/>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+            <StackPanel Name="BekannteMerkmalePanel"/>
+        </ScrollViewer>
+
+        <TextBlock
+            Grid.Row="3"
+            FontWeight="Bold"
+            Margin="0,0,0,6"
+            Text="Neues Merkmal:"/>
+
+        <StackPanel Grid.Row="4">
+
+            <TextBox
+                Name="NeuesMerkmalTextBox"
+                Padding="6"
+                Margin="0,0,0,8"
+                KeyDown="NeuesMerkmalTextBox_KeyDown"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <TextBlock Text="Kategorie:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox
+                    Name="KategorieComboBox"
+                    Width="180"/>
+            </StackPanel>
+
+            <Button
+                Content="Hinzufügen"
+                Height="34"
+                Click="Hinzufuegen_Click"/>
+
+        </StackPanel>
+
+    </Grid>
+
+</Window>

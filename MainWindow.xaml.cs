@@ -108,14 +108,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         private static readonly string ArbeitsstandPfad = Path.Combine(OrdnerPfad, "arbeitsstand.json");
 
-        // ============================================================
-        // ARCHITEKTUR: EINSTELLUNGEN (Build 2.0)
-        // ============================================================
-        private static readonly string EinstellungenPfad = Path.Combine(OrdnerPfad, "einstellungen.json");
-
-        // Index des neuen "Einstellungen"-Reiters (nach Werkzeuge).
-        private const int EinstellungenTabIndex = 6;
-
         // Index des neuen "Arbeitsmappe"-Reiters (Build 2.1, nach Einstellungen).
         private const int ArbeitsmappeTabIndex = 7;
 

@@ -6,7 +6,13 @@ using System.Windows.Controls;
 namespace DAS_LEBENSARCHIV
 {
     public partial class MainWindow
-    {
+    {// ============================================================
+        // ARCHITEKTUR: EINSTELLUNGEN (Build 2.0)
+        // ============================================================
+        private static string EinstellungenPfad => Path.Combine(OrdnerPfad, "einstellungen.json");
+
+        // Index des neuen "Einstellungen"-Reiters (nach Werkzeuge).
+        private const int EinstellungenTabIndex = 6;
         // ============================================================
         // BUILD 2.0: JAMES LERNT SEINEN BESITZER KENNEN
         // ============================================================

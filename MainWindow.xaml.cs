@@ -18,7 +18,7 @@ using System.Security.Cryptography;
 
 namespace DAS_LEBENSARCHIV
 {
-        public partial class MainWindow : Window
+    public partial class MainWindow : Window
     {
         private Person aktuellBearbeitetePerson = null;
 
@@ -56,11 +56,6 @@ namespace DAS_LEBENSARCHIV
         // OrdnerBaumTreeView.ItemsSource gebunden.
         private ObservableCollection<OrdnerKnoten> ordnerBaumWurzelKnoten = new ObservableCollection<OrdnerKnoten>();
 
-        // Vorbereitung für später: James soll dereinst als eigene Klasse (James.cs)
-        // situationsabhängige Begrüßungen liefern (Erststart, normaler Start, nach
-        // längerer Pause, neue Erinnerungen vorhanden, keine Änderungen).
-        // Noch keine Implementierung, nur diese Vorbereitung.
-
         private static readonly string OrdnerPfad = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "LEBENSARCHIV");
@@ -77,12 +72,6 @@ namespace DAS_LEBENSARCHIV
             return Path.Combine(ErinnerungenOrdnerPfad, person.Id.ToString());
         }
 
-        // Etappe B.1: eine gemeinsame Ordner-Ermittlung für Ereignisse -
-        // ersetzt die bisherigen zwei getrennten Methoden
-        // (EreignisErinnerungsOrdner / FreiesEreignisErinnerungsOrdner).
-        // Erzeugt für dieselbe Person/dasselbe Ereignis exakt denselben
-        // Pfad wie bisher - bestehende Ordner bleiben also unverändert
-        // gültig, es wurde nichts an der Speicherstruktur geändert.
         private static string ErinnerungsOrdnerFuer(Person person, Ereignis ereignis)
         {
             if (person != null)
@@ -111,40 +100,19 @@ namespace DAS_LEBENSARCHIV
         // Index des neuen "Arbeitsmappe"-Reiters (Build 2.1, nach Einstellungen).
         private const int ArbeitsmappeTabIndex = 7;
 
-        // Build 2.2a: kleine, persistente Liste bereits zugeordneter
-        // Pfade (siehe arbeitsmappeBereitsZugeordnet weiter unten).
         private static readonly string ArbeitsmappeZugeordnetPfad = Path.Combine(OrdnerPfad, "arbeitsmappe_zugeordnet.json");
 
         // ============================================================
         // ARCHITEKTUR: ARBEITSMAPPE (Build 2.1)
         // ============================================================
-        // Arbeitet ausschließlich mit dem bereits vorhandenen
-        // Erinnerungsverzeichnis (keine neue Datenhaltung). Die Auswahl
-        // wird über die vollständigen Pfade der Dateien nachgehalten -
-        // einfacher als eine eigene Auswahl-Eigenschaft pro Datei, und
-        // übersteht auch ein Neuzeichnen der Kacheln unbeschadet.
         private List<GefundeneDatei> arbeitsmappeAlleDateien = new List<GefundeneDatei>();
         private string arbeitsmappeFilter = "Alle";
         private int arbeitsmappeSeite = 1;
         private const int ArbeitsmappeProSeite = 25;
         private HashSet<string> arbeitsmappeAusgewaehlt = new HashSet<string>();
-
-        // Build 2.2a: gemerkte Person zwischen Stufe 1 (Person waehlen)
-        // und Stufe 2 (Ereignisformular) beim inline-Weg "Neues Ereignis
-        // anlegen" innerhalb der Arbeitsmappe.
         private Person arbeitsmappeNeuesEreignisPerson = null;
-
-        // Build 2.3, Punkt 1: merkt sich das zuletzt angelegte/verbundene
-        // Ereignis, damit der Benutzer es optional öffnen kann, ohne die
-        // Arbeitsmappe zu verlassen.
         private Person arbeitsmappeLetztesEreignisPerson = null;
         private Ereignis arbeitsmappeLetztesEreignis = null;
-
-        // Build 2.2a: einfache, persistente Markierung, welche Pfade aus
-        // dem Erinnerungsverzeichnis bereits einer Person oder einem
-        // Ereignis zugeordnet wurden - damit der Status auf den Kacheln
-        // ("Noch nicht eingeordnet" / "Bereits zugeordnet") tatsächlich
-        // stimmt und sich nach jeder Zuordnung sofort aktualisiert.
         private HashSet<string> arbeitsmappeBereitsZugeordnet = new HashSet<string>();
 
         private static readonly Dictionary<string, string> DateitypZuordnung = new Dictionary<string, string>
@@ -215,10 +183,6 @@ namespace DAS_LEBENSARCHIV
         }
 
         // ============================================================
-        
-      
-
-                // ============================================================
         // EREIGNISSE (Build 0.5) + EREIGNIS-FOTOS (Build 0.6)
         // ============================================================
 
@@ -292,10 +256,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // BUILD 0.9: ERINNERUNGEN BEWERTEN
         // ============================================================
-        // Rein manuelle Einordnung durch den Menschen. Die Ankreuzfelder
-        // spiegeln direkt Ereignis.Bewertungen wider - beim Anklicken eines
-        // Ereignisses werden sie entsprechend gesetzt, beim Speichern wieder
-        // zurueckgeschrieben.
 
         private void ZeigeBewertungen(Ereignis ereignis)
         {
@@ -371,9 +331,6 @@ namespace DAS_LEBENSARCHIV
             ZeigeStatusMeldung(James.BewertungGespeichert(ereignis.Titel));
         }
 
-        // Baut aus den beschreibenden Feldern eines Ereignisses (Build 0.7)
-        // einen gut lesbaren Text zusammen, damit man sich diese Angaben
-        // auch nach dem Anlegen jederzeit wieder ansehen kann.
         private string ErstelleEreignisDetailsText(Ereignis ereignis)
         {
             List<string> zeilen = new List<string>();
@@ -405,8 +362,6 @@ namespace DAS_LEBENSARCHIV
 
             if (ereignis.Beteiligte != null && ereignis.Beteiligte.Count > 0)
             {
-                // Build 2.2: bereits bekannte Personen werden beim Anzeigen
-                // erkannt (nicht dauerhaft verknüpft) und mit ✓ markiert.
                 List<string> beteiligteMitKennzeichen = ereignis.Beteiligte
                     .Select(name => allePersonen.Any(p => p.ToString().Equals(name, StringComparison.OrdinalIgnoreCase))
                         ? name + " ✓"
@@ -424,11 +379,6 @@ namespace DAS_LEBENSARCHIV
             return string.Join("\n", zeilen);
         }
 
-        // Build 2.5: Die Arbeitsmappe ist der einzige Einstiegspunkt, um
-        // einem Ereignis Erinnerungen zuzuordnen (siehe
-        // VerknuepfeArbeitsmappenDateienMitEreignis). Kein Windows-
-        // Dateidialog mehr - die Zuordnung erfolgt ausschließlich über
-        // bereits im Erinnerungsverzeichnis vorhandene Dateien.
         private void EreignisFotoHinzufuegen_Click(object sender, RoutedEventArgs e)
         {
             Person person = PersonenListe.SelectedItem as Person;
@@ -499,12 +449,6 @@ namespace DAS_LEBENSARCHIV
                 .Where(teil => teil != "")
                 .ToList();
 
-            // Build 2.2: "Wer war noch dabei?" - vorerst nur als Textliste
-            // gespeichert (keine automatische Personenanlage). Ob ein Name
-            // bereits einer bekannten Person entspricht, wird beim
-            // Anzeigen dynamisch geprüft (ErstelleEreignisDetailsText),
-            // nicht dauerhaft verknüpft - so bleibt die Architektur offen,
-            // falls daraus später einmal vollwertige Personen entstehen.
             List<string> beteiligte = EreignisBeteiligteTextBox.Text
                 .Split(',')
                 .Select(teil => teil.Trim())
@@ -538,9 +482,6 @@ namespace DAS_LEBENSARCHIV
 
             EreignisFormularPanel.Visibility = Visibility.Collapsed;
 
-            // Build 2.3, Punkt 1: das neue Ereignis sofort sichtbar machen,
-            // statt es "unsichtbar" in der Liste verschwinden zu lassen -
-            // James zeigt es direkt mit allen Details an.
             EreignisseListe.SelectedItem = neuesEreignis;
 
             ZeigeStatusMeldung(James.EreignisZugeordnet(neuesEreignis.Titel, person.ToString()));
@@ -701,8 +642,6 @@ namespace DAS_LEBENSARCHIV
                 }
                 catch
                 {
-                    // Manche Laufwerke (z.B. leere CD/DVD-Laufwerke) verweigern
-                    // Auskunft über ihre Eigenschaften - dann einfach überspringen.
                 }
 
                 OrdnerKnoten wurzelKnoten = new OrdnerKnoten
@@ -720,9 +659,6 @@ namespace DAS_LEBENSARCHIV
             WerkzeugeStatusText.Text = ErstelleOrdnergedaechtnisBegruessung();
         }
 
-        // Erzeugt einen unsichtbaren Platzhalter-Unterknoten, damit ein
-        // Ordner im Baum ein Aufklapp-Symbol erhält, auch wenn seine
-        // tatsächlichen Unterordner noch nicht eingelesen wurden.
         private static OrdnerKnoten ErzeugePlatzhalterKnoten()
         {
             return new OrdnerKnoten
@@ -732,8 +668,6 @@ namespace DAS_LEBENSARCHIV
             };
         }
 
-        // Liest beim Aufklappen eines Ordners im Baum dessen tatsächliche
-        // Unterordner ein (lazy loading) - erst bei Bedarf, nicht im Voraus.
         private void OrdnerKnoten_Expanded(object sender, RoutedEventArgs e)
         {
             TreeViewItem element = e.OriginalSource as TreeViewItem;
@@ -773,23 +707,16 @@ namespace DAS_LEBENSARCHIV
                     }
                     catch
                     {
-                        // Einzelner Unterordner nicht zugänglich - überspringen.
                     }
                 }
             }
             catch
             {
-                // Ordner nicht zugänglich (z.B. fehlende Rechte) - Baum
-                // bleibt an dieser Stelle einfach leer.
             }
 
             e.Handled = true;
         }
 
-        // Sammelt rekursiv alle vom Benutzer angehakten Ordner. Ist ein
-        // Ordner angehakt, werden seine Unterordner NICHT gesondert
-        // betrachtet - der Rundgang durchsucht diesen Ordner ohnehin
-        // bereits vollständig samt aller Unterordner.
         private void SammleAusgewaehlteOrdner(IEnumerable<OrdnerKnoten> knoten, List<string> ergebnis)
         {
             foreach (OrdnerKnoten einzelnerKnoten in knoten)
@@ -836,9 +763,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Ordnergedächtnis konnte nicht gelesen werden - James
-                // beginnt in diesem Fall einfach mit einem leeren
-                // Gedächtnis, statt den Start zu verweigern.
             }
 
             return new Ordnergedaechtnis();
@@ -948,9 +872,6 @@ namespace DAS_LEBENSARCHIV
                 James.Problem(James.FehlerBeimSpeichernErinnerungsverzeichnis(ex.Message));
             }
 
-            // Ordnergedächtnis aktualisieren (Build 1.1): auch bei einem
-            // abgebrochenen Rundgang tragen wir die bis dahin durchsuchten
-            // Ordner ein - besser eine ehrliche Teilinformation als gar keine.
             Ordnergedaechtnis ordnergedaechtnis = LadeOrdnergedaechtnis();
 
             foreach (KeyValuePair<string, int> eintrag in anzahlProAusgewaehltemOrdner)
@@ -1007,8 +928,6 @@ namespace DAS_LEBENSARCHIV
                         }
                         catch
                         {
-                            // Hashwert konnte nicht berechnet werden (z.B. Datei gerade
-                            // in Verwendung) - Datei wird trotzdem erfasst, nur ohne Hashwert.
                         }
 
                         if (!zaehler.ContainsKey(dateityp))
@@ -1041,7 +960,6 @@ namespace DAS_LEBENSARCHIV
                     }
                     catch
                     {
-                        // Einzelne Datei nicht lesbar - überspringen, Rundgang fortsetzen.
                     }
                 }
             }
@@ -1051,7 +969,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Ordner nicht zugänglich - überspringen, Rundgang fortsetzen.
             }
 
             try
@@ -1067,13 +984,9 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Unterordner nicht zugänglich - überspringen, Rundgang fortsetzen.
             }
         }
 
-        // Berechnet einen eindeutigen "Fingerabdruck" (SHA256-Hashwert) des
-        // Dateiinhalts. Zwei Dateien mit identischem Hashwert besitzen exakt
-        // denselben Inhalt (Build 1.0, Grundlage für "Echte Doppelgänger").
         private static string BerechneHashwert(string dateipfad)
         {
             using (SHA256 sha256 = SHA256.Create())
@@ -1086,307 +999,9 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
-        // Build 2.5: Die Arbeitsmappe ist der einzige Einstiegspunkt, um
-        // einer Person Erinnerungen zuzuordnen (siehe
-        // VerknuepfeArbeitsmappenDateienMitPerson). Dieser Button öffnet
-        // deshalb keinen Windows-Dateidialog mehr, sondern führt direkt
-        // dorthin - so entsteht keine zweite, abweichende Zuordnungslogik
-        // mehr (die vorherige Fassung setzte TitelbildDateiname z.B.
-        // direkt, ohne die Erinnerung auch in ErinnerungsDateinamen
-        // aufzunehmen).
-        private void FotoHinzufuegen_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = PersonenListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                James.Hinweis(James.BittePersonAuswaehlen);
-                return;
-            }
-
-            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
-            James.Hinweis(James.ArbeitsmappeUmleitungPerson(person.ToString()));
-        }
-
-        private void ZeigeFoto(Person person)
-        {
-            if (person != null && person.TitelbildDateiname != null)
-            {
-                string pfad = Path.Combine(PersonErinnerungsOrdner(person), person.TitelbildDateiname);
-
-                if (File.Exists(pfad))
-                {
-                    BitmapImage bild = new BitmapImage();
-                    bild.BeginInit();
-                    bild.CacheOption = BitmapCacheOption.OnLoad;
-                    bild.UriSource = new Uri(pfad);
-                    bild.EndInit();
-
-                    PersonFotoBild.Source = bild;
-                    return;
-                }
-            }
-
-            PersonFotoBild.Source = null;
-        }
-
-        // ============================================================
-        // BUILD 1.2: BEZIEHUNGEN VERSTEHEN
-        // ============================================================
-
-        // Zeigt die gespeicherte Beziehung einer Person im Rollenfeld an
-        // (oder leert es, wenn keine Person/keine Beziehung vorhanden ist).
-        //
-        // Build 2.1a, Ergonomie-Anpassung: Das Rollenfeld ist jetzt frei
-        // beschreibbar (IsEditable="True" in der XAML) statt einer
-        // Auswahlliste mit gesonderter "Sonstige"-Bezeichnung. Dank
-        // Beziehung.ToString() (löst "Sonstige" + eigene Bezeichnung
-        // automatisch auf) reicht ein einziger Zeilencode - bereits
-        // gespeicherte, alte Beziehungen werden dabei unverändert korrekt
-        // angezeigt, ohne dass sich an der Datenstruktur etwas ändert.
-        private void ZeigeBeziehung(Person person)
-        {
-            BeziehungRolleComboBox.Text = person != null && person.Beziehung != null
-                ? person.Beziehung.ToString()
-                : "";
-        }
-
-        // Baut aus der aktuellen Eingabe ein Beziehung-Objekt (oder null,
-        // wenn das Feld leer gelassen wurde). Der Benutzer kann frei
-        // tippen oder einen der vorgeschlagenen Begriffe aus der
-        // Auswahlliste übernehmen - beides landet gleichermaßen in Rolle.
-        private Beziehung ErstelleBeziehungAusEingabe()
-        {
-            string text = BeziehungRolleComboBox.Text != null ? BeziehungRolleComboBox.Text.Trim() : "";
-
-            if (text == "")
-            {
-                return null;
-            }
-
-            return new Beziehung
-            {
-                Rolle = text,
-                EigeneBezeichnung = null
-            };
-        }
-
-        private void PersonenListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Person person = PersonenListe.SelectedItem as Person;
-            aktuellBearbeitetePerson = person;
-
-            if (person != null)
-            {
-                VornameTextBox.Text = person.Vorname;
-                NachnameTextBox.Text = person.Nachname;
-                GeburtTextBox.Text = person.Geburt;
-                OrtTextBox.Text = person.Ort;
-            }
-            else
-            {
-                VornameTextBox.Clear();
-                NachnameTextBox.Clear();
-                GeburtTextBox.Clear();
-                OrtTextBox.Clear();
-            }
-
-            ZeigeBeziehung(person);
-            ZeigeFoto(person);
-            AktualisiereEreignisseAnzeige(person);
-            ZeigePersonErinnerungenLink(person);
-            EreignisFormularPanel.Visibility = Visibility.Collapsed;
-            SpeichereArbeitsstand();
-        }
-
-        private void ArchivListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-            ZeigeArchivFoto(person);
-            ArchivAktionPanel.Visibility = Visibility.Collapsed;
-        }
-
-        // Etappe B.1b, Punkt 2: ersetzt den bisherigen grünen Link aus
-        // Etappe B.1a - dieselbe, bereits vorhandene Sammel- und
-        // Fenster-Logik, jetzt aber als Menüpunkt im "Was möchten wir
-        // tun?"-Menü erreichbar, genau wie beim Ereignis-Archiv.
-        private void ArchivPersonErinnerungenAnsehen_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            List<ErinnerungsInfo> erinnerungenListe = SammelErinnerungenFuerPerson(person);
-
-            if (erinnerungenListe.Count == 0)
-            {
-                return;
-            }
-
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
-            fenster.Owner = this;
-            fenster.Show();
-        }
-
-        private void ZeigeArchivFoto(Person person)
-        {
-            if (person != null && person.TitelbildDateiname != null)
-            {
-                string pfad = Path.Combine(PersonErinnerungsOrdner(person), person.TitelbildDateiname);
-
-                if (File.Exists(pfad))
-                {
-                    BitmapImage bild = new BitmapImage();
-                    bild.BeginInit();
-                    bild.CacheOption = BitmapCacheOption.OnLoad;
-                    bild.UriSource = new Uri(pfad);
-                    bild.EndInit();
-
-                    ArchivFotoBild.Source = bild;
-                    return;
-                }
-            }
-
-            ArchivFotoBild.Source = null;
-        }
-
-        private void ArchivAktion_Click(object sender, RoutedEventArgs e)
-        {
-            if (ArchivListe.SelectedItem == null)
-            {
-                James.Hinweis(James.BitteArchivPersonAuswaehlen);
-                return;
-            }
-
-            if (ArchivAktionPanel.Visibility == Visibility.Visible)
-            {
-                ArchivAktionPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                ArchivAktionPanel.Visibility = Visibility.Visible;
-            }
-        }
-
-        // Build 2.5: gleiche Konsolidierung wie bei FotoHinzufuegen_Click -
-        // auch für archivierte Personen läuft die Zuordnung jetzt
-        // ausschließlich über die Arbeitsmappe (deren Personen-Auswahl
-        // dafür um archivierte Personen erweitert wurde, siehe
-        // ArbeitsmappePersonZuordnen_Click).
-        private void ArchivFotoHinzufuegen_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
-            James.Hinweis(James.ArbeitsmappeUmleitungPerson(person.ToString()));
-        }
-
-        private void ArchivZurueck_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            HoleAusArchivZurueckAufSchreibtisch(person, null);
-        }
-
-        // Holt eine archivierte Person zurück auf den Schreibtisch und macht
-        // sie dort vollständig bearbeitbar. Wird sowohl vom Button "Zurück
-        // auf den Schreibtisch" im Archiv genutzt, als auch beim Anklicken
-        // eines archivierten James-Suchtreffers (Build 0.8).
-        private void HoleAusArchivZurueckAufSchreibtisch(Person person, Ereignis auszuwaehlendesEreignis)
-        {
-            ArchivListe.Items.Remove(person);
-            allePersonen.Add(person);
-
-            SortiereAllePersonen();
-            AktualisierePersonenAnzeige();
-
-            SpeichereDaten();
-
-            ArchivAktionPanel.Visibility = Visibility.Collapsed;
-            ArchivFotoBild.Source = null;
-
-            HauptTabControl.SelectedIndex = 0;
-
-            // Derselbe Wechsel wie an anderer Stelle bereits korrekt
-            // gemacht (Build 5.1, "Letzte Arbeit fortsetzen") - fehlte
-            // hier bisher, wodurch die Startseite sichtbar blieb und die
-            // wiederhergestellte Person "leer" wirkte.
-            StartseiteBereich.Visibility = Visibility.Collapsed;
-            EreignisBereich.Visibility = Visibility.Collapsed;
-            EreignismappeBereich.Visibility = Visibility.Collapsed;
-            PersonenFormularBereich.Visibility = Visibility.Visible;
-            PersonenListeBereich.Visibility = Visibility.Visible;
-
-            PersonenListe.SelectedItem = person;
-
-            VornameTextBox.Text = person.Vorname;
-            NachnameTextBox.Text = person.Nachname;
-            GeburtTextBox.Text = person.Geburt;
-            OrtTextBox.Text = person.Ort;
-
-            aktuellBearbeitetePerson = person;
-
-            ZeigeBeziehung(person);
-            ZeigeFoto(person);
-            AktualisiereEreignisseAnzeige(person);
-            ZeigePersonErinnerungenLink(person);
-
-            if (auszuwaehlendesEreignis != null)
-            {
-                EreignisseListe.SelectedItem = auszuwaehlendesEreignis;
-            }
-
-            ZeigeStatusMeldung(James.ZurueckAufSchreibtisch(person.ToString()));
-        }
-
-        // Etappe B.1b, Punkt 4: ersetzt die bisherige sofortige, endgültige
-        // Entfernung durch dieselbe Papierkorb-Logik, die für freie
-        // Ereignisse bereits verwendet wird (siehe ArchivEreignisInPapierkorb_Click) -
-        // dieselben James-Texte, dasselbe Bestätigungsprinzip.
-        private void ArchivPersonInPapierkorb_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            bool ergebnis = James.FrageJaNein(James.FrageInPapierkorbEinzeln(person.ToString()), James.TitelEntscheidung, MessageBoxImage.Warning);
-
-            if (ergebnis)
-            {
-                ArchivListe.Items.Remove(person);
-                PapierkorbListe.Items.Add(person);
-                SpeichereDaten();
-
-                ArchivAktionPanel.Visibility = Visibility.Collapsed;
-                ArchivFotoBild.Source = null;
-            }
-        }
-
         // ============================================================
         // BUILD 1.9: JAMES MERKT SICH DIE ARBEIT
         // ============================================================
-        // Architekturbeschluss 011 (Fortsetzung): Kein KI, keine
-        // automatische Entscheidung - James merkt sich lediglich, welche
-        // Person/welches Ereignis zuletzt auf dem Schreibtisch geöffnet
-        // war, und bietet beim nächsten Start an, dort weiterzumachen.
-        // Sagt der Benutzer Nein, startet James ganz normal (inkl. der
-        // gewohnten Vorschläge aus Build 1.7).
 
         private Arbeitsstand LadeArbeitsstand()
         {
@@ -1400,8 +1015,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Arbeitsstand nicht lesbar - dann eben kein Angebot zur
-                // Fortsetzung, kein Fehlerdialog noetig (reine Komfortfunktion).
             }
 
             return null;
@@ -1415,10 +1028,6 @@ namespace DAS_LEBENSARCHIV
 
                 if (person == null)
                 {
-                    // Keine aktive Auswahl auf dem Schreibtisch - der
-                    // zuletzt gespeicherte Arbeitsstand bleibt bewusst
-                    // unveraendert bestehen (kein Loeschen bei blossem
-                    // Abwaehlen).
                     return;
                 }
 
@@ -1445,16 +1054,9 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Arbeitsstand ist eine Komfortfunktion - schlaegt das
-                // Speichern fehl, soll das die eigentliche Arbeit nicht
-                // stoeren (kein Fehlerdialog).
             }
         }
 
-        // Prüft beim Start, ob eine noch nicht fertige Arbeit existiert,
-        // und bietet - falls ja - freundlich an, dort weiterzumachen.
-        // Gibt true zurueck, wenn tatsaechlich fortgesetzt wurde (dann
-        // zeigt der Aufrufer keine Vorschläge zusätzlich an).
         private bool PruefeUndBieteArbeitsstandAn()
         {
             Arbeitsstand stand = LadeArbeitsstand();
@@ -1468,9 +1070,6 @@ namespace DAS_LEBENSARCHIV
 
             if (person == null)
             {
-                // Person ist inzwischen nicht mehr auf dem Schreibtisch
-                // (z.B. archiviert oder in den Papierkorb gelegt) - dann
-                // gibt es nichts sinnvoll fortzusetzen.
                 return false;
             }
 
@@ -1494,9 +1093,6 @@ namespace DAS_LEBENSARCHIV
 
             HauptTabControl.SelectedIndex = 0;
 
-            // Build 5.1: die Startseite verlassen und den Personen-Bereich
-            // zeigen, da sonst die wiederhergestellte Auswahl "hinter" der
-            // neuen Startseite verborgen bliebe.
             StartseiteBereich.Visibility = Visibility.Collapsed;
             EreignisBereich.Visibility = Visibility.Collapsed;
             EreignismappeBereich.Visibility = Visibility.Collapsed;
@@ -1517,54 +1113,13 @@ namespace DAS_LEBENSARCHIV
         {
             SpeichereArbeitsstand();
         }
-       
+
         // ============================================================
         // BUILD 2.1: DIE ARBEITSMAPPE
         // ============================================================
-        // Architekturbeschluss 013: James zeigt keine Dateilisten mehr,
-        // sondern legt gefundene Erinnerungen aus dem bereits
-        // vorhandenen Erinnerungsverzeichnis übersichtlich als Kacheln
-        // aus. Keine neue Datenhaltung, keine neue Suchlogik (nur ein
-        // einfacher Namensfilter), keine KI, keine automatische
-        // Bilderkennung oder Dublettenerkennung.
-        //
-        // EHRLICHE VEREINFACHUNGEN (bewusst, siehe Projektarchiv):
-        // - PDFs, Dokumente, Videos und Audio werden beim Doppelklick mit
-        //   dem Standardprogramm des Betriebssystems geöffnet - kein
-        //   eigener Betrachter eingebaut. Nur Bilder werden direkt in der
-        //   Arbeitsmappe groß angezeigt.
-        // - "Noch keinem Ereignis zugeordnet" gilt aktuell für JEDE
-        //   Datei, weil es noch keine Verknüpfung zwischen dem
-        //   Erinnerungsverzeichnis (Rohdateien) und bereits zugeordneten
-        //   Fotos gibt - das wäre neue Datenhaltung und blieb bewusst
-        //   dem Architekturauftrag entsprechend unangetastet.
-        // - "Mit Ereignis verbinden" und "Person zuordnen" funktionieren
-        //   nur mit genau einer ausgewählten Datei vom Typ Bild, weil
-        //   Ereignis/Person aktuell jeweils nur EIN Foto besitzen können
-        //   (Architekturentscheidung aus früheren Builds) - das wollte
-        //   der Architekt diesmal nicht ändern ("keine neue
-        //   Datenhaltung").
-        // - "Arbeitskorb", "Asservatenkammer" und "Papierkorb" für
-        //   Dateien sind als Platzhalter angelegt (wie schon an anderen
-        //   Stellen im Programm üblich) - sie würden eine neue,
-        //   dauerhafte Markierung pro Datei benötigen, die dieser Build
-        //   bewusst noch nicht einführt.
 
         private void HauptTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Build 2.8, entscheidender Fund: SelectionChanged ist in WPF
-            // ein "bubbling" Ereignis - es steigt im Steuerelement-Baum
-            // nach oben. JEDE ComboBox innerhalb der Arbeitsmappe (Personen-
-            // Auswahl, Ereignis-Auswahl, Jahreszeit usw.) ist ebenfalls ein
-            // Selector und löst beim Auswählen ebenfalls SelectionChanged
-            // aus - das bis hierher zum TabControl hochsteigt, obwohl sich
-            // der Reiter dabei gar nicht geändert hat. Ohne diese Prüfung
-            // wurde dadurch bei JEDER Auswahl in einer Arbeitsmappen-
-            // ComboBox versehentlich OeffneArbeitsmappe() erneut ausgelöst -
-            // das leert arbeitsmappeAusgewaehlt vollständig und schließt
-            // alle offenen Unterformulare. Genau das war die gemeinsame
-            // Ursache für beide gemeldeten Fehler (Ereignisfeld verschwindet,
-            // Erinnerungen kommen nirgends an).
             if (e.Source != HauptTabControl)
             {
                 return;
@@ -1581,11 +1136,6 @@ namespace DAS_LEBENSARCHIV
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
         }
 
-        // Build 2.8, Punkt 4: sichtbarer Zähler + Zeitstempel, der beweist,
-        // ob/wann OeffneArbeitsmappe() tatsächlich (erneut) ausgeführt
-        // wird. Bleibt bewusst dauerhaft sichtbar (kein Verschwinden), damit
-        // beim Test sofort auffällt, falls die Methode unerwartet mehrfach
-        // läuft, während der Benutzer nur in einer ComboBox auswählt.
         private int arbeitsmappeOeffnenZaehler = 0;
 
         private void OeffneArbeitsmappe()
@@ -1629,8 +1179,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Nicht lesbar - dann eben mit leerer Liste weiterarbeiten
-                // (reine Komfortfunktion für die Statusanzeige).
             }
 
             return new HashSet<string>();
@@ -1653,9 +1201,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Reine Komfortfunktion für die Statusanzeige - schlägt das
-                // Speichern fehl, wird die eigentliche Zuordnung dadurch
-                // nicht gestört.
             }
         }
 
@@ -1676,8 +1221,6 @@ namespace DAS_LEBENSARCHIV
             }
             catch
             {
-                // Erinnerungsverzeichnis nicht lesbar - dann eben eine
-                // leere Arbeitsmappe zeigen, kein Fehlerdialog nötig.
             }
 
             return new List<GefundeneDatei>();
@@ -1936,11 +1479,6 @@ namespace DAS_LEBENSARCHIV
             };
         }
 
-        // Doppelklick: Bilder werden direkt in der Arbeitsmappe groß
-        // angezeigt. Alle anderen Dateitypen (PDF, Dokumente, Videos,
-        // Audio) werden ehrlicherweise mit dem Standardprogramm des
-        // Betriebssystems geöffnet - ein eigener Betrachter dafür ist
-        // bewusst (noch) nicht eingebaut.
         private void OeffneErinnerungGross(GefundeneDatei datei)
         {
             if (!File.Exists(datei.VollstaendigerPfad))
@@ -1992,36 +1530,21 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeGrossBild.Source = null;
         }
 
-        // ---- Werkzeugbereich rechts: Aktionen für die Auswahl ----
-
         private void AktualisiereArbeitsmappenWerkzeuge()
         {
             int anzahl = arbeitsmappeAusgewaehlt.Count;
 
             ArbeitsmappeAuswahlText.Text = James.ArbeitsmappeAuswahlText(anzahl);
 
-            // Build 2.4: "Erinnerungen zuordnen" (Person) erlaubt jetzt
-            // ebenfalls Mehrfachauswahl - eine Person besitzt eine ganze
-            // Erinnerungssammlung, nicht nur ein einzelnes Titelbild.
             ArbeitsmappeNeuesEreignisAnlegenButton.IsEnabled = anzahl > 0;
             ArbeitsmappeMitEreignisVerbindenButton.IsEnabled = anzahl > 0;
             ArbeitsmappeNeuePersonAnlegenButton.IsEnabled = anzahl > 0;
             ArbeitsmappePersonZuordnenButton.IsEnabled = anzahl > 0;
             ArbeitsmappeMarkierungAufhebenButton.IsEnabled = anzahl > 0;
 
-            // Build 5.0: die beiden Wege für freie (personenunabhängige)
-            // Ereignisse - gleichberechtigt neben den Personen-Wegen.
             ArbeitsmappeNeuesFreiesEreignisButton.IsEnabled = anzahl > 0;
             ArbeitsmappeFreiesEreignisZuordnenButton.IsEnabled = anzahl > 0;
 
-            // Bug 2 (Build 2.4): Vorher wurden hier IMMER alle offenen
-            // Unterformulare geschlossen, sobald sich die Auswahl auch
-            // nur um eine einzige Erinnerung änderte (z.B. weiter
-            // Kästchen angekreuzt, während man mitten in "Neues Ereignis
-            // anlegen" war) - das ließ Formulare scheinbar grundlos
-            // "verschwinden". Jetzt werden die Unterformulare nur noch
-            // geschlossen, wenn die Auswahl komplett aufgehoben wurde -
-            // dann ergibt eine offene Zuordnung ohnehin keinen Sinn mehr.
             if (anzahl == 0)
             {
                 VersteckeAlleArbeitsmappenPanels();
@@ -2046,8 +1569,6 @@ namespace DAS_LEBENSARCHIV
             return arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad);
         }
 
-        // ---- Weg 1: Vorhandenem Ereignis zuordnen (jetzt mit Mehrfachauswahl) ----
-
         private void ArbeitsmappeMitEreignisVerbinden_Click(object sender, RoutedEventArgs e)
         {
             if (arbeitsmappeAusgewaehlt.Count == 0)
@@ -2055,13 +1576,6 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // Etappe A.6: dieselbe Korrektur wie bereits bei Weg 4
-            // (ArbeitsmappePersonZuordnen_Click, Build 2.5) - ein bereits
-            // bei einer archivierten Person angelegtes Ereignis muss
-            // trotzdem zuverlässig auswählbar bleiben. Vorher wurden hier
-            // ausschließlich Personen vom Schreibtisch angeboten, wodurch
-            // deren Ereignisse für die Arbeitsmappe unsichtbar wurden,
-            // sobald die Person archiviert war.
             List<Person> alleAuswaehlbarenPersonen = allePersonen
                 .Concat(ArchivListe.Items.Cast<Person>())
                 .ToList();
@@ -2079,9 +1593,6 @@ namespace DAS_LEBENSARCHIV
             Person person = ArbeitsmappePersonComboBox.SelectedItem as Person;
             ArbeitsmappeEreignisComboBox.ItemsSource = person != null ? person.Ereignisse : null;
 
-            // Build 2.7: sichtbare Diagnose statt Annahme - zeigt sofort und
-            // überprüfbar, ob der Handler tatsächlich ausgeführt wurde und
-            // wie viele Ereignisse die gewählte Person tatsächlich besitzt.
             if (person != null)
             {
                 int anzahlEreignisse = person.Ereignisse != null ? person.Ereignisse.Count : 0;
@@ -2108,19 +1619,6 @@ namespace DAS_LEBENSARCHIV
             AktualisiereArbeitsmappe();
         }
 
-        // Gemeinsame Kopier-/Verknüpfungslogik: Die erste Erinnerung wird
-        // (falls noch nicht vorhanden) zum Titelbild des Ereignisses, alle
-        // weiteren landen in WeitereFotoDateinamen (Build 2.2). Wird sowohl
-        // von "Vorhandenem Ereignis zuordnen" als auch vom neuen "Neues
-        // Ereignis anlegen"-Weg genutzt. Andere Dateitypen als Bilder
-        // werden dabei übersprungen statt einen Fehler zu zeigen.
-        // Etappe B.1: der eigentliche Kopiervorgang ist für Personen- und
-        // freie Ereignisse identisch und wurde deshalb hierher
-        // zusammengeführt. Was anschließend mit dem Ergebnis geschieht
-        // (Meldungstext, welche Anzeigen aktualisiert werden), bleibt
-        // bewusst in den beiden Aufrufern getrennt - das unterscheidet
-        // sich zwischen Personen- und freien Ereignissen tatsächlich
-        // (z.B. der zusätzliche Erinnerungs-Zähler der Person).
         private int VerbindeDateienMitEreignis(Ereignis ereignis, List<string> pfade, string zielOrdner)
         {
             int verbunden = 0;
@@ -2199,20 +1697,11 @@ namespace DAS_LEBENSARCHIV
                         ? James.ArbeitsmappeVerbunden(ereignis.Titel, person.ToString(), gesamtErinnerungen)
                         : James.ArbeitsmappeVerbundenMehrere(verbunden, ereignis.Titel, person.ToString(), gesamtErinnerungen);
 
-                    // Build 2.3, Punkt 1: "Ereignis öffnen" anbieten, ohne
-                    // die Arbeitsmappe zu verlassen (rein optional, auf
-                    // Wunsch des Benutzers).
                     ZeigeArbeitsmappeEreignisOeffnenButton(person, ereignis);
                 }
 
                 if (verbunden > 0)
                 {
-                    // Build 2.3, Punkt 4: alle betroffenen Anzeigen sofort
-                    // aktualisieren - Erinnerungskarte (falls sie genau
-                    // dieses Ereignis zeigt), Schreibtisch (falls genau
-                    // diese Person dort gerade ausgewählt ist, inkl.
-                    // Erinnerungen-Zähler) und die Arbeitsmappe selbst
-                    // (Kachel-Status, siehe Aufrufer).
                     AktualisiereErinnerungskarteFallsBetroffen(person, ereignis);
                     AktualisiereSchreibtischFallsBetroffen(person);
                 }
@@ -2222,13 +1711,6 @@ namespace DAS_LEBENSARCHIV
                 James.Problem(James.FehlerBeimSpeichernFoto(ex.Message));
             }
         }
-
-        // ---- Weg 2: Neues Ereignis anlegen (Build 2.2) ----
-        // Da ein Ereignis architektonisch stets zu einer Person gehört,
-        // wird zunächst kurz gefragt, für welche Person es angelegt wird -
-        // danach übernimmt das bekannte Ereignisformular auf dem
-        // Schreibtisch, und James kehrt nach dem Speichern von selbst
-        // zur Arbeitsmappe zurück.
 
         private void ArbeitsmappeNeuesEreignisAnlegen_Click(object sender, RoutedEventArgs e)
         {
@@ -2276,10 +1758,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeEreignisTitelTextBox.Focus();
         }
 
-        // Build 2.2a: Speichert das neue Ereignis vollständig innerhalb
-        // der Arbeitsmappe - kein Wechsel zum Schreibtisch, kein
-        // Windows-Dateidialog. Die markierten Erinnerungen werden direkt
-        // im Anschluss verknüpft.
         private void ArbeitsmappeEreignisSpeichern_Click(object sender, RoutedEventArgs e)
         {
             Person person = arbeitsmappeNeuesEreignisPerson;
@@ -2338,9 +1816,6 @@ namespace DAS_LEBENSARCHIV
             person.Ereignisse.Add(neuesEreignis);
             person.ModifiedAt = DateTime.Now;
 
-            // Build 2.3, Punkt 1+4: Das Ereignis wird sofort gespeichert,
-            // unabhängig davon, ob im Anschluss auch Fotos verknüpft
-            // werden konnten - so geht es nie "unsichtbar" verloren.
             SpeichereDaten();
 
             List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
@@ -2365,8 +1840,6 @@ namespace DAS_LEBENSARCHIV
             AktualisiereArbeitsmappe();
         }
 
-        // ---- Weg 3: Neue Person anlegen (Build 2.2a, komplett inline) ----
-
         private void ArbeitsmappeNeuePersonAnlegen_Click(object sender, RoutedEventArgs e)
         {
             if (arbeitsmappeAusgewaehlt.Count == 0)
@@ -2385,10 +1858,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeNeuePersonVornameTextBox.Focus();
         }
 
-        // Build 2.2a: Legt die neue Person vollständig innerhalb der
-        // Arbeitsmappe an - kein Wechsel zum Schreibtisch, kein
-        // Windows-Dateidialog. Die markierte Erinnerung wird direkt im
-        // Anschluss als Titelbild übernommen.
         private void ArbeitsmappeNeuePersonSpeichern_Click(object sender, RoutedEventArgs e)
         {
             string vorname = ArbeitsmappeNeuePersonVornameTextBox.Text.Trim();
@@ -2418,9 +1887,6 @@ namespace DAS_LEBENSARCHIV
             SortiereAllePersonen();
             AktualisierePersonenAnzeige();
 
-            // Wie beim Ereignis (Build 2.3): die Person wird sofort
-            // gespeichert, unabhängig davon, ob im Anschluss auch
-            // Erinnerungen zugeordnet werden konnten.
             SpeichereDaten();
 
             List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
@@ -2435,12 +1901,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // BUILD 5.1: DIE STARTSEITE ALS ZENTRALER EINSTIEGSPUNKT
         // ============================================================
-        // "Womit möchten wir uns heute beschäftigen?" - der Benutzer
-        // trifft genau eine Entscheidung, James stellt anschließend die
-        // passende Arbeitsumgebung bereit. Dokumente/Erinnerungen
-        // durchsuchen/Letzte Arbeit fortsetzen sind bewusst nur sichtbar,
-        // aber deaktiviert (IsEnabled="False" in der XAML) - sie erhalten
-        // erst in späteren Bauabschnitten ihre Funktion.
 
         private void StartseitePersonButton_Click(object sender, RoutedEventArgs e)
         {
@@ -2484,21 +1944,12 @@ namespace DAS_LEBENSARCHIV
 
             StartseiteBereich.Visibility = Visibility.Visible;
 
-            // Build 6.0: der Vorschlag kann sich seit dem letzten Besuch
-            // der Startseite verändert haben (z.B. weil gerade eine neue
-            // Erinnerung zugeordnet wurde) - deshalb sicherheitshalber
-            // neu ermitteln.
             ZeigeStartseiteVorschlag();
         }
 
         // ============================================================
-        // BUILD 5.1: EREIGNISVERWALTUNG (DIESELBE BEDIENLOGIK WIE
-        // DIE PERSONENVERWALTUNG)
+        // BUILD 5.1: EREIGNISVERWALTUNG
         // ============================================================
-        // Ein einfaches Eingabefeld ("Ereignis: ____") - James macht
-        // keinerlei Namensvorschläge, der Benutzer vergibt den Namen
-        // selbst. Auswählen eines vorhandenen Ereignisses in der Liste
-        // füllt das Formular zum Bearbeiten, genau wie bei Personen.
 
         private void EreignisListeSchreibtisch_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -2538,8 +1989,6 @@ namespace DAS_LEBENSARCHIV
 
             if (aktuellBearbeitetesFreiesEreignis != null)
             {
-                // Vorhandenes Ereignis bearbeiten - unverändert wie bisher,
-                // dieselbe Bedienlogik wie beim Bearbeiten einer Person.
                 aktuellBearbeitetesFreiesEreignis.Titel = titel;
                 aktuellBearbeitetesFreiesEreignis.ModifiedAt = DateTime.Now;
 
@@ -2562,9 +2011,6 @@ namespace DAS_LEBENSARCHIV
             }
             else
             {
-                // Build 6.0: Ein neu angelegtes Ereignis wird zur Mappe -
-                // James kehrt NICHT zu einer leeren Eingabemaske zurück,
-                // sondern öffnet unmittelbar die neue Ereignismappe.
                 Ereignis neuesEreignis = new Ereignis { Titel = titel };
 
                 freieEreignisse.Add(neuesEreignis);
@@ -2581,13 +2027,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // BUILD 6.0: DIE EREIGNISMAPPE
         // ============================================================
-        // Nach dem Anlegen eines neuen Ereignisses fragt James sofort,
-        // was der Benutzer der Mappe hinzufügen möchte. Nur "Bilder"
-        // funktioniert bereits vollständig (nutzt die bestehende
-        // Arbeitsmappe, Build 5.0) - Dokumente/Videos/Kommentare sind
-        // bewusst nur sichtbar, aber deaktiviert (kein Platzhalterdialog,
-        // wie ausdrücklich gewünscht) und dienen als vorbereitete
-        // Arbeitsbereiche für spätere Bauabschnitte.
 
         private Ereignis aktuelleEreignismappe = null;
 
@@ -2608,10 +2047,6 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // Wiederverwendung der bestehenden Arbeitsmappe (Build 5.0):
-            // dort ordnet der Benutzer markierte Erinnerungen über
-            // "Vorhandenem Ereignis zuordnen" bereits jetzt diesem
-            // Ereignis zu - keine neue Zuordnungslogik nötig.
             string ereignisTitel = aktuelleEreignismappe.Titel;
 
             EreignismappeBereich.Visibility = Visibility.Collapsed;
@@ -2675,14 +2110,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // BUILD 5.0: ERINNERUNGEN ÜBER PERSONEN ODER EREIGNISSE
         // ============================================================
-        // Architekturerweiterung: ein "freies" Ereignis ist eigenständig,
-        // unabhängig von jeder Person. James macht dabei keinerlei
-        // Namensvorschläge - der Benutzer vergibt den Namen selbst, und
-        // nur selbst angelegte Ereignisse erscheinen später zur Auswahl.
-        // Grundsatz: James verwaltet ausschließlich Wissen, das der
-        // Benutzer selbst angelegt oder ausdrücklich bestätigt hat.
-
-        // ---- Weg: Neues freies Ereignis anlegen ----
 
         private void ArbeitsmappeNeuesFreiesEreignisAnlegen_Click(object sender, RoutedEventArgs e)
         {
@@ -2708,10 +2135,6 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // Etappe A.5, Punkt 3: versehentliche Dubletten vermeiden -
-            // James fragt höflich nach, statt kommentarlos ein weiteres,
-            // gleichnamiges Ereignis anzulegen. Der Benutzer kann sich
-            // trotzdem bewusst für ein neues Ereignis entscheiden.
             Ereignis bestehendesEreignis = freieEreignisse
                 .Concat(freieEreignisseArchiv)
                 .FirstOrDefault(ereignis => string.Equals((ereignis.Titel ?? "").Trim(), titel, StringComparison.OrdinalIgnoreCase));
@@ -2728,10 +2151,6 @@ namespace DAS_LEBENSARCHIV
                 freieEreignisse.Add(zielEreignis);
             }
 
-            // Wie bei Person/Ereignis (Build 2.2a/2.3): sofort speichern,
-            // unabhängig davon, ob im Anschluss auch eine Erinnerung
-            // zugeordnet werden kann - das Ereignis darf nie "unsichtbar"
-            // verloren gehen.
             SpeichereDaten();
             AktualisiereFreieEreignisseAnzeige();
 
@@ -2741,8 +2160,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeNeuesFreiesEreignisPanel.Visibility = Visibility.Collapsed;
             AktualisiereArbeitsmappe();
         }
-
-        // ---- Weg: Vorhandenem freien Ereignis zuordnen ----
 
         private void ArbeitsmappeFreiesEreignisZuordnen_Click(object sender, RoutedEventArgs e)
         {
@@ -2757,9 +2174,6 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // Die Auswahlliste enthält ausschließlich bereits vom Benutzer
-            // selbst angelegte Ereignisse (auch archivierte) - James
-            // erzeugt keine eigenen Vorschläge.
             List<Ereignis> alleAuswaehlbaren = freieEreignisse.Concat(freieEreignisseArchiv).ToList();
 
             FreiesEreignisComboBox.ItemsSource = alleAuswaehlbaren;
@@ -2786,9 +2200,6 @@ namespace DAS_LEBENSARCHIV
             AktualisiereArbeitsmappe();
         }
 
-        // Gemeinsame Kopier-/Verknüpfungslogik für freie Ereignisse -
-        // arbeitet genau wie VerknuepfeArbeitsmappenDateienMitEreignis,
-        // nur ohne Personenbezug und mit eigenem Ordnerzweig.
         private void VerknuepfeArbeitsmappenDateienMitFreiemEreignis(Ereignis ereignis, List<string> pfade)
         {
             if (ereignis == null || pfade == null || pfade.Count == 0)
@@ -2825,8 +2236,6 @@ namespace DAS_LEBENSARCHIV
                 James.Problem(James.FehlerBeimSpeichernFoto(ex.Message));
             }
         }
-
-        // ---- Übersicht "Meine freien Ereignisse" ----
 
         private void AktualisiereFreieEreignisseAnzeige()
         {
@@ -2877,9 +2286,6 @@ namespace DAS_LEBENSARCHIV
             FreiesEreignisInPapierkorbButton.IsEnabled = istAusgewaehlt;
         }
 
-        // Etappe A.5, Punkt 2: dieselbe Bedienlogik wie Loeschen_Click bei
-        // Personen (Papierkorb statt sofortigem, endgültigem Löschen),
-        // hier für ein oder mehrere freie Ereignisse.
         private void FreiesEreignisInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -2959,16 +2365,11 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeStatusText.Text = James.FreiesEreignisArchiviert(ereignis.Titel);
         }
 
-        // ---- Build 6.0, Punkt 6: Archivierte Ereignisse (dieselbe
-        // Bedienlogik wie das bereits bestehende Personen-Archiv) ----
-
         private void ArchivEreignisseListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ArchivEreignisAktionPanel.Visibility = Visibility.Collapsed;
         }
 
-        // Etappe B.1b, Punkt 1+3: dasselbe Bedienprinzip wie ArchivAktion_Click
-        // beim Personen-Archiv.
         private void ArchivEreignisAktion_Click(object sender, RoutedEventArgs e)
         {
             if (ArchivEreignisseListe.SelectedItem == null)
@@ -3019,10 +2420,6 @@ namespace DAS_LEBENSARCHIV
             AktualisiereFreieEreignisseAnzeige();
         }
 
-        // Etappe A.5, Punkt 2: auch aus dem Ereignis-Archiv heraus soll
-        // ein Ereignis in den Papierkorb gelegt werden können - dieselbe
-        // Logik wie FreiesEreignisInPapierkorb_Click, nur ausgehend von
-        // freieEreignisseArchiv statt freieEreignisse.
         private void ArchivEreignisInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = ArchivEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -3053,10 +2450,6 @@ namespace DAS_LEBENSARCHIV
             SpeichereDaten();
             AktualisiereFreieEreignisseAnzeige();
         }
-
-        // ---- Etappe A.5, Punkt 2: Papierkorb für freie Ereignisse
-        // (dieselbe Bedienlogik wie Wiederherstellen_Click/
-        // EndgueltigLoeschen_Click bei Personen) ----
 
         private void FreieEreignissePapierkorbListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -3123,9 +2516,6 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
-        // Blendet alle Arbeitsmappen-Unterformulare aus - wird vor dem
-        // Öffnen eines einzelnen Weges aufgerufen, damit niemals zwei
-        // gleichzeitig sichtbar sind.
         private void VersteckeAlleArbeitsmappenPanels()
         {
             ArbeitsmappeEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
@@ -3137,9 +2527,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
-        // Build 2.3, Punkt 1: "Ereignis öffnen" merken und anbieten, ohne
-        // die Arbeitsmappe automatisch zu verlassen - der Benutzer
-        // entscheidet selbst, ob er jetzt hinüberspringen möchte.
         private void ZeigeArbeitsmappeEreignisOeffnenButton(Person person, Ereignis ereignis)
         {
             arbeitsmappeLetztesEreignisPerson = person;
@@ -3163,15 +2550,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeEreignisOeffnenButton.Visibility = Visibility.Collapsed;
         }
 
-        // Gemeinsame Verknüpfungslogik für den Weg "Neue/Vorhandene Person
-        // zuordnen" - genau eine Erinnerung wird zum Titelbild, analog zu
-        // ArbeitsmappeTitelbildBestaetigen_Click.
-        // Build 2.4, Bugfix "Titelbild ≠ Erinnerungssammlung": Jede
-        // ausgewählte Erinnerung wird jetzt dauerhaft in
-        // Person.ErinnerungsDateinamen aufgenommen (die eigentliche
-        // Sammlung). Das Titelbild wird nur automatisch gesetzt, wenn die
-        // Person noch gar keines besitzt - ein bereits gewähltes
-        // Titelbild wird durch weitere Erinnerungen NICHT überschrieben.
         private void VerknuepfeArbeitsmappenDateienMitPerson(Person person, List<string> pfade)
         {
             if (person == null || pfade == null || pfade.Count == 0)
@@ -3235,9 +2613,6 @@ namespace DAS_LEBENSARCHIV
                     ? James.ArbeitsmappeErinnerungZugeordnet(person.ToString(), gesamtErinnerungen)
                     : James.ArbeitsmappeErinnerungenZugeordnetMehrere(verbunden, person.ToString(), gesamtErinnerungen);
 
-                // Build 2.3/2.4, Punkt 3+4: sofort überall aktualisieren,
-                // wo diese Person gerade sichtbar sein könnte - niemals
-                // das Bild/die Sammlung einer anderen Person stehen lassen.
                 AktualisiereSchreibtischFallsBetroffen(person);
                 AktualisiereErinnerungskarteFallsBetroffen(person, null);
             }
@@ -3247,8 +2622,6 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
-        // ---- Weg 4: Erinnerungen einer vorhandenen Person zuordnen (jetzt mit Mehrfachauswahl) ----
-
         private void ArbeitsmappePersonZuordnen_Click(object sender, RoutedEventArgs e)
         {
             if (arbeitsmappeAusgewaehlt.Count == 0)
@@ -3256,10 +2629,6 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // Build 2.5: Da der bisherige Weg über den Archiv-Reiter
-            // ("Foto hinzufügen/ändern") entfällt, muss diese Liste auch
-            // archivierte Personen umfassen - sonst würden archivierte
-            // Personen keine Erinnerungen mehr zugeordnet bekommen können.
             List<Person> alleAuswaehlbarenPersonen = allePersonen
                 .Concat(ArchivListe.Items.Cast<Person>())
                 .ToList();
@@ -3271,9 +2640,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappePersonAuswahlPanel.Visibility = Visibility.Visible;
         }
 
-        // Build 2.7: sichtbare Diagnose - bestätigt sofort und überprüfbar,
-        // welche Person ausgewählt wurde und wie viele Erinnerungen sie VOR
-        // der Zuordnung bereits besitzt.
         private void ArbeitsmappeTitelbildPersonComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Person person = ArbeitsmappeTitelbildPersonComboBox.SelectedItem as Person;
@@ -3299,10 +2665,6 @@ namespace DAS_LEBENSARCHIV
 
             VerknuepfeArbeitsmappenDateienMitPerson(person, pfade);
 
-            // Build 2.7: sichtbare Diagnose NACH der Zuordnung - überschreibt
-            // bewusst absichtlich die Meldung aus VerknuepfeArbeitsmappen-
-            // DateienMitPerson, damit die tatsächlich aktuell im
-            // Datenbestand stehende Zahl unmittelbar überprüfbar ist.
             int anzahlNachher = ZaehleErinnerungenDerPerson(person);
             ArbeitsmappeStatusText.Text = James.DiagnoseNachZuordnung(person.ToString(), anzahlNachher);
 
@@ -3321,22 +2683,7 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // ETAPPE A: DIE EINHEITLICHE EREIGNISLISTE (Vorbereitung)
         // ============================================================
-        // Baut "alleEreignisse" ausschließlich aus den bereits vorhandenen,
-        // unveränderten Strukturen auf - rein additiv, rein lesend, keine
-        // neue Persistenz. Wird aktuell von keiner Oberfläche verwendet;
-        // dient ausschließlich als geprüfte Grundlage für spätere Etappen
-        // (z.B. eine Suche, die auch freie Ereignisse findet).
-        //
-        // Bewusst analog zum bestehenden Muster der James-Suche
-        // (SammleTrefferFuerPerson/FuehreJamesSucheAus): Personen auf dem
-        // Schreibtisch und im Archiv werden berücksichtigt, der Papierkorb
-        // bewusst nicht (dort liegen Erinnerungen, die entfernt werden
-        // sollen - genau wie die bisherige Suche das schon handhabt).
-        // Etappe B (Build 2.9)/Build 3.0: vom Erinnerungsfenster aus
-        // aufgerufen - liest die bisher gemerkten Merkmale (samt
-        // Kategorie) zu genau einer Erinnerung (identifiziert über ihren
-        // Dateinamen, siehe ErinnerungsGedaechtnisEintrag oben). Gibt
-        // bewusst Kopien zurück, keine internen Referenzen. Rein lesend.
+
         private List<VisuellesMerkmal> LiesVisuelleMerkmale(string dateiname)
         {
             ErinnerungsGedaechtnisEintrag eintrag = erinnerungsGedaechtnis
@@ -3359,10 +2706,6 @@ namespace DAS_LEBENSARCHIV
                 .ToList();
         }
 
-        // Speichert die vollständige, aktuelle Liste der Merkmale zu
-        // einer Erinnerung. Der Benutzer hat bereits selbst
-        // hinzugefügt/entfernt (James' erstes Gesetz) - dieser Aufruf
-        // schreibt nur noch das Ergebnis.
         private void SpeichereVisuelleMerkmale(string dateiname, List<VisuellesMerkmal> merkmale)
         {
             ErinnerungsGedaechtnisEintrag eintrag = erinnerungsGedaechtnis
@@ -3378,10 +2721,7 @@ namespace DAS_LEBENSARCHIV
 
             SpeichereDaten();
         }
-        // Build 3.1: liefert James' Wissensbibliothek (MerkmalAuswertung)
-        // den Zugriff auf das gesamte Erinnerungsgedächtnis, ohne dass
-        // ErinnerungenFenster selbst dieses Feld kennen muss - gleiches
-        // Prinzip wie schon bei LiesVisuelleMerkmale/SpeichereVisuelleMerkmale.
+
         private int ZaehleVorkommenVisuellesMerkmal(string bezeichnung, string kategorie, string aktuellerDateiname)
         {
             return MerkmalAuswertung.ZaehleVorkommen(erinnerungsGedaechtnis, bezeichnung, kategorie, aktuellerDateiname);
@@ -3391,10 +2731,8 @@ namespace DAS_LEBENSARCHIV
         {
             List<EreignisEintrag> neu = new List<EreignisEintrag>();
 
-            // Personengebundene Ereignisse - Schreibtisch
             foreach (Person person in allePersonen)
             {
-
                 if (person.Ereignisse == null)
                 {
                     continue;
@@ -3411,7 +2749,6 @@ namespace DAS_LEBENSARCHIV
                 }
             }
 
-            // Personengebundene Ereignisse - Archiv
             foreach (object element in ArchivListe.Items)
             {
                 Person person = element as Person;
@@ -3432,7 +2769,6 @@ namespace DAS_LEBENSARCHIV
                 }
             }
 
-            // Freie Ereignisse (Build 5.0)
             foreach (Ereignis ereignis in freieEreignisse)
             {
                 neu.Add(new EreignisEintrag
@@ -3454,336 +2790,6 @@ namespace DAS_LEBENSARCHIV
             }
 
             alleEreignisse = neu;
-        }
-
-        private void SortiereAllePersonen()
-        {
-            allePersonen = allePersonen
-                .OrderBy(p => p.Nachname ?? "")
-                .ThenBy(p => p.Vorname ?? "")
-                .ToList();
-        }
-
-        // Zeigt in PersonenListe nur die Personen, die zum Suchtext passen
-        private void AktualisierePersonenAnzeige()
-        {
-            Person vorherAusgewaehlt = PersonenListe.SelectedItem as Person;
-            string suchtext = SucheTextBox == null ? "" : SucheTextBox.Text.Trim().ToLower();
-
-            IEnumerable<Person> gefiltert = allePersonen;
-
-            if (suchtext != "")
-            {
-                gefiltert = allePersonen.Where(p =>
-                    (p.Vorname != null && p.Vorname.ToLower().Contains(suchtext)) ||
-                    (p.Nachname != null && p.Nachname.ToLower().Contains(suchtext)));
-            }
-
-            PersonenListe.Items.Clear();
-
-            foreach (Person person in gefiltert)
-            {
-                PersonenListe.Items.Add(person);
-            }
-
-            if (vorherAusgewaehlt != null && PersonenListe.Items.Contains(vorherAusgewaehlt))
-            {
-                PersonenListe.SelectedItem = vorherAusgewaehlt;
-            }
-
-            AnzahlText.Text = allePersonen.Count + " Erinnerungen";
-        }
-
-        private void Suche_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            AktualisierePersonenAnzeige();
-        }
-
-       
-
-        private void Speichern_Click(object sender, RoutedEventArgs e)
-        {
-            string vorname = VornameTextBox.Text.Trim();
-            string nachname = NachnameTextBox.Text.Trim();
-
-            if (vorname == "" && nachname == "")
-            {
-                James.Hinweis(James.BitteErstNamenEingeben);
-
-                VornameTextBox.Focus();
-                return;
-            }
-
-            Person gespeichertePerson;
-
-            if (aktuellBearbeitetePerson != null)
-            {
-                // Vorhandene Person aktualisieren.
-                aktuellBearbeitetePerson.Vorname = vorname;
-                aktuellBearbeitetePerson.Nachname = nachname;
-                aktuellBearbeitetePerson.Geburt = GeburtTextBox.Text.Trim();
-                aktuellBearbeitetePerson.Ort = OrtTextBox.Text.Trim();
-                aktuellBearbeitetePerson.Beziehung = ErstelleBeziehungAusEingabe();
-                aktuellBearbeitetePerson.ModifiedAt = DateTime.Now;
-
-                SortiereAllePersonen();
-                AktualisierePersonenAnzeige();
-
-                SpeichereDaten();
-
-                ZeigeStatusMeldung(James.ErinnerungAktualisiert(aktuellBearbeitetePerson.ToString()));
-
-                gespeichertePerson = aktuellBearbeitetePerson;
-            }
-            else
-            {
-                // Neue Person anlegen
-                Person neuePerson = new Person
-                {
-                    Vorname = vorname,
-                    Nachname = nachname,
-                    Geburt = GeburtTextBox.Text.Trim(),
-                    Ort = OrtTextBox.Text.Trim(),
-                    Beziehung = ErstelleBeziehungAusEingabe()
-                };
-
-                allePersonen.Add(neuePerson);
-
-                SortiereAllePersonen();
-                AktualisierePersonenAnzeige();
-
-                SpeichereDaten();
-
-                ZeigeStatusMeldung(James.ErinnerungGespeichert(neuePerson.ToString()));
-
-                gespeichertePerson = neuePerson;
-            }
-
-            // Ergonomie (Build 2.1a): Nach jedem erfolgreichen Speichern -
-            // ob neu angelegt oder aktualisiert - wird das Formular
-            // vollständig zurückgesetzt. Der Benutzer kann dadurch sofort
-            // die nächste Person erfassen, ohne die vorherige zuerst
-            // archivieren zu müssen. Da gleichzeitig aktuellBearbeitetePerson
-            // auf null gesetzt wird, würde ein versehentlicher zweiter Klick
-            // auf "Speichern" bei leeren Feldern nur den Hinweis "bitte
-            // Namen eingeben" zeigen, statt Daten zu überschreiben.
-            aktuellBearbeitetePerson = null;
-
-            VornameTextBox.Clear();
-            NachnameTextBox.Clear();
-            GeburtTextBox.Clear();
-            OrtTextBox.Clear();
-            BeziehungRolleComboBox.Text = "";
-
-            if (PersonenListe.SelectedItem != null)
-            {
-                PersonenListe.SelectedItem = null;
-            }
-
-            VornameTextBox.Focus();
-        }
-
-        private void Loeschen_Click(object sender, RoutedEventArgs e)
-        {
-            List<Person> ausgewaehltePersonen = PersonenListe.SelectedItems.Cast<Person>().ToList();
-
-            if (ausgewaehltePersonen.Count == 0)
-            {
-                James.Hinweis(James.BittePersonenAuswaehlen);
-
-                return;
-            }
-
-            string frage;
-
-            if (ausgewaehltePersonen.Count == 1)
-            {
-                frage = James.FrageInPapierkorbEinzeln(ausgewaehltePersonen[0].ToString());
-            }
-            else
-            {
-                frage = James.FrageInPapierkorbMehrere(ausgewaehltePersonen.Count);
-            }
-
-            bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
-
-            if (ergebnis)
-            {
-                foreach (Person person in ausgewaehltePersonen)
-                {
-                    allePersonen.Remove(person);
-                    PapierkorbListe.Items.Add(person);
-
-                    if (aktuellBearbeitetePerson == person)
-                    {
-                        aktuellBearbeitetePerson = null;
-                    }
-                }
-
-                AktualisierePersonenAnzeige();
-                SpeichereDaten();
-
-                VornameTextBox.Clear();
-                NachnameTextBox.Clear();
-                GeburtTextBox.Clear();
-                OrtTextBox.Clear();
-                BeziehungRolleComboBox.Text = "";
-
-                PersonFotoBild.Source = null;
-                EreignisseListe.Items.Clear();
-                EreignisAuswahlPanel.Visibility = Visibility.Collapsed;
-                EreignisFotoBild.Source = null;
-
-                if (ausgewaehltePersonen.Count == 1)
-                {
-                    ZeigeStatusMeldung(James.InPapierkorbGelegtEinzeln(ausgewaehltePersonen[0].ToString()));
-                }
-                else
-                {
-                    ZeigeStatusMeldung(James.InPapierkorbGelegtMehrere(ausgewaehltePersonen.Count));
-                }
-            }
-        }
-
-        private void Bearbeiten_Click(object sender, RoutedEventArgs e)
-        {
-            if (PersonenListe.SelectedItem == null)
-            {
-                James.Hinweis(James.BittePersonAuswaehlen);
-
-                return;
-            }
-
-            Person person = PersonenListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            VornameTextBox.Text = person.Vorname;
-            NachnameTextBox.Text = person.Nachname;
-            GeburtTextBox.Text = person.Geburt;
-            OrtTextBox.Text = person.Ort;
-
-            aktuellBearbeitetePerson = person;
-
-            ZeigeBeziehung(person);
-
-            VornameTextBox.Focus();
-        }
-
-        private void Archivieren_Click(object sender, RoutedEventArgs e)
-        {
-            List<Person> ausgewaehltePersonen = PersonenListe.SelectedItems.Cast<Person>().ToList();
-
-            if (ausgewaehltePersonen.Count == 0)
-            {
-                James.Hinweis(James.BittePersonenAuswaehlen);
-
-                return;
-            }
-
-            foreach (Person person in ausgewaehltePersonen)
-            {
-                allePersonen.Remove(person);
-                ArchivListe.Items.Add(person);
-
-                if (aktuellBearbeitetePerson == person)
-                {
-                    aktuellBearbeitetePerson = null;
-                }
-            }
-
-            AktualisierePersonenAnzeige();
-            SpeichereDaten();
-
-            VornameTextBox.Clear();
-            NachnameTextBox.Clear();
-            GeburtTextBox.Clear();
-            OrtTextBox.Clear();
-            BeziehungRolleComboBox.Text = "";
-
-            PersonFotoBild.Source = null;
-            EreignisseListe.Items.Clear();
-            EreignisAuswahlPanel.Visibility = Visibility.Collapsed;
-            EreignisFotoBild.Source = null;
-
-            if (ausgewaehltePersonen.Count == 1)
-            {
-                ZeigeStatusMeldung(James.ImArchivAngekommen(ausgewaehltePersonen[0].ToString()));
-            }
-            else
-            {
-                ZeigeStatusMeldung(James.ImArchivAngekommenMehrere(ausgewaehltePersonen.Count));
-            }
-        }
-
-        private void Wiederherstellen_Click(object sender, RoutedEventArgs e)
-        {
-            List<Person> ausgewaehltePersonen = PapierkorbListe.SelectedItems.Cast<Person>().ToList();
-
-            if (ausgewaehltePersonen.Count == 0)
-            {
-                James.Hinweis(James.BittePapierkorbAuswaehlen);
-
-                return;
-            }
-
-            foreach (Person person in ausgewaehltePersonen)
-            {
-                PapierkorbListe.Items.Remove(person);
-                allePersonen.Add(person);
-            }
-
-            SortiereAllePersonen();
-            AktualisierePersonenAnzeige();
-
-            SpeichereDaten();
-
-            if (ausgewaehltePersonen.Count == 1)
-            {
-                James.Hinweis(James.WiederhergestelltEinzeln(ausgewaehltePersonen[0].ToString()), James.TitelWiederhergestellt);
-            }
-            else
-            {
-                James.Hinweis(James.WiederhergestelltMehrere(ausgewaehltePersonen.Count), James.TitelWiederhergestellt);
-            }
-        }
-
-        private void EndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
-        {
-            List<Person> ausgewaehltePersonen = PapierkorbListe.SelectedItems.Cast<Person>().ToList();
-
-            if (ausgewaehltePersonen.Count == 0)
-            {
-                James.Hinweis(James.BittePapierkorbAuswaehlen);
-
-                return;
-            }
-
-            string frage;
-
-            if (ausgewaehltePersonen.Count == 1)
-            {
-                frage = James.FrageEndgueltigLoeschenEinzeln(ausgewaehltePersonen[0].ToString());
-            }
-            else
-            {
-                frage = James.FrageEndgueltigLoeschenMehrere(ausgewaehltePersonen.Count);
-            }
-
-            bool ergebnis = James.FrageJaNein(frage, James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);
-
-            if (ergebnis)
-            {
-                foreach (Person person in ausgewaehltePersonen)
-                {
-                    PapierkorbListe.Items.Remove(person);
-                }
-
-                SpeichereDaten();
-            }
         }
     }
 }

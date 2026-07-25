@@ -232,6 +232,43 @@ namespace DAS_LEBENSARCHIV
             James.Hinweis(James.ArbeitsmappeUmleitungEreignis(ereignis.Titel));
         }
 
+        // Neue Funktion (Wunsch aus dem Generaltest): ein einzelnes
+        // Ereignis einer Person löschen, ohne dabei die ganze Person
+        // löschen/archivieren zu müssen. Bewusst ohne eigenen Papierkorb
+        // gehalten (kleine, klar begrenzte Funktion) - dafür mit
+        // derselben Sicherheitsabfrage wie an anderen Stellen im
+        // Programm, damit nichts aus Versehen verschwindet.
+        private void EreignisLoeschen_Click(object sender, RoutedEventArgs e)
+        {
+            Person person = PersonenListe.SelectedItem as Person;
+            Ereignis ereignis = EreignisseListe.SelectedItem as Ereignis;
+
+            if (person == null || ereignis == null)
+            {
+                James.Hinweis(James.BitteEreignisAuswaehlen);
+                return;
+            }
+
+            bool ergebnis = James.FrageJaNein(
+                James.FrageEndgueltigLoeschenEinzeln(ereignis.Titel),
+                James.TitelEndgueltigeEntscheidung,
+                MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            person.Ereignisse.Remove(ereignis);
+            person.ModifiedAt = DateTime.Now;
+
+            SpeichereDaten();
+
+            AktualisiereEreignisseAnzeige(person);
+
+            ZeigeStatusMeldung("„" + ereignis.Titel + "\u201c wurde gelöscht.");
+        }
+
         private void EreignisHinzufuegen_Click(object sender, RoutedEventArgs e)
         {
             Person person = PersonenListe.SelectedItem as Person;

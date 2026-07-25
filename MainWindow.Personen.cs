@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -587,7 +587,35 @@ namespace DAS_LEBENSARCHIV
 
             if (ausgewaehltePersonen.Count == 1)
             {
-                James.Hinweis(James.WiederhergestelltEinzeln(ausgewaehltePersonen[0].ToString()), James.TitelWiederhergestellt);
+                Person wiederhergestelltePerson = ausgewaehltePersonen[0];
+
+                // Dieselbe Anzeige-Logik wie beim Zurückholen aus dem Archiv
+                // (siehe HoleAusArchivZurueckAufSchreibtisch) - fehlte hier
+                // bisher, wodurch die wiederhergestellte Person "leer"
+                // wirkte, obwohl die Daten tatsächlich korrekt da waren.
+                HauptTabControl.SelectedIndex = 0;
+
+                StartseiteBereich.Visibility = Visibility.Collapsed;
+                EreignisBereich.Visibility = Visibility.Collapsed;
+                EreignismappeBereich.Visibility = Visibility.Collapsed;
+                PersonenFormularBereich.Visibility = Visibility.Visible;
+                PersonenListeBereich.Visibility = Visibility.Visible;
+
+                PersonenListe.SelectedItem = wiederhergestelltePerson;
+
+                VornameTextBox.Text = wiederhergestelltePerson.Vorname;
+                NachnameTextBox.Text = wiederhergestelltePerson.Nachname;
+                GeburtTextBox.Text = wiederhergestelltePerson.Geburt;
+                OrtTextBox.Text = wiederhergestelltePerson.Ort;
+
+                aktuellBearbeitetePerson = wiederhergestelltePerson;
+
+                ZeigeBeziehung(wiederhergestelltePerson);
+                ZeigeFoto(wiederhergestelltePerson);
+                AktualisiereEreignisseAnzeige(wiederhergestelltePerson);
+                ZeigePersonErinnerungenLink(wiederhergestelltePerson);
+
+                James.Hinweis(James.WiederhergestelltEinzeln(wiederhergestelltePerson.ToString()), James.TitelWiederhergestellt);
             }
             else
             {

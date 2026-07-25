@@ -717,6 +717,14 @@
                                     HorizontalAlignment="Left"
                                     Margin="0,0,0,20"
                                     Click="EreignisFotoHinzufuegen_Click"/>
+                                <Button
+    Name="EreignisLoeschenButton"
+    Content="Ereignis löschen"
+    Width="240"
+    Height="32"
+    HorizontalAlignment="Left"
+    Margin="0,10,0,0"
+    Click="EreignisLoeschen_Click"/>
 
                                 <TextBlock
                                     FontWeight="Bold"

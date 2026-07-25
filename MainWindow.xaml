@@ -1633,6 +1633,14 @@
                     <StackPanel Grid.Row="0" Margin="0,0,0,14">
 
                         <TextBlock
+    Text="◄ Zur Startseite"
+    Foreground="#2E7D32"
+    FontWeight="Bold"
+    TextDecorations="Underline"
+    Cursor="Hand"
+    Margin="0,0,0,10"
+    MouseLeftButtonUp="ArbeitsmappeZurueckZurStartseite_Click"/>
+                        <TextBlock
                             Name="ArbeitsmappeUeberschriftText"
                             FontSize="16"
                             FontWeight="Bold"
@@ -1675,6 +1683,9 @@
                         <Button Name="ArbeitsmappeVorherigeSeiteButton" Content="◀ Vorherige Seite" Padding="10,4" Margin="0,0,10,0" Click="ArbeitsmappeVorherigeSeite_Click"/>
                         <TextBlock Name="ArbeitsmappeSeiteText" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <Button Name="ArbeitsmappeNaechsteSeiteButton" Content="Nächste Seite ▶" Padding="10,4" Click="ArbeitsmappeNaechsteSeite_Click"/>
+                        <TextBlock Text="Gehe zu Seite" VerticalAlignment="Center" Margin="20,0,6,0"/>
+                        <TextBox Name="ArbeitsmappeSeiteZahlTextBox" Width="50" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Button Name="ArbeitsmappeSeiteGehenButton" Content="Los" Padding="10,4" Click="ArbeitsmappeSeiteGehen_Click"/>
                     </StackPanel>
 
                     <!-- Hauptbereich: Kacheln links, Werkzeuge rechts -->

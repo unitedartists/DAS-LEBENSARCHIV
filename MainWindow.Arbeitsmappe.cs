@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -34,6 +34,13 @@ namespace DAS_LEBENSARCHIV
         private void ArbeitsmappeOeffnenButton_Click(object sender, RoutedEventArgs e)
         {
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
+        }
+
+        // Komfortfunktion: grüner Link "Zurück zur Startseite" in der Arbeitsmappe
+        private void ArbeitsmappeZurueckZurStartseite_Click(object sender, MouseButtonEventArgs e)
+        {
+            HauptTabControl.SelectedIndex = 0;
+            ZurStartseite_Click(sender, e);
         }
 
         private int arbeitsmappeOeffnenZaehler = 0;
@@ -235,6 +242,18 @@ namespace DAS_LEBENSARCHIV
         {
             arbeitsmappeSeite++;
             AktualisiereArbeitsmappe();
+        }
+
+        // Komfortfunktion: direkt zu einer bestimmten Seite springen
+        private void ArbeitsmappeSeiteGehen_Click(object sender, RoutedEventArgs e)
+        {
+            int gewuenschteSeite;
+
+            if (int.TryParse(ArbeitsmappeSeiteZahlTextBox.Text.Trim(), out gewuenschteSeite))
+            {
+                arbeitsmappeSeite = gewuenschteSeite;
+                AktualisiereArbeitsmappe();
+            }
         }
 
         private static string ArbeitsmappeSymbolFuerDateityp(string dateityp)

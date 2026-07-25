@@ -28,6 +28,22 @@ namespace DAS_LEBENSARCHIV
             if (HauptTabControl.SelectedIndex == ArbeitsmappeTabIndex)
             {
                 OeffneArbeitsmappe();
+                return;
+            }
+
+            if (HauptTabControl.SelectedIndex == 0)
+            {
+                bool keinBereichSichtbar =
+                    StartseiteBereich.Visibility != Visibility.Visible &&
+                    PersonenListeBereich.Visibility != Visibility.Visible &&
+                    EreignisBereich.Visibility != Visibility.Visible &&
+                    EreignismappeBereich.Visibility != Visibility.Visible;
+
+                if (keinBereichSichtbar)
+                {
+                    StartseiteBereich.Visibility = Visibility.Visible;
+                    ZeigeStartseiteVorschlag();
+                }
             }
         }
 

@@ -16,9 +16,9 @@ namespace DAS_LEBENSARCHIV
 
         private void AktualisiereEreignisseAnzeige(Person person)
         {
+            Ereignis aktuellAusgewaehlt = EreignisseListe.SelectedItem as Ereignis;
+
             EreignisseListe.Items.Clear();
-            EreignisAuswahlPanel.Visibility = Visibility.Collapsed;
-            EreignisFotoBild.Source = null;
 
             if (person != null && person.Ereignisse != null)
             {
@@ -26,6 +26,16 @@ namespace DAS_LEBENSARCHIV
                 {
                     EreignisseListe.Items.Add(ereignis);
                 }
+            }
+
+            if (aktuellAusgewaehlt != null && person != null && person.Ereignisse != null && person.Ereignisse.Contains(aktuellAusgewaehlt))
+            {
+                EreignisseListe.SelectedItem = aktuellAusgewaehlt;
+            }
+            else
+            {
+                EreignisAuswahlPanel.Visibility = Visibility.Collapsed;
+                EreignisFotoBild.Source = null;
             }
         }
 

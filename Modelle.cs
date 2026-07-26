@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
@@ -92,6 +92,39 @@ namespace DAS_LEBENSARCHIV
     }
 
     // ============================================================
+    // NEUE FUNKTION (Generaltest 2, Wunsch von Oma+Opa): DIE SAMMLUNG
+    // ============================================================
+    // Eine dritte, eigenständige Schublade neben Person und besonderem
+    // Ereignis - für Erinnerungen, die zu keiner Person und keinem
+    // datierten Ereignis gehören, sondern zu einem Thema ("Sammlung
+    // Hund", "Sammlung Bäume", "Sammlung Fische"). Bewusst schlank
+    // gehalten (nur Titel + Fotos) - kein Datum, kein Ort, keine
+    // Jahreszeit, keine Stichwörter, da eine Sammlung anders als ein
+    // Ereignis keinen Zeitpunkt/Ort hat, sondern rein thematisch ist.
+    // ============================================================
+    public class Sammlung : ArchivObjekt
+    {
+        public string Titel { get; set; }
+
+        public string SammlungFotoDateiname { get; set; }
+
+        public List<string> WeitereFotoDateinamen { get; set; } = new List<string>();
+
+        public override string ToString()
+        {
+            int anzahlErinnerungen = (string.IsNullOrEmpty(SammlungFotoDateiname) ? 0 : 1)
+                + (WeitereFotoDateinamen != null ? WeitereFotoDateinamen.Count : 0);
+
+            if (anzahlErinnerungen > 0)
+            {
+                return Titel + " (" + anzahlErinnerungen + (anzahlErinnerungen == 1 ? " Erinnerung)" : " Erinnerungen)");
+            }
+
+            return Titel + " (angelegt " + CreatedAt.ToString("dd.MM.yyyy HH:mm") + ")";
+        }
+    }
+
+    // ============================================================
     // BUILD 1.2: BEZIEHUNGEN VERSTEHEN
     // ============================================================
     public class Beziehung
@@ -141,6 +174,10 @@ namespace DAS_LEBENSARCHIV
         public List<Ereignis> FreieEreignisseArchiv { get; set; }
 
         public List<Ereignis> FreieEreignissePapierkorb { get; set; }
+
+        public List<Sammlung> Sammlungen { get; set; }
+        public List<Sammlung> SammlungenArchiv { get; set; }
+        public List<Sammlung> SammlungenPapierkorb { get; set; }
 
         public List<ErinnerungsGedaechtnisEintrag> ErinnerungsGedaechtnis { get; set; }
 

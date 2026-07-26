@@ -37,7 +37,8 @@ namespace DAS_LEBENSARCHIV
                     StartseiteBereich.Visibility != Visibility.Visible &&
                     PersonenListeBereich.Visibility != Visibility.Visible &&
                     EreignisBereich.Visibility != Visibility.Visible &&
-                    EreignismappeBereich.Visibility != Visibility.Visible;
+                    EreignismappeBereich.Visibility != Visibility.Visible &&
+                    SammlungBereich.Visibility != Visibility.Visible;
 
                 if (keinBereichSichtbar)
                 {

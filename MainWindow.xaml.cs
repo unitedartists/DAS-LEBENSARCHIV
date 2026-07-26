@@ -26,6 +26,10 @@ namespace DAS_LEBENSARCHIV
         // Ereignisverwaltung auf dem Schreibtisch (dieselbe Bedienlogik
         // wie bei der Personenverwaltung).
         private Ereignis aktuellBearbeitetesFreiesEreignis = null;
+
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): dritte
+        // Schublade "Sammlung" - analog zu aktuellBearbeitetesFreiesEreignis.
+        private Sammlung aktuellBearbeiteteSammlung = null;
         private DispatcherTimer statusTimer;
 
         // Hauptliste aller Personen (unabhängig davon, was gerade angezeigt/gefiltert wird)
@@ -38,6 +42,12 @@ namespace DAS_LEBENSARCHIV
 
         // Etappe A.5, Punkt 2: Papierkorb für freie Ereignisse.
         private List<Ereignis> freieEreignissePapierkorb = new List<Ereignis>();
+
+        // Neue Funktion (Generaltest 2): Sammlungen - dritte Schublade
+        // neben Personen und besonderen Ereignissen, analog aufgebaut.
+        private List<Sammlung> sammlungen = new List<Sammlung>();
+        private List<Sammlung> sammlungenArchiv = new List<Sammlung>();
+        private List<Sammlung> sammlungenPapierkorb = new List<Sammlung>();
 
         // Etappe B (Build 2.9): visuelles Gedächtnis.
         private List<ErinnerungsGedaechtnisEintrag> erinnerungsGedaechtnis = new List<ErinnerungsGedaechtnisEintrag>();
@@ -307,6 +317,7 @@ namespace DAS_LEBENSARCHIV
             StartseiteBereich.Visibility = Visibility.Collapsed;
             EreignisBereich.Visibility = Visibility.Collapsed;
             EreignismappeBereich.Visibility = Visibility.Collapsed;
+            SammlungBereich.Visibility = Visibility.Collapsed;
 
             PersonenFormularBereich.Visibility = Visibility.Visible;
             PersonenListeBereich.Visibility = Visibility.Visible;
@@ -318,6 +329,7 @@ namespace DAS_LEBENSARCHIV
             PersonenFormularBereich.Visibility = Visibility.Collapsed;
             PersonenListeBereich.Visibility = Visibility.Collapsed;
             EreignismappeBereich.Visibility = Visibility.Collapsed;
+            SammlungBereich.Visibility = Visibility.Collapsed;
 
             EreignisBereich.Visibility = Visibility.Visible;
 
@@ -341,10 +353,38 @@ namespace DAS_LEBENSARCHIV
             PersonenListeBereich.Visibility = Visibility.Collapsed;
             EreignisBereich.Visibility = Visibility.Collapsed;
             EreignismappeBereich.Visibility = Visibility.Collapsed;
+            SammlungBereich.Visibility = Visibility.Collapsed;
 
             StartseiteBereich.Visibility = Visibility.Visible;
 
             ZeigeStartseiteVorschlag();
+        }
+
+        // Neue Funktion (Wunsch aus Generaltest 2): dritte Schublade
+        // "Sammlung" neben Person und besonderem Ereignis - dieselbe
+        // Bedienlogik wie StartseiteEreignisButton_Click.
+        private void StartseiteSammlungButton_Click(object sender, RoutedEventArgs e)
+        {
+            StartseiteBereich.Visibility = Visibility.Collapsed;
+            PersonenFormularBereich.Visibility = Visibility.Collapsed;
+            PersonenListeBereich.Visibility = Visibility.Collapsed;
+            EreignisBereich.Visibility = Visibility.Collapsed;
+            EreignismappeBereich.Visibility = Visibility.Collapsed;
+
+            SammlungBereich.Visibility = Visibility.Visible;
+
+            aktuellBearbeiteteSammlung = null;
+            SammlungTitelSchreibtischTextBox.Clear();
+            SammlungErinnerungenLinkText.Visibility = Visibility.Collapsed;
+            SammlungSchreibtischArchivierenButton.Visibility = Visibility.Collapsed;
+
+            if (SammlungenListeSchreibtisch.SelectedItem != null)
+            {
+                SammlungenListeSchreibtisch.SelectedItem = null;
+            }
+
+            AktualisiereSammlungenAnzeige();
+            SammlungTitelSchreibtischTextBox.Focus();
         }
 
 

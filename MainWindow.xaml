@@ -972,7 +972,9 @@
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
@@ -1172,6 +1174,76 @@
 
                         </GroupBox>
 
+                        <!-- Neue Funktion (Generaltest 2): dritte Schublade
+                             "Sammlung" - dasselbe Bedienprinzip wie bei
+                             Personen und Ereignissen. -->
+                        <GroupBox
+                            Grid.Column="4"
+                            Header="Archivierte Sammlungen">
+
+                            <Grid>
+
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="200"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ListBox
+                                    Name="ArchivSammlungenListe"
+                                    Grid.Column="0"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="ArchivSammlungenListe_SelectionChanged"/>
+
+                                <StackPanel Grid.Column="2">
+
+                                    <Button
+                                        Name="ArchivSammlungAktionButton"
+                                        Content="Was möchten wir tun?"
+                                        Width="180"
+                                        Height="40"
+                                        Margin="0,0,0,10"
+                                        HorizontalAlignment="Left"
+                                        Click="ArchivSammlungAktion_Click"/>
+
+                                    <StackPanel
+                                        Name="ArchivSammlungAktionPanel"
+                                        Visibility="Collapsed">
+
+                                        <Button
+                                            Name="ArchivSammlungErinnerungenAnsehenButton"
+                                            Content="Erinnerungen ansehen"
+                                            Width="180"
+                                            Height="36"
+                                            Margin="0,0,0,8"
+                                            HorizontalAlignment="Left"
+                                            Click="ArchivSammlungErinnerungenAnsehen_Click"/>
+
+                                        <Button
+                                            Name="ArchivSammlungWiederherstellenButton"
+                                            Content="Zurück auf den Schreibtisch"
+                                            Width="180"
+                                            Height="36"
+                                            Margin="0,0,0,8"
+                                            HorizontalAlignment="Left"
+                                            Click="ArchivSammlungWiederherstellen_Click"/>
+
+                                        <Button
+                                            Name="ArchivSammlungInPapierkorbButton"
+                                            Content="In den Papierkorb legen"
+                                            Width="180"
+                                            Height="36"
+                                            HorizontalAlignment="Left"
+                                            Click="ArchivSammlungInPapierkorb_Click"/>
+
+                                    </StackPanel>
+
+                                </StackPanel>
+
+                            </Grid>
+
+                        </GroupBox>
+
                     </Grid>
 
                 </Grid>
@@ -1231,6 +1303,8 @@
                 <Grid Margin="40">
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -1326,6 +1400,51 @@
                                 Height="40"
                                 IsEnabled="False"
                                 Click="FreiesEreignisEndgueltigLoeschen_Click"/>
+
+                        </StackPanel>
+
+                    </Grid>
+
+                    <!-- Neue Funktion (Generaltest 2): Papierkorb für
+                         Sammlungen, dieselbe Bedienlogik wie oben. -->
+                    <TextBlock
+                        Grid.Row="5"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Margin="0,20,0,4"
+                        Text="Papierkorb (Sammlungen)"/>
+
+                    <Grid Grid.Row="6">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ListBox
+                            Name="SammlungenPapierkorbListe"
+                            Grid.Column="0"
+                            SelectionMode="Extended"
+                            SelectionChanged="SammlungenPapierkorbListe_SelectionChanged"/>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Margin="16,0,0,0">
+
+                            <Button
+                                Name="SammlungWiederherstellenButton"
+                                Content="Wiederherstellen"
+                                Height="40"
+                                Margin="0,0,0,10"
+                                IsEnabled="False"
+                                Click="SammlungWiederherstellen_Click"/>
+
+                            <Button
+                                Name="SammlungEndgueltigLoeschenButton"
+                                Content="Endgültig löschen"
+                                Height="40"
+                                IsEnabled="False"
+                                Click="SammlungEndgueltigLoeschen_Click"/>
 
                         </StackPanel>
 
@@ -1864,6 +1983,34 @@
 
                                 <Button Content="In die Asservatenkammer legen" Width="200" Height="32" HorizontalAlignment="Left" Margin="0,0,0,20" IsEnabled="False"/>
 
+                                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
+                                 Sammlung - dritte Schublade für thematische
+                                 Erinnerungen ohne Person und ohne Datum. -->
+                                <TextBlock
+                                FontWeight="Bold"
+                                Margin="0,0,0,4"
+                                Text="Sammlung"/>
+
+                                <Button
+                                Name="ArbeitsmappeNeueSammlungButton"
+                                Content="Neue Sammlung anlegen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeNeueSammlungAnlegen_Click"/>
+
+                                <Button
+                                Name="ArbeitsmappeSammlungZuordnenButton"
+                                Content="Bestehender Sammlung zuordnen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeSammlungZuordnen_Click"/>
+
                                 <!-- Build 5.0: Übersicht aller vom Benutzer selbst
                                  angelegten, freien Ereignisse. -->
                                 <TextBlock
@@ -1909,6 +2056,85 @@
                                 Margin="0,0,0,20"
                                 IsEnabled="False"
                                 Click="FreiesEreignisInPapierkorb_Click"/>
+
+                                <!-- Neue Funktion (Generaltest 2): Übersicht aller
+                                 vom Benutzer selbst angelegten Sammlungen. -->
+                                <TextBlock
+                                FontWeight="Bold"
+                                Margin="0,0,0,4"
+                                Text="Meine Sammlungen"/>
+
+                                <ListBox
+                                Name="FreieSammlungenListe"
+                                Height="120"
+                                Margin="0,0,0,8"
+                                SelectionMode="Extended"
+                                SelectionChanged="FreieSammlungenListe_SelectionChanged"/>
+
+                                <Button
+                                Name="SammlungErinnerungenAnsehenButton"
+                                Content="Erinnerungen ansehen"
+                                Width="200"
+                                Height="32"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="SammlungErinnerungenAnsehen_Click"/>
+
+                                <Button
+                                Name="SammlungArchivierenButton"
+                                Content="Archivieren"
+                                Width="200"
+                                Height="32"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="SammlungArchivieren_Click"/>
+
+                                <Button
+                                Name="SammlungInPapierkorbButton"
+                                Content="In den Papierkorb legen"
+                                Width="200"
+                                Height="32"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="SammlungInPapierkorb_Click"/>
+
+                                <!-- Inline-Auswahl: Neue Sammlung -->
+                                <StackPanel Name="ArbeitsmappeNeueSammlungPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Neue Sammlung" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
+                                    <TextBox Name="SammlungTitelTextBox" Padding="4" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="SammlungSpeichernButton"
+                                    Content="Speichern und zuordnen"
+                                    Width="180"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="SammlungSpeichernUndZuordnen_Click"/>
+
+                                </StackPanel>
+
+                                <!-- Inline-Auswahl: Bestehende Sammlung zuordnen -->
+                                <StackPanel Name="ArbeitsmappeSammlungAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Welcher Sammlung zuordnen?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                    <ComboBox Name="SammlungComboBox" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="SammlungZuordnenBestaetigenButton"
+                                    Content="Zuordnen"
+                                    Width="140"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="SammlungBestaetigen_Click"/>
+
+                                </StackPanel>
 
                                 <!-- Inline-Auswahl: Vorhandenem Ereignis zuordnen -->
                                 <StackPanel Name="ArbeitsmappeEreignisAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">

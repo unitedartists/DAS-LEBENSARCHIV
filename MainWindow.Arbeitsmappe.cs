@@ -481,6 +481,9 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeNeuesFreiesEreignisButton.IsEnabled = anzahl > 0;
             ArbeitsmappeFreiesEreignisZuordnenButton.IsEnabled = anzahl > 0;
 
+            ArbeitsmappeNeueSammlungButton.IsEnabled = anzahl > 0;
+            ArbeitsmappeSammlungZuordnenButton.IsEnabled = anzahl > 0;
+
             if (anzahl == 0)
             {
                 VersteckeAlleArbeitsmappenPanels();

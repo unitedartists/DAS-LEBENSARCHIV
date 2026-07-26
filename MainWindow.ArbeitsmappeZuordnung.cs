@@ -347,6 +347,8 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeNeuePersonPanel.Visibility = Visibility.Collapsed;
             ArbeitsmappeNeuesFreiesEreignisPanel.Visibility = Visibility.Collapsed;
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
+            ArbeitsmappeNeueSammlungPanel.Visibility = Visibility.Collapsed;
+            ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
         private void ZeigeArbeitsmappeEreignisOeffnenButton(Person person, Ereignis ereignis)

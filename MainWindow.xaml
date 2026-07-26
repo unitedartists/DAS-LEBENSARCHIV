@@ -11,34 +11,6 @@
 
     <DockPanel>
 
-        <!-- Menü -->
-        <Menu DockPanel.Dock="Top">
-
-            <MenuItem Header="Datei">
-                <MenuItem Header="Neues Archiv"/>
-                <MenuItem Header="Archiv öffnen"/>
-                <Separator/>
-                <MenuItem Header="Speichern"/>
-                <Separator/>
-                <MenuItem Header="Beenden"/>
-            </MenuItem>
-
-            <MenuItem Header="Personen"/>
-            <MenuItem Header="Ereignisse"/>
-            <MenuItem Header="Dokumente"/>
-            <MenuItem Header="Erinnerungen"/>
-
-            <MenuItem Header="Werkzeuge">
-                <MenuItem Header="Computer kennenlernen" Click="WerkzeugeMenuComputerKennenlernen_Click"/>
-                <MenuItem Header="Erinnerungen aufräumen" Click="WerkzeugeMenuErinnerungenAufraeumen_Click"/>
-            </MenuItem>
-
-            <MenuItem Header="Suche"/>
-            <MenuItem Header="Einstellungen" Click="MenuEinstellungen_Click"/>
-            <MenuItem Header="Hilfe"/>
-
-        </Menu>
-
         <!-- Build 1.7: James macht Vorschläge - ganz oben, noch vor dem
              Suchfeld. Niemals als Popup, niemals aufdringlich. James
              entscheidet nicht, er schlägt nur vor - deshalb jederzeit
@@ -718,13 +690,13 @@
                                     Margin="0,0,0,20"
                                     Click="EreignisFotoHinzufuegen_Click"/>
                                 <Button
-    Name="EreignisLoeschenButton"
-    Content="Ereignis löschen"
-    Width="240"
-    Height="32"
-    HorizontalAlignment="Left"
-    Margin="0,10,0,0"
-    Click="EreignisLoeschen_Click"/>
+                                    Name="EreignisLoeschenButton"
+                                    Content="Ereignis löschen"
+                                    Width="240"
+                                    Height="32"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,10,0,0"
+                                    Click="EreignisLoeschen_Click"/>
 
                                 <TextBlock
                                     FontWeight="Bold"
@@ -1781,11 +1753,11 @@
                                 <TextBlock
                                 FontWeight="Bold"
                                 Margin="0,0,0,4"
-                                Text="Ereignis"/>
+                                Text="Besonderes Ereignis"/>
 
                                 <Button
                                 Name="ArbeitsmappeNeuesFreiesEreignisButton"
-                                Content="Neues Ereignis anlegen"
+                                Content="Neues besonderes Ereignis anlegen"
                                 Width="200"
                                 Height="36"
                                 HorizontalAlignment="Left"
@@ -1795,7 +1767,7 @@
 
                                 <Button
                                 Name="ArbeitsmappeFreiesEreignisZuordnenButton"
-                                Content="Vorhandenem Ereignis zuordnen"
+                                Content="Bestehendem besonderen Ereignis zuordnen"
                                 Width="200"
                                 Height="36"
                                 HorizontalAlignment="Left"
@@ -1817,7 +1789,7 @@
                                 <TextBlock
                                 FontWeight="Bold"
                                 Margin="0,0,0,4"
-                                Text="Meine besonderen Ereignisse"/>
+                                Text="Besondere Ereignisse"/>
 
                                 <ListBox
                                 Name="FreieEreignisseListe"

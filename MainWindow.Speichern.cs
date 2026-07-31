@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -72,6 +72,31 @@ namespace DAS_LEBENSARCHIV
                             freieEreignissePapierkorb.AddRange(daten.FreieEreignissePapierkorb);
                         }
 
+                        // Neue Funktion (Generaltest 2): Sammlungen laden -
+                        // dasselbe additive Muster wie bei freien
+                        // Ereignissen (altes Dateiformat kennt dieses Feld
+                        // noch nicht, dann bleibt die Liste einfach leer).
+                        if (daten.Sammlungen != null)
+                        {
+                            sammlungen.AddRange(daten.Sammlungen);
+                        }
+
+                        if (daten.SammlungenArchiv != null)
+                        {
+                            sammlungenArchiv.AddRange(daten.SammlungenArchiv);
+                        }
+
+                        if (daten.SammlungenPapierkorb != null)
+                        {
+                            sammlungenPapierkorb.AddRange(daten.SammlungenPapierkorb);
+                        }
+
+                        // Neue Funktion (Generaltest 2): Asservatenkammer.
+                        if (daten.Asservatenkammer != null)
+                        {
+                            asservatenkammer.AddRange(daten.Asservatenkammer);
+                        }
+
                         // Etappe B (Build 2.9): dasselbe additive Muster -
                         // altes Dateiformat kennt dieses Feld noch nicht,
                         // dann bleibt die Liste einfach leer.
@@ -101,6 +126,8 @@ namespace DAS_LEBENSARCHIV
                     SortiereAllePersonen();
                     AktualisierePersonenAnzeige();
                     AktualisiereFreieEreignisseAnzeige();
+                    AktualisiereSammlungenAnzeige();
+                    AktualisiereAsservatenkammerAnzeige();
                     AktualisiereEinheitlicheEreignisliste();
                 }
             }
@@ -124,6 +151,10 @@ namespace DAS_LEBENSARCHIV
                     FreieEreignisse = freieEreignisse,
                     FreieEreignisseArchiv = freieEreignisseArchiv,
                     FreieEreignissePapierkorb = freieEreignissePapierkorb,
+                    Sammlungen = sammlungen,
+                    SammlungenArchiv = sammlungenArchiv,
+                    SammlungenPapierkorb = sammlungenPapierkorb,
+                    Asservatenkammer = asservatenkammer,
                     ErinnerungsGedaechtnis = erinnerungsGedaechtnis,
                     WissensBeziehungen = wissensBeziehungen
                 };

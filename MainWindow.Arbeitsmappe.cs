@@ -84,6 +84,7 @@ namespace DAS_LEBENSARCHIV
 
             AktualisiereArbeitsmappenFilterButtons();
             AktualisiereArbeitsmappe();
+            PruefeUndZeigeDuplikateInArbeitsmappe();
         }
 
         private HashSet<string> LadeArbeitsmappeZugeordnet()
@@ -168,7 +169,13 @@ namespace DAS_LEBENSARCHIV
                     (d.VollstaendigerPfad != null && d.VollstaendigerPfad.ToLower().Contains(suchtext)));
             }
 
-            return ergebnis.OrderBy(d => d.Dateiname).ToList();
+            // Punkt 3 (Optimierung nach Test 2): bereits zugeordnete
+            // Erinnerungen verschwinden automatisch aus James' Vorlage -
+            // hier bleiben nur noch nicht zugeordnete Erinnerungen übrig.
+            ergebnis = ergebnis.Where(d => !arbeitsmappeBereitsZugeordnet.Contains(d.VollstaendigerPfad));
+
+            // Punkt 3: chronologische Anzeige (nach Aufnahme-/Änderungsdatum).
+            return ergebnis.OrderBy(d => d.Geaendert).ToList();
         }
 
         private void ArbeitsmappeFilter_Click(object sender, RoutedEventArgs e)
@@ -246,6 +253,11 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeVorherigeSeiteButton.IsEnabled = arbeitsmappeSeite > 1;
             ArbeitsmappeNaechsteSeiteButton.IsEnabled = arbeitsmappeSeite < gesamtSeiten;
 
+            // Punkt 2 (Optimierung nach Test 2): garantiert, dass die erste
+            // Zeile sofort sichtbar ist, ohne dass erst manuell gescrollt
+            // werden muss.
+            ArbeitsmappeKachelnScrollViewer.ScrollToTop();
+
             AktualisiereArbeitsmappenWerkzeuge();
         }
 
@@ -291,8 +303,8 @@ namespace DAS_LEBENSARCHIV
         {
             Border rahmen = new Border
             {
-                Width = 150,
-                Height = 200,
+                Width = 210,
+                Height = 260,
                 Margin = new Thickness(6),
                 BorderBrush = Brushes.LightGray,
                 BorderThickness = new Thickness(1),
@@ -327,8 +339,8 @@ namespace DAS_LEBENSARCHIV
 
             Border bildRahmen = new Border
             {
-                Width = 130,
-                Height = 100,
+                Width = 190,
+                Height = 135,
                 Background = Brushes.WhiteSmoke,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -342,7 +354,7 @@ namespace DAS_LEBENSARCHIV
                     BitmapImage bild = new BitmapImage();
                     bild.BeginInit();
                     bild.CacheOption = BitmapCacheOption.OnLoad;
-                    bild.DecodePixelWidth = 220;
+                    bild.DecodePixelWidth = 320;
                     bild.UriSource = new Uri(datei.VollstaendigerPfad);
                     bild.EndInit();
 
@@ -363,6 +375,30 @@ namespace DAS_LEBENSARCHIV
             }
 
             inhalt.Children.Add(bildRahmen);
+
+            // Punkt 1 (Optimierung nach Test 2): bei Dokumenten, PDF, Video
+            // und Audio reicht ein Icon allein nicht - der Benutzer muss
+            // erkennen können, welche konkrete Erinnerung sich dahinter
+            // verbirgt. Zeigt daher zusätzlich die gespeicherte Bezeichnung
+            // (den Dateinamen) an. Bei Bildern nicht nötig, da man den
+            // Inhalt bereits an der Vorschau erkennt.
+            if (datei.Dateityp != "Bilder")
+            {
+                TextBlock dateinameText = new TextBlock
+                {
+                    Text = datei.Dateiname,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxHeight = 34,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.Black,
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+
+                inhalt.Children.Add(dateinameText);
+            }
 
             string statusTextInhalt;
 
@@ -483,6 +519,10 @@ namespace DAS_LEBENSARCHIV
 
             ArbeitsmappeNeueSammlungButton.IsEnabled = anzahl > 0;
             ArbeitsmappeSammlungZuordnenButton.IsEnabled = anzahl > 0;
+
+            // Punkt 3 (Optimierung nach Test 2): eigenständiger Button,
+            // unabhängig von Person/Ereignis/Sammlung.
+            ArbeitsmappeMarkierteInAsservatenkammerButton.IsEnabled = anzahl > 0;
 
             if (anzahl == 0)
             {

@@ -169,7 +169,7 @@ namespace DAS_LEBENSARCHIV
             ZeigeStatusMeldung(James.FreiesEreignisArchiviert(ereignis.Titel));
         }
         // ============================================================
-        // BUILD 5.0: ERINNERUNGEN �BER PERSONEN ODER EREIGNISSE
+        // BUILD 5.0: ERINNERUNGEN ÜBER PERSONEN ODER EREIGNISSE
         // ============================================================
 
         private void ArbeitsmappeNeuesFreiesEreignisAnlegen_Click(object sender, RoutedEventArgs e)
@@ -229,36 +229,52 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            if (freieEreignisse.Count == 0 && freieEreignisseArchiv.Count == 0)
+            if (freieEreignisse.Count == 0)
             {
                 James.Hinweis(James.BitteErstFreiesEreignisAnlegen);
                 return;
             }
 
-            List<Ereignis> alleAuswaehlbaren = freieEreignisse.Concat(freieEreignisseArchiv).ToList();
-
-            FreiesEreignisComboBox.ItemsSource = alleAuswaehlbaren;
-            FreiesEreignisComboBox.SelectedIndex = -1;
+            AktualisiereFreieEreignisseAnzeige();
 
             VersteckeAlleArbeitsmappenPanels();
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Visible;
         }
 
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Mehrfachzuordnung -
+        // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDEM
+        // markierten besonderen Ereignis zugeordnet (z.B. eine Fotoserie
+        // gleichzeitig an mehrere Ereignisse).
         private void FreiesEreignisBestaetigen_Click(object sender, RoutedEventArgs e)
         {
-            Ereignis ereignis = FreiesEreignisComboBox.SelectedItem as Ereignis;
+            List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
 
-            if (ereignis == null)
+            if (ausgewaehlteEreignisse.Count == 0)
             {
                 James.Hinweis(James.BitteEreignisAuswaehlen);
                 return;
             }
 
             List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
-            VerknuepfeArbeitsmappenDateienMitFreiemEreignis(ereignis, pfade);
 
-            ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
+            foreach (Ereignis ereignis in ausgewaehlteEreignisse)
+            {
+                List<string> pfadeKopie = new List<string>(pfade);
+                VerknuepfeArbeitsmappenDateienMitFreiemEreignis(ereignis, pfadeKopie);
+            }
+
+            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteEreignisse.Count + " besondere(s) Ereignis(se).";
+
+            // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
+            // und "Archivieren" direkt im Anschluss noch nutzbar sind.
             AktualisiereArbeitsmappe();
+        }
+
+        // Neue Funktion (Generaltest 2): einfacher Abbruch - schließt das
+        // Panel, ohne etwas zu speichern oder zu verändern.
+        private void ArbeitsmappeFreiesEreignisAbbrechen_Click(object sender, RoutedEventArgs e)
+        {
+            ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
         private void VerknuepfeArbeitsmappenDateienMitFreiemEreignis(Ereignis ereignis, List<string> pfade)
@@ -342,6 +358,7 @@ namespace DAS_LEBENSARCHIV
         {
             bool istAusgewaehlt = FreieEreignisseListe.SelectedItem != null;
 
+            FreiesEreignisZuordnenBestaetigenButton.IsEnabled = istAusgewaehlt;
             FreiesEreignisErinnerungenAnsehenButton.IsEnabled = istAusgewaehlt;
             FreiesEreignisArchivierenButton.IsEnabled = istAusgewaehlt;
             FreiesEreignisInPapierkorbButton.IsEnabled = istAusgewaehlt;
@@ -410,20 +427,25 @@ namespace DAS_LEBENSARCHIV
 
         private void FreiesEreignisArchivieren_Click(object sender, RoutedEventArgs e)
         {
-            Ereignis ereignis = FreieEreignisseListe.SelectedItem as Ereignis;
+            List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
 
-            if (ereignis == null)
+            if (ausgewaehlteEreignisse.Count == 0)
             {
                 return;
             }
 
-            freieEreignisse.Remove(ereignis);
-            freieEreignisseArchiv.Add(ereignis);
+            foreach (Ereignis ereignis in ausgewaehlteEreignisse)
+            {
+                freieEreignisse.Remove(ereignis);
+                freieEreignisseArchiv.Add(ereignis);
+            }
 
             SpeichereDaten();
             AktualisiereFreieEreignisseAnzeige();
 
-            ArbeitsmappeStatusText.Text = James.FreiesEreignisArchiviert(ereignis.Titel);
+            ArbeitsmappeStatusText.Text = ausgewaehlteEreignisse.Count == 1
+                ? James.FreiesEreignisArchiviert(ausgewaehlteEreignisse[0].Titel)
+                : ausgewaehlteEreignisse.Count + " besondere Ereignisse archiviert.";
         }
 
         private void ArchivEreignisseListe_SelectionChanged(object sender, SelectionChangedEventArgs e)

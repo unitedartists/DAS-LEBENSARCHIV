@@ -83,7 +83,7 @@
                     FontWeight="Bold"
                     FontSize="16"
                     Margin="0,0,0,8"
-                    Text="James, woran möchten Sie sich heute erinnern?"/>
+                    Text="James fragt: Womit kann ich heute dienen?"/>
 
                 <TextBox
                     Name="JamesSucheTextBox"
@@ -984,30 +984,33 @@
 
                             <Grid>
 
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="260"/>
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
                                 <ListBox
                                 Name="ArchivListe"
-                                Grid.Column="0"
+                                Grid.Row="0"
+                                Margin="0,0,0,10"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                 SelectionChanged="ArchivListe_SelectionChanged"/>
 
-                                <StackPanel Grid.Column="2">
+                                <StackPanel Grid.Row="1" Orientation="Horizontal">
 
                                     <Border
                                     BorderBrush="#CCCCCC"
                                     BorderThickness="1"
                                     Width="150"
                                     Height="150"
-                                    Margin="0,0,0,10"
-                                    HorizontalAlignment="Left">
+                                    Margin="0,0,20,0"
+                                    VerticalAlignment="Top">
                                         <Image
                                         Name="ArchivFotoBild"
                                         Stretch="Uniform"/>
                                     </Border>
+
+                                    <StackPanel>
 
                                     <Button
                                     Name="ArchivAktionButton"
@@ -1093,6 +1096,8 @@
 
                                     </StackPanel>
 
+                                    </StackPanel>
+
                                 </StackPanel>
 
                             </Grid>
@@ -1108,19 +1113,20 @@
 
                             <Grid>
 
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="200"/>
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
                                 <ListBox
                                     Name="ArchivEreignisseListe"
-                                    Grid.Column="0"
+                                    Grid.Row="0"
+                                    Margin="0,0,0,10"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                     SelectionMode="Extended"
                                     SelectionChanged="ArchivEreignisseListe_SelectionChanged"/>
 
-                                <StackPanel Grid.Column="2">
+                                <StackPanel Grid.Row="1">
 
                                     <!-- Etappe B.1b, Punkt 1+3: dasselbe Bedienprinzip
                                          wie beim Personen-Archiv - ein Menü statt
@@ -1128,7 +1134,7 @@
                                     <Button
                                         Name="ArchivEreignisAktionButton"
                                         Content="Was möchten wir tun?"
-                                        Width="180"
+                                        Width="220"
                                         Height="40"
                                         Margin="0,0,0,10"
                                         HorizontalAlignment="Left"
@@ -1141,7 +1147,7 @@
                                         <Button
                                             Name="ArchivEreignisErinnerungenAnsehenButton"
                                             Content="Erinnerungen ansehen"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             Margin="0,0,0,8"
                                             HorizontalAlignment="Left"
@@ -1152,7 +1158,7 @@
                                         <Button
                                             Name="ArchivEreignisWiederherstellenButton"
                                             Content="Zurück auf den Schreibtisch"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             Margin="0,0,0,8"
                                             HorizontalAlignment="Left"
@@ -1161,7 +1167,7 @@
                                         <Button
                                             Name="ArchivEreignisInPapierkorbButton"
                                             Content="In den Papierkorb legen"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             HorizontalAlignment="Left"
                                             Click="ArchivEreignisInPapierkorb_Click"/>
@@ -1183,24 +1189,25 @@
 
                             <Grid>
 
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="200"/>
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
                                 <ListBox
                                     Name="ArchivSammlungenListe"
-                                    Grid.Column="0"
+                                    Grid.Row="0"
+                                    Margin="0,0,0,10"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                     SelectionMode="Extended"
                                     SelectionChanged="ArchivSammlungenListe_SelectionChanged"/>
 
-                                <StackPanel Grid.Column="2">
+                                <StackPanel Grid.Row="1">
 
                                     <Button
                                         Name="ArchivSammlungAktionButton"
                                         Content="Was möchten wir tun?"
-                                        Width="180"
+                                        Width="220"
                                         Height="40"
                                         Margin="0,0,0,10"
                                         HorizontalAlignment="Left"
@@ -1213,7 +1220,7 @@
                                         <Button
                                             Name="ArchivSammlungErinnerungenAnsehenButton"
                                             Content="Erinnerungen ansehen"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             Margin="0,0,0,8"
                                             HorizontalAlignment="Left"
@@ -1222,7 +1229,7 @@
                                         <Button
                                             Name="ArchivSammlungWiederherstellenButton"
                                             Content="Zurück auf den Schreibtisch"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             Margin="0,0,0,8"
                                             HorizontalAlignment="Left"
@@ -1231,7 +1238,7 @@
                                         <Button
                                             Name="ArchivSammlungInPapierkorbButton"
                                             Content="In den Papierkorb legen"
-                                            Width="180"
+                                            Width="220"
                                             Height="36"
                                             HorizontalAlignment="Left"
                                             Click="ArchivSammlungInPapierkorb_Click"/>
@@ -1278,21 +1285,76 @@
 
                 <Grid Margin="40">
 
-                    <StackPanel VerticalAlignment="Top">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Margin="0,0,0,4"
-                            Text="Asservatenkammer"/>
+                    <TextBlock
+                        Grid.Row="0"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Margin="0,0,0,4"
+                        Text="Asservatenkammer"/>
 
-                        <TextBlock
-                            FontStyle="Italic"
-                            Foreground="#777777"
-                            TextWrapping="Wrap"
-                            Text="Manche Erinnerungen brauchen Zeit, bevor sie ihren Platz finden."/>
+                    <TextBlock
+                        Grid.Row="1"
+                        FontStyle="Italic"
+                        Foreground="#777777"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,16"
+                        Text="Manche Erinnerungen brauchen Zeit, bevor sie ihren Platz finden. Hierhin verschiebt James automatisch erkannte, exakte Duplikate - niemals gelöscht, nur beiseitegelegt."/>
 
-                    </StackPanel>
+                    <Grid Grid.Row="2">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="220"/>
+                        </Grid.ColumnDefinitions>
+
+                        <ListBox
+                            Name="AsservatenkammerListe"
+                            Grid.Column="0"
+                            SelectionMode="Extended"
+                            SelectionChanged="AsservatenkammerListe_SelectionChanged"/>
+
+                        <StackPanel Grid.Column="2">
+
+                            <Button
+                                Name="AsservatenkammerAnsehenButton"
+                                Content="Ansehen"
+                                Width="200"
+                                Height="36"
+                                Margin="0,0,0,8"
+                                HorizontalAlignment="Left"
+                                IsEnabled="False"
+                                Click="AsservatenkammerAnsehen_Click"/>
+
+                            <Button
+                                Name="AsservatenkammerZurueckholenButton"
+                                Content="Auf den Schreibtisch zurückholen"
+                                Width="200"
+                                Height="36"
+                                Margin="0,0,0,8"
+                                HorizontalAlignment="Left"
+                                IsEnabled="False"
+                                Click="AsservatenkammerZurueckholen_Click"/>
+
+                            <Button
+                                Name="AsservatenkammerEndgueltigLoeschenButton"
+                                Content="Endgültig löschen"
+                                Width="200"
+                                Height="36"
+                                Margin="0,0,0,8"
+                                HorizontalAlignment="Left"
+                                IsEnabled="False"
+                                Click="AsservatenkammerEndgueltigLoeschen_Click"/>
+
+                        </StackPanel>
+
+                    </Grid>
 
                 </Grid>
 
@@ -1369,7 +1431,7 @@
                         Margin="0,20,0,4"
                         Text="Papierkorb (besondere Ereignisse)"/>
 
-                    <Grid Grid.Row="4">
+                    <Grid Grid.Row="4" Height="220">
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -1414,7 +1476,7 @@
                         Margin="0,20,0,4"
                         Text="Papierkorb (Sammlungen)"/>
 
-                    <Grid Grid.Row="6">
+                    <Grid Grid.Row="6" Height="220">
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -1640,12 +1702,12 @@
                             TextWrapping="Wrap"
                             Foreground="#555555"
                             Margin="0,0,0,12"
-                            Text="James macht Sie auf mögliche Doppelgänger in Ihrem Erinnerungsverzeichnis aufmerksam. Er verändert dabei nichts - Sie entscheiden, was damit geschieht."/>
+                            Text="James erkennt exakte Duplikate in Ihrem Erinnerungsverzeichnis und verschiebt sie automatisch in die Asservatenkammer - dort können Sie sie in Ruhe ansehen, zurückholen oder endgültig löschen. Nichts wird dabei gelöscht."/>
 
                             <Button
                             Name="ErinnerungenAufraeumenButton"
-                            Content="Nach echten Doppelgängern suchen"
-                            Width="260"
+                            Content="Erkannte Duplikate automatisch in die Asservatenkammer verschieben"
+                            Width="420"
                             Height="40"
                             HorizontalAlignment="Left"
                             Margin="0,0,0,12"
@@ -1790,6 +1852,126 @@
                             TextWrapping="Wrap"
                             Margin="0,14,0,0"/>
 
+                            <Separator Margin="0,30,0,20"/>
+
+                            <TextBlock
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Margin="0,0,0,4"
+                            Text="Archiv-Speicherort"/>
+
+                            <TextBlock
+                            FontStyle="Italic"
+                            Foreground="#777777"
+                            TextWrapping="Wrap"
+                            Margin="0,0,0,14"
+                            Text="Hier legt James alle Erinnerungen, die Asservatenkammer und spätere Sicherungen ab. Sie können jederzeit einen anderen Ordner wählen, z.B. auf einer externen Festplatte mit mehr Speicherplatz."/>
+
+                            <TextBlock
+                            Name="ArchivSpeicherortAktuellerPfadText"
+                            TextWrapping="Wrap"
+                            Margin="0,0,0,14"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+
+                                <Button
+                                Name="ArchivSpeicherortAendernButton"
+                                Width="200"
+                                Height="44"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,12,0"
+                                Click="ArchivSpeicherortAendern_Click">
+                                    <TextBlock Text="Speicherort ändern..." TextWrapping="Wrap" TextAlignment="Center"/>
+                                </Button>
+
+                                <Button
+                                Name="ArchivSpeicherortOeffnenButton"
+                                Width="200"
+                                Height="44"
+                                HorizontalAlignment="Left"
+                                Click="ArchivSpeicherortOeffnen_Click">
+                                    <TextBlock Text="Archiv-Speicherort öffnen" TextWrapping="Wrap" TextAlignment="Center"/>
+                                </Button>
+
+                            </StackPanel>
+
+                            <TextBlock
+                            Name="ArchivUmzugStatusText"
+                            TextWrapping="Wrap"
+                            Margin="0,0,0,14"/>
+
+                            <Button
+                            Name="ArchivUmzugAbbrechenButton"
+                            Width="200"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,14"
+                            Visibility="Collapsed"
+                            Click="ArchivUmzugAbbrechen_Click">
+                                <TextBlock Text="Kopieren abbrechen" TextWrapping="Wrap" TextAlignment="Center"/>
+                            </Button>
+
+                            <!-- Wunsch des Architekten: nach dem Kopieren+Prüfen
+                                 erst ein Neustart, damit James wirklich auf den
+                                 neuen Speicherort wechselt - das Löschen des
+                                 alten Ordners wird erst danach angeboten. -->
+                            <StackPanel Name="ArchivNeustartPanel" Visibility="Collapsed" Margin="0,0,0,14">
+
+                                <Button
+                                Name="ArchivJetztNeuStartenButton"
+                                Width="200"
+                                Height="44"
+                                HorizontalAlignment="Left"
+                                Click="ArchivJetztNeuStarten_Click">
+                                    <TextBlock Text="Jetzt neu starten" TextWrapping="Wrap" TextAlignment="Center"/>
+                                </Button>
+
+                            </StackPanel>
+
+                            <!-- Wunsch des Architekten: erscheint erst nach dem
+                                 Neustart, wenn der neue Speicherort bereits aktiv
+                                 ist und der Benutzer in Ruhe geprüft hat, dass
+                                 alles vorhanden ist (Personen/Ereignisse/
+                                 Sammlungen/Bilder/Asservatenkammer). -->
+                            <StackPanel Name="ArchivAltenOrdnerPanel" Visibility="Collapsed" Margin="0,0,0,14">
+
+                                <TextBlock
+                                FontWeight="Bold"
+                                TextWrapping="Wrap"
+                                Margin="0,0,0,4"
+                                Text="Der neue Speicherort ist jetzt aktiv. Bitte prüfen Sie in Ruhe, ob Personen, Ereignisse, Sammlungen, Bilder und die Asservatenkammer vorhanden sind. Erst danach löschen Sie den alten Speicherort:"/>
+
+                                <TextBlock
+                                Name="ArchivAltenOrdnerPfadText"
+                                Foreground="#555555"
+                                TextWrapping="Wrap"
+                                Margin="0,0,0,10"/>
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <Button
+                                    Name="ArchivAltenOrdnerLeerenButton"
+                                    Width="200"
+                                    Height="52"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,12,0"
+                                    Click="ArchivAltenOrdnerLeeren_Click">
+                                        <TextBlock Text="Alten Speicherort jetzt löschen" TextWrapping="Wrap" TextAlignment="Center"/>
+                                    </Button>
+
+                                    <Button
+                                    Name="ArchivAltenOrdnerBehaltenButton"
+                                    Width="200"
+                                    Height="52"
+                                    HorizontalAlignment="Left"
+                                    Click="ArchivAltenOrdnerBehalten_Click">
+                                        <TextBlock Text="Noch nicht - später fragen" TextWrapping="Wrap" TextAlignment="Center"/>
+                                    </Button>
+
+                                </StackPanel>
+
+                            </StackPanel>
+
                         </StackPanel>
 
                     </Grid>
@@ -1801,6 +1983,12 @@
             <TabItem Header="Arbeitsmappe">
 
                 <Grid Margin="30">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="240"/>
+                    </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1825,6 +2013,27 @@
                             FontWeight="Bold"
                             TextWrapping="Wrap"
                             Margin="0,0,0,14"/>
+
+                        <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
+                             James erkennt automatisch exakte Duplikate und
+                             bietet an, sie in die Asservatenkammer zu
+                             verschieben, bevor mit dem Zuordnen begonnen wird. -->
+                        <TextBlock
+                            Name="ArbeitsmappeDuplikateHinweisText"
+                            FontWeight="Bold"
+                            Foreground="#B00020"
+                            TextWrapping="Wrap"
+                            Margin="0,0,0,8"/>
+
+                        <Button
+                            Name="ArbeitsmappeDuplikateVerschiebenButton"
+                            Content="Alle (nahezu) identischen Dateien in die Asservatenkammer verschieben"
+                            Width="420"
+                            Height="36"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,14"
+                            Visibility="Collapsed"
+                            Click="ArbeitsmappeDuplikateVerschieben_Click"/>
 
                         <!-- Build 2.8, Punkt 4: Debug-Anzeige, ob/wann
                              OeffneArbeitsmappe() tatsächlich ausgeführt wird -
@@ -1867,72 +2076,41 @@
                         <Button Name="ArbeitsmappeSeiteGehenButton" Content="Los" Padding="10,4" Click="ArbeitsmappeSeiteGehen_Click"/>
                     </StackPanel>
 
-                    <!-- Hauptbereich: Kacheln links, Werkzeuge rechts -->
-                    <Grid Grid.Row="2">
+                    <!-- Hauptbereich: Kacheln links, Werkzeuge rechts (Werkzeuge
+                         jetzt im äußeren Grid, siehe weiter unten - dadurch
+                         nutzt der Funktionsblock die volle Höhe des Reiters,
+                         von ganz oben bis unten, ohne unnötiges Scrollen. -->
+                    <Grid Grid.Row="2" Grid.Column="0">
 
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="240"/>
-                        </Grid.ColumnDefinitions>
-
-                        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer Name="ArbeitsmappeKachelnScrollViewer" VerticalScrollBarVisibility="Auto">
                             <WrapPanel Name="ArbeitsmappeKachelnPanel"/>
                         </ScrollViewer>
 
-                        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                    </Grid>
+
+                        <ScrollViewer Grid.Column="2" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
+
+                                <!-- Komfort-Optimierung (31.07.): jedes
+                                 Untermenü klappt jetzt direkt bei seiner
+                                 Kategorie auf, statt gesammelt ganz unten -
+                                 kein Herunterscrollen mehr nötig. -->
+                                <TextBlock
+                                FontWeight="Bold"
+                                FontSize="14"
+                                TextWrapping="Wrap"
+                                Margin="0,0,0,10"
+                                Text="Chronologische Zuordnung markierter Erinnerungen"/>
 
                                 <TextBlock
                                 Name="ArbeitsmappeAuswahlText"
                                 FontWeight="Bold"
                                 TextWrapping="Wrap"
-                                Margin="0,0,0,14"/>
+                                Margin="0,0,0,10"/>
 
-                                <!-- Build 2.2 "Erinnerungen zuerst": geführter Arbeitsablauf.
-                                 James führt den Benutzer, statt ihn zwischen Reitern
-                                 hin- und herspringen zu lassen (James-Regel Nr. 2). -->
-
-                                <Button
-                                Name="ArbeitsmappeNeuesEreignisAnlegenButton"
-                                Content="Neues Ereignis anlegen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeNeuesEreignisAnlegen_Click"/>
-
-                                <Button
-                                Name="ArbeitsmappeMitEreignisVerbindenButton"
-                                Content="Vorhandenem Ereignis zuordnen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeMitEreignisVerbinden_Click"/>
-
-                                <Button
-                                Name="ArbeitsmappeNeuePersonAnlegenButton"
-                                Content="Neue Person anlegen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeNeuePersonAnlegen_Click"/>
-
-                                <Button
-                                Name="ArbeitsmappePersonZuordnenButton"
-                                Content="Erinnerungen zuordnen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappePersonZuordnen_Click"/>
-
+                                <!-- "Markierung aufheben" gilt gemeinsam für alle drei
+                                 Bereiche darunter (Person/Besonderes Ereignis/Sammlung) -
+                                 deshalb einmal zentral hier, statt dreifach wiederholt. -->
                                 <Button
                                 Name="ArbeitsmappeMarkierungAufhebenButton"
                                 Content="Markierung aufheben"
@@ -1943,300 +2121,94 @@
                                 IsEnabled="False"
                                 Click="ArbeitsmappeMarkierungAufheben_Click"/>
 
-                                <!-- Build 5.0 "Erinnerungen über Personen ODER Ereignisse":
-                                 Ein "freies" Ereignis ist eigenständig, unabhängig von
-                                 jeder Person. James macht dabei keine eigenen
-                                 Namensvorschläge - der Benutzer vergibt den Namen
-                                 selbst, und nur selbst angelegte Ereignisse erscheinen
-                                 später zur Auswahl. -->
                                 <TextBlock
                                 FontWeight="Bold"
                                 Margin="0,0,0,4"
-                                Text="Besonderes Ereignis"/>
+                                Text="Person"/>
 
                                 <Button
-                                Name="ArbeitsmappeNeuesFreiesEreignisButton"
-                                Content="Neues besonderes Ereignis anlegen"
+                                Name="ArbeitsmappePersonZuordnenButton"
+                                Content="Gespeicherter Person zuordnen"
                                 Width="200"
                                 Height="36"
                                 HorizontalAlignment="Left"
                                 Margin="0,0,0,8"
                                 IsEnabled="False"
-                                Click="ArbeitsmappeNeuesFreiesEreignisAnlegen_Click"/>
-
-                                <Button
-                                Name="ArbeitsmappeFreiesEreignisZuordnenButton"
-                                Content="Bestehendem besonderen Ereignis zuordnen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,20"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeFreiesEreignisZuordnen_Click"/>
-
-                                <TextBlock
-                                FontStyle="Italic"
-                                Foreground="#999999"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,4"
-                                Text="Folgt später:"/>
-
-                                <Button Content="In die Asservatenkammer legen" Width="200" Height="32" HorizontalAlignment="Left" Margin="0,0,0,20" IsEnabled="False"/>
-
-                                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
-                                 Sammlung - dritte Schublade für thematische
-                                 Erinnerungen ohne Person und ohne Datum. -->
-                                <TextBlock
-                                FontWeight="Bold"
-                                Margin="0,0,0,4"
-                                Text="Sammlung"/>
-
-                                <Button
-                                Name="ArbeitsmappeNeueSammlungButton"
-                                Content="Neue Sammlung anlegen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeNeueSammlungAnlegen_Click"/>
-
-                                <Button
-                                Name="ArbeitsmappeSammlungZuordnenButton"
-                                Content="Bestehender Sammlung zuordnen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,20"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeSammlungZuordnen_Click"/>
-
-                                <!-- Build 5.0: Übersicht aller vom Benutzer selbst
-                                 angelegten, freien Ereignisse. -->
-                                <TextBlock
-                                FontWeight="Bold"
-                                Margin="0,0,0,4"
-                                Text="Besondere Ereignisse"/>
-
-                                <ListBox
-                                Name="FreieEreignisseListe"
-                                Height="120"
-                                Margin="0,0,0,8"
-                                SelectionMode="Extended"
-                                SelectionChanged="FreieEreignisseListe_SelectionChanged"/>
-
-                                <Button
-                                Name="FreiesEreignisErinnerungenAnsehenButton"
-                                Content="Erinnerungen ansehen"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="FreiesEreignisErinnerungenAnsehen_Click"/>
-
-                                <Button
-                                Name="FreiesEreignisArchivierenButton"
-                                Content="Archivieren"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="FreiesEreignisArchivieren_Click"/>
-
-                                <!-- Etappe A.5, Punkt 2: dieselbe Papierkorb-Logik
-                                 wie bei Personen. -->
-                                <Button
-                                Name="FreiesEreignisInPapierkorbButton"
-                                Content="In den Papierkorb legen"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,20"
-                                IsEnabled="False"
-                                Click="FreiesEreignisInPapierkorb_Click"/>
-
-                                <!-- Neue Funktion (Generaltest 2): Übersicht aller
-                                 vom Benutzer selbst angelegten Sammlungen. -->
-                                <TextBlock
-                                FontWeight="Bold"
-                                Margin="0,0,0,4"
-                                Text="Meine Sammlungen"/>
-
-                                <ListBox
-                                Name="FreieSammlungenListe"
-                                Height="120"
-                                Margin="0,0,0,8"
-                                SelectionMode="Extended"
-                                SelectionChanged="FreieSammlungenListe_SelectionChanged"/>
-
-                                <Button
-                                Name="SammlungErinnerungenAnsehenButton"
-                                Content="Erinnerungen ansehen"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="SammlungErinnerungenAnsehen_Click"/>
-
-                                <Button
-                                Name="SammlungArchivierenButton"
-                                Content="Archivieren"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="SammlungArchivieren_Click"/>
-
-                                <Button
-                                Name="SammlungInPapierkorbButton"
-                                Content="In den Papierkorb legen"
-                                Width="200"
-                                Height="32"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,20"
-                                IsEnabled="False"
-                                Click="SammlungInPapierkorb_Click"/>
-
-                                <!-- Inline-Auswahl: Neue Sammlung -->
-                                <StackPanel Name="ArbeitsmappeNeueSammlungPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Neue Sammlung" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
-                                    <TextBox Name="SammlungTitelTextBox" Padding="4" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="SammlungSpeichernButton"
-                                    Content="Speichern und zuordnen"
-                                    Width="180"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="SammlungSpeichernUndZuordnen_Click"/>
-
-                                </StackPanel>
-
-                                <!-- Inline-Auswahl: Bestehende Sammlung zuordnen -->
-                                <StackPanel Name="ArbeitsmappeSammlungAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Welcher Sammlung zuordnen?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                    <ComboBox Name="SammlungComboBox" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="SammlungZuordnenBestaetigenButton"
-                                    Content="Zuordnen"
-                                    Width="140"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="SammlungBestaetigen_Click"/>
-
-                                </StackPanel>
-
-                                <!-- Inline-Auswahl: Vorhandenem Ereignis zuordnen -->
-                                <StackPanel Name="ArbeitsmappeEreignisAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Mit welchem Ereignis verbinden?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Person" Margin="0,0,0,4"/>
-                                    <ComboBox Name="ArbeitsmappePersonComboBox" Margin="0,0,0,10" SelectionChanged="ArbeitsmappePersonComboBox_SelectionChanged"/>
-
-                                    <TextBlock Text="Ereignis" Margin="0,0,0,4"/>
-                                    <ComboBox Name="ArbeitsmappeEreignisComboBox" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="ArbeitsmappeEreignisBestaetigenButton"
-                                    Content="Verbinden"
-                                    Width="140"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="ArbeitsmappeEreignisBestaetigen_Click"/>
-
-                                </StackPanel>
-
-                                <!-- Inline-Auswahl: Neues Ereignis - erst die Person klären -->
-                                <StackPanel Name="ArbeitsmappeNeuesEreignisPersonPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Zu welcher Person soll das neue Ereignis gehören?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                    <ComboBox Name="ArbeitsmappeNeuesEreignisPersonComboBox" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="ArbeitsmappeNeuesEreignisWeiterButton"
-                                    Content="Weiter"
-                                    Width="140"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="ArbeitsmappeNeuesEreignisWeiter_Click"/>
-
-                                </StackPanel>
-
-                                <!-- Inline-Auswahl: Vorhandener Person zuordnen -->
+                                Click="ArbeitsmappePersonZuordnen_Click"/>
+                                <!-- Inline-Auswahl: Vorhandener Person zuordnen -
+                                 Neue Funktion (Generaltest 2): Mehrfachauswahl statt
+                                 einzelner ComboBox, plus Ansehen/Archivieren/Papierkorb
+                                 direkt hier, jetzt auch für Personen aus der
+                                 Arbeitsmappe heraus möglich. -->
                                 <StackPanel Name="ArbeitsmappePersonAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
 
-                                    <TextBlock Text="Welcher Person zuordnen?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Meine Personen" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                                    <ComboBox Name="ArbeitsmappeTitelbildPersonComboBox" Margin="0,0,0,10" SelectionChanged="ArbeitsmappeTitelbildPersonComboBox_SelectionChanged"/>
+                                    <ListBox
+                                    Name="ArbeitsmappeTitelbildPersonComboBox"
+                                    Height="120"
+                                    Margin="0,0,0,10"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="ArbeitsmappeTitelbildPersonComboBox_SelectionChanged"/>
 
                                     <Button
                                     Name="ArbeitsmappeTitelbildBestaetigenButton"
-                                    Content="Zuordnen"
+                                    Content="Erinnerungen zuordnen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="ArbeitsmappeTitelbildBestaetigen_Click"/>
+
+                                    <Button
+                                    Name="ArbeitsmappePersonenAnsehenButton"
+                                    Content="Erinnerungen ansehen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="ArbeitsmappePersonenAnsehen_Click"/>
+
+                                    <Button
+                                    Name="ArbeitsmappePersonenArchivierenButton"
+                                    Content="Archivieren"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="ArbeitsmappePersonenArchivieren_Click"/>
+
+                                    <Button
+                                    Name="ArbeitsmappePersonenInPapierkorbButton"
+                                    Content="In den Papierkorb legen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="ArbeitsmappePersonenInPapierkorb_Click"/>
+
+                                    <Button
+                                    Content="Abbrechen"
                                     Width="140"
                                     Height="36"
                                     HorizontalAlignment="Left"
-                                    Click="ArbeitsmappeTitelbildBestaetigen_Click"/>
+                                    Click="ArbeitsmappePersonenAbbrechen_Click"/>
 
                                 </StackPanel>
 
-                                <!-- Build 2.2a: Neues Ereignis - Formular komplett inline,
-                                 kein Wechsel zum Schreibtisch mehr. -->
-                                <StackPanel Name="ArbeitsmappeNeuesEreignisFormularPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Neues Ereignis" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisTitelTextBox" Padding="4" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Beschreibung" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisBeschreibungTextBox" Padding="4" TextWrapping="Wrap" AcceptsReturn="True" Height="50" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Datum" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisDatumTextBox" Padding="4" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Ort" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisOrtTextBox" Padding="4" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Jahreszeit" Margin="0,0,0,4"/>
-                                    <ComboBox Name="ArbeitsmappeEreignisJahreszeitComboBox" SelectedIndex="0" Margin="0,0,0,8">
-                                        <ComboBoxItem Content=""/>
-                                        <ComboBoxItem Content="Frühling"/>
-                                        <ComboBoxItem Content="Sommer"/>
-                                        <ComboBoxItem Content="Herbst"/>
-                                        <ComboBoxItem Content="Winter"/>
-                                    </ComboBox>
-
-                                    <TextBlock Text="Stichwörter (durch Komma getrennt)" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisStichwoerterTextBox" Padding="4" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Bemerkungen" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisBemerkungenTextBox" Padding="4" TextWrapping="Wrap" AcceptsReturn="True" Height="50" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Wer war noch dabei? (durch Komma getrennt)" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                    <TextBox Name="ArbeitsmappeEreignisBeteiligteTextBox" Padding="4" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="ArbeitsmappeEreignisSpeichernButton"
-                                    Content="Ereignis speichern"
-                                    Width="160"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="ArbeitsmappeEreignisSpeichern_Click"/>
-
-                                </StackPanel>
-
+                                <Button
+                                Name="ArbeitsmappeNeuePersonAnlegenButton"
+                                Content="Neue Person anlegen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeNeuePersonAnlegen_Click"/>
                                 <!-- Build 2.2a: Neue Person - Formular komplett inline,
                                  kein Wechsel zum Schreibtisch mehr. -->
                                 <StackPanel Name="ArbeitsmappeNeuePersonPanel" Visibility="Collapsed" Margin="0,20,0,0">
@@ -2288,6 +2260,211 @@
 
                                 </StackPanel>
 
+                                <!-- Build 2.2 "Erinnerungen zuerst": zusätzlicher, älterer
+                                 Arbeitsablauf, um einer Person direkt ein eigenes Ereignis
+                                 (z.B. Geburtstag) mitzugeben - bewusst als Zusatz unterhalb
+                                 der Hauptzuordnung, nicht Teil der drei neuen Kategorien. -->
+                                <TextBlock
+                                FontStyle="Italic"
+                                Foreground="#777777"
+                                TextWrapping="Wrap"
+                                Margin="0,0,0,4"
+                                Text="Zusätzlich, nur für eine bestimmte Person:"/>
+                                <Button
+                                Name="ArbeitsmappeMitEreignisVerbindenButton"
+                                Content="Vorhandenem Ereignis zuordnen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeMitEreignisVerbinden_Click"/>
+                                <!-- Inline-Auswahl: Vorhandenem Ereignis zuordnen -->
+                                <StackPanel Name="ArbeitsmappeEreignisAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Mit welchem Ereignis verbinden?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Person" Margin="0,0,0,4"/>
+                                    <ComboBox Name="ArbeitsmappePersonComboBox" Margin="0,0,0,10" SelectionChanged="ArbeitsmappePersonComboBox_SelectionChanged"/>
+
+                                    <TextBlock Text="Ereignis" Margin="0,0,0,4"/>
+                                    <ComboBox Name="ArbeitsmappeEreignisComboBox" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="ArbeitsmappeEreignisBestaetigenButton"
+                                    Content="Verbinden"
+                                    Width="140"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="ArbeitsmappeEreignisBestaetigen_Click"/>
+
+                                </StackPanel>
+
+                                <Button
+                                Name="ArbeitsmappeNeuesEreignisAnlegenButton"
+                                Content="Neues Ereignis anlegen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeNeuesEreignisAnlegen_Click"/>
+                                <!-- Inline-Auswahl: Neues Ereignis - erst die Person klären -->
+                                <StackPanel Name="ArbeitsmappeNeuesEreignisPersonPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Zu welcher Person soll das neue Ereignis gehören?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                    <ComboBox Name="ArbeitsmappeNeuesEreignisPersonComboBox" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="ArbeitsmappeNeuesEreignisWeiterButton"
+                                    Content="Weiter"
+                                    Width="140"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="ArbeitsmappeNeuesEreignisWeiter_Click"/>
+
+                                </StackPanel>
+
+                                <!-- Build 2.2a: Neues Ereignis - Formular komplett inline,
+                                 kein Wechsel zum Schreibtisch mehr. -->
+                                <StackPanel Name="ArbeitsmappeNeuesEreignisFormularPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Neues Ereignis" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisTitelTextBox" Padding="4" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Beschreibung" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisBeschreibungTextBox" Padding="4" TextWrapping="Wrap" AcceptsReturn="True" Height="50" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Datum" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisDatumTextBox" Padding="4" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Ort" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisOrtTextBox" Padding="4" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Jahreszeit" Margin="0,0,0,4"/>
+                                    <ComboBox Name="ArbeitsmappeEreignisJahreszeitComboBox" SelectedIndex="0" Margin="0,0,0,8">
+                                        <ComboBoxItem Content=""/>
+                                        <ComboBoxItem Content="Frühling"/>
+                                        <ComboBoxItem Content="Sommer"/>
+                                        <ComboBoxItem Content="Herbst"/>
+                                        <ComboBoxItem Content="Winter"/>
+                                    </ComboBox>
+
+                                    <TextBlock Text="Stichwörter (durch Komma getrennt)" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisStichwoerterTextBox" Padding="4" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Bemerkungen" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisBemerkungenTextBox" Padding="4" TextWrapping="Wrap" AcceptsReturn="True" Height="50" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Wer war noch dabei? (durch Komma getrennt)" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                    <TextBox Name="ArbeitsmappeEreignisBeteiligteTextBox" Padding="4" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="ArbeitsmappeEreignisSpeichernButton"
+                                    Content="Ereignis speichern"
+                                    Width="160"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="ArbeitsmappeEreignisSpeichern_Click"/>
+
+                                </StackPanel>
+
+                                <!-- Build 5.0 "Erinnerungen über Personen ODER Ereignisse":
+                                 Ein "freies" Ereignis ist eigenständig, unabhängig von
+                                 jeder Person. James macht dabei keine eigenen
+                                 Namensvorschläge - der Benutzer vergibt den Namen
+                                 selbst, und nur selbst angelegte Ereignisse erscheinen
+                                 später zur Auswahl. -->
+                                <TextBlock
+                                FontWeight="Bold"
+                                Margin="0,0,0,4"
+                                Text="Besonderes Ereignis"/>
+                                <Button
+                                Name="ArbeitsmappeFreiesEreignisZuordnenButton"
+                                Content="Bestehendem besonderen Ereignis zuordnen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeFreiesEreignisZuordnen_Click"/>
+                                <!-- Build 5.0: Vorhandenem freien Ereignis zuordnen -
+                                 Neue Funktion (Generaltest 2): Mehrfachauswahl statt
+                                 einzelner ComboBox, plus Ansehen/Archivieren/Papierkorb
+                                 direkt hier - die früher ständig sichtbare Liste
+                                 "Besondere Ereignisse" ist damit überflüssig geworden. -->
+                                <StackPanel Name="ArbeitsmappeFreiesEreignisAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Meine besonderen Ereignisse" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                    <ListBox
+                                    Name="FreieEreignisseListe"
+                                    Height="120"
+                                    Margin="0,0,0,10"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="FreieEreignisseListe_SelectionChanged"/>
+
+                                    <Button
+                                    Name="FreiesEreignisZuordnenBestaetigenButton"
+                                    Content="Erinnerungen zuordnen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="FreiesEreignisBestaetigen_Click"/>
+
+                                    <Button
+                                    Name="FreiesEreignisErinnerungenAnsehenButton"
+                                    Content="Erinnerungen ansehen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="FreiesEreignisErinnerungenAnsehen_Click"/>
+
+                                    <Button
+                                    Name="FreiesEreignisArchivierenButton"
+                                    Content="Archivieren"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="FreiesEreignisArchivieren_Click"/>
+
+                                    <Button
+                                    Name="FreiesEreignisInPapierkorbButton"
+                                    Content="In den Papierkorb legen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="FreiesEreignisInPapierkorb_Click"/>
+
+                                    <Button
+                                    Content="Abbrechen"
+                                    Width="140"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="ArbeitsmappeFreiesEreignisAbbrechen_Click"/>
+
+                                </StackPanel>
+
+                                <Button
+                                Name="ArbeitsmappeNeuesFreiesEreignisButton"
+                                Content="Neues besonderes Ereignis anlegen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeNeuesFreiesEreignisAnlegen_Click"/>
                                 <!-- Build 5.0: Neues freies Ereignis - James macht
                                  keine Namensvorschläge, der Benutzer vergibt den
                                  Namen selbst. -->
@@ -2308,25 +2485,140 @@
 
                                 </StackPanel>
 
-                                <!-- Build 5.0: Vorhandenem freien Ereignis zuordnen -
-                                 die Auswahlliste enthält ausschließlich bereits
-                                 vom Benutzer selbst angelegte, freie Ereignisse. -->
-                                <StackPanel Name="ArbeitsmappeFreiesEreignisAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
+                                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
+                                 Sammlung - dritte Schublade für thematische
+                                 Erinnerungen ohne Person und ohne Datum. -->
+                                <TextBlock
+                                FontWeight="Bold"
+                                Margin="0,0,0,4"
+                                Text="Sammlung"/>
+                                <Button
+                                Name="ArbeitsmappeSammlungZuordnenButton"
+                                Content="Bestehender Sammlung zuordnen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeSammlungZuordnen_Click"/>
+                                <!-- Inline-Auswahl: Bestehende Sammlung zuordnen -
+                                 Neue Funktion (Generaltest 2): Mehrfachauswahl statt
+                                 einzelner ComboBox, plus Ansehen/Archivieren/Papierkorb
+                                 direkt hier - die früher ständig sichtbare Liste
+                                 "Meine Sammlungen" ist damit überflüssig geworden. -->
+                                <StackPanel Name="ArbeitsmappeSammlungAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
 
-                                    <TextBlock Text="Welchem Ereignis zuordnen?" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Meine Sammlungen" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                                    <ComboBox Name="FreiesEreignisComboBox" Margin="0,0,0,10"/>
+                                    <ListBox
+                                    Name="FreieSammlungenListe"
+                                    Height="120"
+                                    Margin="0,0,0,10"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="FreieSammlungenListe_SelectionChanged"/>
 
                                     <Button
-                                    Name="FreiesEreignisZuordnenBestaetigenButton"
-                                    Content="Zuordnen"
+                                    Name="SammlungZuordnenBestaetigenButton"
+                                    Content="Erinnerungen zuordnen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungBestaetigen_Click"/>
+
+                                    <Button
+                                    Name="SammlungErinnerungenAnsehenButton"
+                                    Content="Sammlung ansehen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungErinnerungenAnsehen_Click"/>
+
+                                    <Button
+                                    Name="SammlungArchivierenButton"
+                                    Content="Archivieren"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungArchivieren_Click"/>
+
+                                    <Button
+                                    Name="SammlungInPapierkorbButton"
+                                    Content="In den Papierkorb legen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungInPapierkorb_Click"/>
+
+                                    <Button
+                                    Content="Abbrechen"
                                     Width="140"
                                     Height="36"
                                     HorizontalAlignment="Left"
-                                    Click="FreiesEreignisBestaetigen_Click"/>
+                                    Click="ArbeitsmappeSammlungAbbrechen_Click"/>
 
                                 </StackPanel>
 
+                                <Button
+                                Name="ArbeitsmappeNeueSammlungButton"
+                                Content="Neue Sammlung anlegen"
+                                Width="200"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeNeueSammlungAnlegen_Click"/>
+                                <!-- Inline-Auswahl: Neue Sammlung -->
+                                <StackPanel Name="ArbeitsmappeNeueSammlungPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Neue Sammlung" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
+                                    <TextBox Name="SammlungTitelTextBox" Padding="4" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="SammlungSpeichernButton"
+                                    Content="Speichern und zuordnen"
+                                    Width="180"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="SammlungSpeichernUndZuordnen_Click"/>
+
+                                </StackPanel>
+
+                                <!-- Punkt 3 (Optimierung nach Test 2): eigenständige,
+                                 von Person/Ereignis/Sammlung unabhängige Markierung -
+                                 verschiebt NUR die dafür extra markierten (als eher
+                                 unbedeutend erkannten) Erinnerungen in die
+                                 Asservatenkammer, unabhängig von allen anderen
+                                 Zuordnungen. -->
+                                <Button
+                                Name="ArbeitsmappeMarkierteInAsservatenkammerButton"
+                                Width="200"
+                                Height="52"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,4"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeMarkierteInAsservatenkammer_Click">
+                                    <TextBlock
+                                    Text="Markierte Erinnerungen in die Asservatenkammer verschieben"
+                                    TextWrapping="Wrap"
+                                    TextAlignment="Center"/>
+                                </Button>
+
+                                <TextBlock
+                                Name="ArbeitsmappeAsservatenkammerStatusText"
+                                FontWeight="Bold"
+                                Foreground="#2E7D32"
+                                TextWrapping="Wrap"
+                                Margin="0,0,0,20"/>
                                 <TextBlock
                                 Name="ArbeitsmappeStatusText"
                                 FontWeight="Bold"
@@ -2350,8 +2642,6 @@
 
                             </StackPanel>
                         </ScrollViewer>
-
-                    </Grid>
 
                     <!-- Großansicht (nur für Bilder), deckt den ganzen Reiter ab -->
                     <Border

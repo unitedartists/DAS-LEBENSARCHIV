@@ -49,6 +49,10 @@ namespace DAS_LEBENSARCHIV
         private List<Sammlung> sammlungenArchiv = new List<Sammlung>();
         private List<Sammlung> sammlungenPapierkorb = new List<Sammlung>();
 
+        // Neue Funktion (Generaltest 2): Asservatenkammer - hierhin
+        // verschiebt James automatisch erkannte, exakte Duplikate.
+        private List<AsservatenEintrag> asservatenkammer = new List<AsservatenEintrag>();
+
         // Etappe B (Build 2.9): visuelles Gedächtnis.
         private List<ErinnerungsGedaechtnisEintrag> erinnerungsGedaechtnis = new List<ErinnerungsGedaechtnisEintrag>();
 
@@ -66,16 +70,103 @@ namespace DAS_LEBENSARCHIV
         // OrdnerBaumTreeView.ItemsSource gebunden.
         private ObservableCollection<OrdnerKnoten> ordnerBaumWurzelKnoten = new ObservableCollection<OrdnerKnoten>();
 
-        private static readonly string OrdnerPfad = Path.Combine(
+        // ============================================================
+        // ARCHITEKTUR: ZENTRALER ARCHIV-SPEICHERORT (31.07., gemeinsam mit
+        // dem Architekten festgelegt). Der Benutzer wählt EINEN obersten
+        // Archivordner (z.B. H:\Lebensarchiv). James verwaltet darunter
+        // selbständig seine Struktur (Erinnerungen, Asservatenkammer usw.).
+        // In %APPDATA% bleibt künftig nur noch ein winziger Zeiger auf
+        // diesen Ordner - keine Bild-/Videodaten mehr dort.
+        //
+        // Rückwärtskompatibel: Solange noch kein eigener Speicherort
+        // gewählt wurde (kein Zeiger vorhanden), bleibt alles wie bisher
+        // unter %APPDATA%\LEBENSARCHIV - bestehende Installationen laufen
+        // dadurch unverändert weiter, bis der Benutzer aktiv umzieht.
+        //
+        // WICHTIG: alle bisherigen Namen (OrdnerPfad, ErinnerungenOrdnerPfad,
+        // AsservatenkammerOrdnerPfad, ArbeitsstandPfad, usw.) bleiben
+        // unverändert bestehen, nur als Eigenschaft statt als feste
+        // Konstante - jede bestehende Stelle im restlichen Code funktioniert
+        // dadurch unverändert weiter.
+        // ============================================================
+        private static readonly string KonfigurationsOrdnerPfad = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "LEBENSARCHIV");
 
-        private static readonly string DateiPfad = Path.Combine(OrdnerPfad, "personen.json");
+        private static readonly string ArchivStandortZeigerPfad = Path.Combine(KonfigurationsOrdnerPfad, "archivstandort.json");
+
+        private static string _archivWurzelPfad;
+
+        private static string ArchivWurzelPfad
+        {
+            get
+            {
+                if (_archivWurzelPfad == null)
+                {
+                    _archivWurzelPfad = LadeArchivStandortKonfiguration().ArchivPfad ?? KonfigurationsOrdnerPfad;
+                }
+
+                return _archivWurzelPfad;
+            }
+        }
+
+        private static ArchivStandortKonfiguration LadeArchivStandortKonfiguration()
+        {
+            try
+            {
+                if (File.Exists(ArchivStandortZeigerPfad))
+                {
+                    string json = File.ReadAllText(ArchivStandortZeigerPfad);
+                    ArchivStandortKonfiguration konfiguration = JsonSerializer.Deserialize<ArchivStandortKonfiguration>(json);
+
+                    if (konfiguration != null
+                        && !string.IsNullOrWhiteSpace(konfiguration.ArchivPfad)
+                        && Directory.Exists(konfiguration.ArchivPfad))
+                    {
+                        return konfiguration;
+                    }
+                }
+            }
+            catch
+            {
+                // Zeiger nicht lesbar - dann eben mit dem bisherigen
+                // Speicherort weiterarbeiten, keine Fehlermeldung fuer
+                // eine reine Komfortfunktion.
+            }
+
+            // Noch kein eigener Speicherort gewählt - bisheriger Ort.
+            return new ArchivStandortKonfiguration { ArchivPfad = KonfigurationsOrdnerPfad };
+        }
+
+        private static void SpeichereArchivStandortKonfiguration(ArchivStandortKonfiguration konfiguration)
+        {
+            try
+            {
+                Directory.CreateDirectory(KonfigurationsOrdnerPfad);
+
+                JsonSerializerOptions optionen = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+                string json = JsonSerializer.Serialize(konfiguration, optionen);
+                File.WriteAllText(ArchivStandortZeigerPfad, json);
+            }
+            catch
+            {
+                // Zeiger konnte nicht gespeichert werden - dann bleibt der
+                // neue Pfad zumindest für die laufende Sitzung aktiv.
+            }
+        }
+
+        private static string OrdnerPfad => ArchivWurzelPfad;
+
+        private static string DateiPfad => Path.Combine(OrdnerPfad, "personen.json");
 
         // ============================================================
         // ARCHITEKTUR: ERINNERUNGEN (Fotos/Titelbilder der Personen)
         // ============================================================
-        private static readonly string ErinnerungenOrdnerPfad = Path.Combine(OrdnerPfad, "Erinnerungen");
+        private static string ErinnerungenOrdnerPfad => Path.Combine(OrdnerPfad, "Erinnerungen");
 
         private static string PersonErinnerungsOrdner(Person person)
         {
@@ -95,22 +186,27 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // ARCHITEKTUR: ERINNERUNGSVERZEICHNIS (Build 0.4)
         // ============================================================
-        private static readonly string ErinnerungsVerzeichnisPfad = Path.Combine(OrdnerPfad, "erinnerungsverzeichnis.json");
+        private static string ErinnerungsVerzeichnisPfad => Path.Combine(OrdnerPfad, "erinnerungsverzeichnis.json");
 
         // ============================================================
         // ARCHITEKTUR: ORDNERGEDÄCHTNIS (Build 1.1)
         // ============================================================
-        private static readonly string OrdnergedaechtnisPfad = Path.Combine(OrdnerPfad, "ordnergedaechtnis.json");
+        private static string OrdnergedaechtnisPfad => Path.Combine(OrdnerPfad, "ordnergedaechtnis.json");
 
         // ============================================================
         // ARCHITEKTUR: ARBEITSSTAND (Build 1.9)
         // ============================================================
-        private static readonly string ArbeitsstandPfad = Path.Combine(OrdnerPfad, "arbeitsstand.json");
+        private static string ArbeitsstandPfad => Path.Combine(OrdnerPfad, "arbeitsstand.json");
 
         // Index des neuen "Arbeitsmappe"-Reiters (Build 2.1, nach Einstellungen).
         private const int ArbeitsmappeTabIndex = 7;
 
-        private static readonly string ArbeitsmappeZugeordnetPfad = Path.Combine(OrdnerPfad, "arbeitsmappe_zugeordnet.json");
+        private static string ArbeitsmappeZugeordnetPfad => Path.Combine(OrdnerPfad, "arbeitsmappe_zugeordnet.json");
+
+        // ============================================================
+        // NEUE FUNKTION (Generaltest 2): ASSERVATENKAMMER
+        // ============================================================
+        private static string AsservatenkammerOrdnerPfad => Path.Combine(OrdnerPfad, "Asservatenkammer");
 
         // ============================================================
         // ARCHITEKTUR: ARBEITSMAPPE (Build 2.1)
@@ -118,7 +214,9 @@ namespace DAS_LEBENSARCHIV
         private List<GefundeneDatei> arbeitsmappeAlleDateien = new List<GefundeneDatei>();
         private string arbeitsmappeFilter = "Alle";
         private int arbeitsmappeSeite = 1;
-        private const int ArbeitsmappeProSeite = 25;
+        // Punkt 2 (letzte Feinjustierung): 14 pro Seite, da im Fenster noch
+        // Platz für 2 weitere Kacheln in der 2. Zeile war.
+        private const int ArbeitsmappeProSeite = 14;
         private HashSet<string> arbeitsmappeAusgewaehlt = new HashSet<string>();
         private Person arbeitsmappeNeuesEreignisPerson = null;
         private Person arbeitsmappeLetztesEreignisPerson = null;
@@ -167,6 +265,8 @@ namespace DAS_LEBENSARCHIV
 
             LadeDaten();
             ZeigeEinstellungenImFormular();
+            ZeigeAktuellenArchivSpeicherort();
+            ZeigeGespeicherteZusammenfassung();
 
             bool arbeitFortgesetzt = PruefeUndBieteArbeitsstandAn();
 

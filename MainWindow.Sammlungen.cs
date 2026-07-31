@@ -249,7 +249,8 @@ namespace DAS_LEBENSARCHIV
                     sammlung.WeitereFotoDateinamen.Add(neuerDateiname);
                 }
 
-                arbeitsmappeAusgewaehlt.Remove(pfad);
+                // Punkt 3 (Optimierung nach Test 2): Markierung bleibt
+                // bestehen für gleichzeitige Zuordnung zu Person/Ereignis.
                 arbeitsmappeBereitsZugeordnet.Add(pfad);
                 verbunden++;
             }
@@ -356,35 +357,49 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            if (sammlungen.Count == 0 && sammlungenArchiv.Count == 0)
+            if (sammlungen.Count == 0)
             {
                 James.Hinweis(James.BitteErstFreiesEreignisAnlegen);
                 return;
             }
 
-            List<Sammlung> alleAuswaehlbaren = sammlungen.Concat(sammlungenArchiv).ToList();
-
-            SammlungComboBox.ItemsSource = alleAuswaehlbaren;
-            SammlungComboBox.SelectedIndex = -1;
+            AktualisiereSammlungenAnzeige();
 
             VersteckeAlleArbeitsmappenPanels();
             ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Visible;
         }
 
+        // Neue Funktion (Generaltest 2): einfacher Abbruch.
+        private void ArbeitsmappeSammlungAbbrechen_Click(object sender, RoutedEventArgs e)
+        {
+            ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Collapsed;
+        }
+
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Mehrfachzuordnung -
+        // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDER
+        // markierten Sammlung zugeordnet.
         private void SammlungBestaetigen_Click(object sender, RoutedEventArgs e)
         {
-            Sammlung sammlung = SammlungComboBox.SelectedItem as Sammlung;
+            List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
 
-            if (sammlung == null)
+            if (ausgewaehlteSammlungen.Count == 0)
             {
                 James.Hinweis(James.BitteEreignisAuswaehlen);
                 return;
             }
 
             List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
-            VerknuepfeArbeitsmappenDateienMitSammlung(sammlung, pfade);
 
-            ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Collapsed;
+            foreach (Sammlung sammlung in ausgewaehlteSammlungen)
+            {
+                List<string> pfadeKopie = new List<string>(pfade);
+                VerknuepfeArbeitsmappenDateienMitSammlung(sammlung, pfadeKopie);
+            }
+
+            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteSammlungen.Count + " Sammlung(en).";
+
+            // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
+            // und "Archivieren" direkt im Anschluss noch nutzbar sind.
             AktualisiereArbeitsmappe();
         }
 
@@ -392,6 +407,7 @@ namespace DAS_LEBENSARCHIV
         {
             bool istAusgewaehlt = FreieSammlungenListe.SelectedItem != null;
 
+            SammlungZuordnenBestaetigenButton.IsEnabled = istAusgewaehlt;
             SammlungErinnerungenAnsehenButton.IsEnabled = istAusgewaehlt;
             SammlungArchivierenButton.IsEnabled = istAusgewaehlt;
             SammlungInPapierkorbButton.IsEnabled = istAusgewaehlt;
@@ -420,45 +436,59 @@ namespace DAS_LEBENSARCHIV
 
         private void SammlungArchivieren_Click(object sender, RoutedEventArgs e)
         {
-            Sammlung sammlung = FreieSammlungenListe.SelectedItem as Sammlung;
+            List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
 
-            if (sammlung == null)
+            if (ausgewaehlteSammlungen.Count == 0)
             {
                 return;
             }
 
-            sammlungen.Remove(sammlung);
-            sammlungenArchiv.Add(sammlung);
+            foreach (Sammlung sammlung in ausgewaehlteSammlungen)
+            {
+                sammlungen.Remove(sammlung);
+                sammlungenArchiv.Add(sammlung);
+            }
 
             SpeichereDaten();
             AktualisiereSammlungenAnzeige();
 
-            ArbeitsmappeStatusText.Text = "\u201e" + sammlung.Titel + "\u201c wurde archiviert.";
+            ArbeitsmappeStatusText.Text = ausgewaehlteSammlungen.Count == 1
+                ? "\u201e" + ausgewaehlteSammlungen[0].Titel + "\u201c wurde archiviert."
+                : ausgewaehlteSammlungen.Count + " Sammlungen archiviert.";
         }
 
         private void SammlungInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
-            Sammlung sammlung = FreieSammlungenListe.SelectedItem as Sammlung;
+            List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
 
-            if (sammlung == null)
+            if (ausgewaehlteSammlungen.Count == 0)
             {
                 return;
             }
 
-            bool ergebnis = James.FrageJaNein(James.FrageInPapierkorbEinzeln(sammlung.Titel), James.TitelEntscheidung, MessageBoxImage.Warning);
+            string frage = ausgewaehlteSammlungen.Count == 1
+                ? James.FrageInPapierkorbEinzeln(ausgewaehlteSammlungen[0].Titel)
+                : James.FrageInPapierkorbMehrere(ausgewaehlteSammlungen.Count);
+
+            bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
 
             if (!ergebnis)
             {
                 return;
             }
 
-            sammlungen.Remove(sammlung);
-            sammlungenPapierkorb.Add(sammlung);
+            foreach (Sammlung sammlung in ausgewaehlteSammlungen)
+            {
+                sammlungen.Remove(sammlung);
+                sammlungenPapierkorb.Add(sammlung);
+            }
 
             SpeichereDaten();
             AktualisiereSammlungenAnzeige();
 
-            ArbeitsmappeStatusText.Text = "\u201e" + sammlung.Titel + "\u201c liegt jetzt im Papierkorb.";
+            ArbeitsmappeStatusText.Text = ausgewaehlteSammlungen.Count == 1
+                ? "\u201e" + ausgewaehlteSammlungen[0].Titel + "\u201c liegt jetzt im Papierkorb."
+                : ausgewaehlteSammlungen.Count + " Sammlungen liegen jetzt im Papierkorb.";
         }
 
         // ============================================================

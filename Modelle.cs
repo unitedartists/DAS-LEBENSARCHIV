@@ -164,6 +164,29 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
+    // ============================================================
+    // NEUE FUNKTION (Generaltest 2, Wunsch von Oma+Opa): ASSERVATENKAMMER
+    // ============================================================
+    // Hierhin verschiebt James automatisch erkannte, exakte Duplikate -
+    // niemals löschen, immer nur verschieben. Der Benutzer entscheidet
+    // hier in Ruhe, ob eine Datei endgültig gelöscht oder auf den
+    // Schreibtisch zurückgeholt wird.
+    // ============================================================
+    public class AsservatenEintrag : ArchivObjekt
+    {
+        public string Dateiname { get; set; }
+        public string UrspruenglicherPfad { get; set; }
+        public string AsservatenPfad { get; set; }
+        public string Dateityp { get; set; }
+        public string Hashwert { get; set; }
+        public string Grund { get; set; }
+
+        public override string ToString()
+        {
+            return Dateiname + " (" + Grund + ")";
+        }
+    }
+
     public class ArchivDaten
     {
         public List<Person> Personen { get; set; }
@@ -178,6 +201,8 @@ namespace DAS_LEBENSARCHIV
         public List<Sammlung> Sammlungen { get; set; }
         public List<Sammlung> SammlungenArchiv { get; set; }
         public List<Sammlung> SammlungenPapierkorb { get; set; }
+
+        public List<AsservatenEintrag> Asservatenkammer { get; set; }
 
         public List<ErinnerungsGedaechtnisEintrag> ErinnerungsGedaechtnis { get; set; }
 
@@ -360,5 +385,24 @@ namespace DAS_LEBENSARCHIV
         public string Schwerpunkt { get; set; }
         public string HinweisHaeufigkeit { get; set; }
         public string Schrittgroesse { get; set; }
+    }
+
+    // ============================================================
+    // ARCHITEKTUR: ZENTRALER ARCHIV-SPEICHERORT (31.07., gemeinsam mit
+    // dem Architekten festgelegt) - winziger Zeiger, der in %APPDATA%
+    // liegt und nur verrät, wo der eigentliche (große) Archiv-Ordner
+    // liegt. Keine Bild-/Videodaten in dieser Datei.
+    // ============================================================
+    public class ArchivStandortKonfiguration
+    {
+        public string ArchivPfad { get; set; }
+
+        // Wunsch des Architekten (31.07.): zweistufiger Umzug. Nach dem
+        // Kopieren+Prüfen und einem Neustart soll der Benutzer erst in Ruhe
+        // kontrollieren können, ob alles am neuen Ort funktioniert, bevor er
+        // den alten Speicherort freiwillig löscht. Dieses Feld merkt sich
+        // den alten Pfad über den Neustart hinweg, bis der Benutzer sich
+        // entschieden hat.
+        public string AlterPfadZumLoeschen { get; set; }
     }
 }

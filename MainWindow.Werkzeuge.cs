@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -36,85 +36,92 @@ namespace DAS_LEBENSARCHIV
         // BUILD 1.0: ERINNERUNGEN AUFRÄUMEN
         // ============================================================
 
-        private void ErinnerungenAufraeumen_Click(object sender, RoutedEventArgs e)
+        private async void ErinnerungenAufraeumen_Click(object sender, RoutedEventArgs e)
         {
-            bool ergebnis = James.FrageJaNein(James.DoppelgaengerEinladung, "Erinnerungen aufräumen", MessageBoxImage.Information);
-
-            if (!ergebnis)
+            // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): keine
+            // Rückfrage, keine Vorschau mehr - James verschiebt erkannte
+            // (exakte) Duplikate direkt und automatisch in die
+            // Asservatenkammer. Läuft im Hintergrund mit Fortschrittsanzeige,
+            // damit die Oberfläche bei sehr vielen Duplikaten (zehntausende
+            // Dateien) nicht einfriert.
+            if (arbeitsmappeAlleDateien == null || arbeitsmappeAlleDateien.Count == 0)
             {
-                return;
+                arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
             }
 
-            if (!File.Exists(ErinnerungsVerzeichnisPfad))
+            if (arbeitsmappeAlleDateien.Count == 0)
             {
                 James.Hinweis(James.KeinErinnerungsverzeichnisGefunden);
                 return;
             }
 
-            List<GefundeneDatei> alleDateien;
+            Dictionary<string, List<GefundeneDatei>> gruppen = ErmittleDuplikatGruppen();
 
-            try
+            List<GefundeneDatei> zuVerschieben = new List<GefundeneDatei>();
+
+            foreach (List<GefundeneDatei> gruppe in gruppen.Values)
             {
-                string json = File.ReadAllText(ErinnerungsVerzeichnisPfad);
-                ErinnerungsVerzeichnis verzeichnis = JsonSerializer.Deserialize<ErinnerungsVerzeichnis>(json);
-                alleDateien = (verzeichnis != null && verzeichnis.Dateien != null) ? verzeichnis.Dateien : new List<GefundeneDatei>();
+                for (int i = 1; i < gruppe.Count; i++)
+                {
+                    zuVerschieben.Add(gruppe[i]);
+                }
             }
-            catch (Exception ex)
+
+            if (zuVerschieben.Count == 0)
             {
-                James.Problem(James.FehlerBeimLesenErinnerungsverzeichnis(ex.Message));
+                DoppelgaengerErgebnisPanel.Visibility = Visibility.Visible;
+                DoppelgaengerListe.Items.Clear();
+                DoppelgaengerDetailsText.Text = "";
+                DoppelgaengerStatusText.Text = James.KeineDoppelgaengerGefunden;
                 return;
             }
 
-            Dictionary<string, List<GefundeneDatei>> gruppenNachHash = new Dictionary<string, List<GefundeneDatei>>();
+            ErinnerungenAufraeumenButton.IsEnabled = false;
 
-            foreach (GefundeneDatei datei in alleDateien)
+            IProgress<int> fortschritt = new Progress<int>(anzahl =>
             {
-                if (string.IsNullOrEmpty(datei.Hashwert))
-                {
-                    continue;
-                }
+                DoppelgaengerStatusText.Text = "James verschiebt doppelte Dateien: " + anzahl + " von " + zuVerschieben.Count + " ...";
+            });
 
-                if (!gruppenNachHash.ContainsKey(datei.Hashwert))
-                {
-                    gruppenNachHash[datei.Hashwert] = new List<GefundeneDatei>();
-                }
+            HashSet<string> entferntePfade = new HashSet<string>();
+            int verschoben = 0;
 
-                gruppenNachHash[datei.Hashwert].Add(datei);
-            }
-
+            DoppelgaengerErgebnisPanel.Visibility = Visibility.Visible;
             DoppelgaengerListe.Items.Clear();
             DoppelgaengerDetailsText.Text = "";
 
-            int anzahlGruppen = 0;
-            int anzahlDateienGesamt = 0;
-
-            foreach (KeyValuePair<string, List<GefundeneDatei>> eintrag in gruppenNachHash)
+            await Task.Run(() =>
             {
-                if (eintrag.Value.Count > 1)
+                foreach (GefundeneDatei datei in zuVerschieben)
                 {
-                    DoppelgaengerGruppe gruppe = new DoppelgaengerGruppe
+                    if (VerschiebeInAsservatenkammer(datei, "Duplikat"))
                     {
-                        Hashwert = eintrag.Key,
-                        Dateien = eintrag.Value
-                    };
+                        entferntePfade.Add(datei.VollstaendigerPfad);
+                        verschoben++;
+                    }
 
-                    DoppelgaengerListe.Items.Add(gruppe);
-
-                    anzahlGruppen++;
-                    anzahlDateienGesamt += eintrag.Value.Count;
+                    if (verschoben % 200 == 0)
+                    {
+                        fortschritt.Report(verschoben);
+                    }
                 }
-            }
 
-            DoppelgaengerErgebnisPanel.Visibility = Visibility.Visible;
+                EntferneMehrereAusErinnerungsverzeichnis(entferntePfade);
+            });
 
-            if (anzahlGruppen > 0)
+            if (verschoben > 0)
             {
-                DoppelgaengerStatusText.Text = James.DoppelgaengerGefunden(anzahlDateienGesamt, anzahlGruppen);
+                SpeichereDaten();
+                arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
+                AktualisiereAsservatenkammerAnzeige();
+                DoppelgaengerStatusText.Text = verschoben + " doppelte Datei(en) wurden automatisch in die Asservatenkammer verschoben.";
             }
             else
             {
                 DoppelgaengerStatusText.Text = James.KeineDoppelgaengerGefunden;
             }
+
+            ErinnerungenAufraeumenButton.IsEnabled = true;
         }
 
         private void DoppelgaengerListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -150,6 +157,12 @@ namespace DAS_LEBENSARCHIV
 
             DriveInfo[] laufwerke = DriveInfo.GetDrives();
 
+            // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): bereits
+            // durchsuchte Ordner im Baum sichtbar kennzeichnen, damit der
+            // Benutzer erkennt, was James schon "inventarisiert" hat -
+            // unabhängig davon, was James sich sonst noch dazu merkt.
+            Ordnergedaechtnis gedaechtnisFuerMarkierung = LadeOrdnergedaechtnis();
+
             foreach (DriveInfo laufwerk in laufwerke)
             {
                 if (!laufwerk.IsReady)
@@ -172,7 +185,7 @@ namespace DAS_LEBENSARCHIV
 
                 OrdnerKnoten wurzelKnoten = new OrdnerKnoten
                 {
-                    Name = beschriftung,
+                    Name = MarkiereFallsBereitsDurchsucht(beschriftung, laufwerk.Name, gedaechtnisFuerMarkierung),
                     VollstaendigerPfad = laufwerk.Name
                 };
 
@@ -183,6 +196,16 @@ namespace DAS_LEBENSARCHIV
 
             OrdnerAuswahlPanel.Visibility = Visibility.Visible;
             WerkzeugeStatusText.Text = ErstelleOrdnergedaechtnisBegruessung();
+        }
+
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): stellt einem
+        // Ordnernamen ein Häkchen voran, wenn James diesen Ordner laut
+        // Ordnergedächtnis schon einmal durchsucht hat - rein visuell,
+        // ändert nichts an den gespeicherten Daten selbst.
+        private static string MarkiereFallsBereitsDurchsucht(string name, string pfad, Ordnergedaechtnis gedaechtnis)
+        {
+            bool bereitsDurchsucht = gedaechtnis.Ordner.Any(o => o.Pfad == pfad);
+            return bereitsDurchsucht ? "✓ " + name : name;
         }
 
         private static OrdnerKnoten ErzeugePlatzhalterKnoten()
@@ -213,6 +236,8 @@ namespace DAS_LEBENSARCHIV
             knoten.Kinder.Clear();
             knoten.KinderGeladen = true;
 
+            Ordnergedaechtnis gedaechtnisFuerMarkierung = LadeOrdnergedaechtnis();
+
             try
             {
                 foreach (string unterordnerPfad in Directory.EnumerateDirectories(knoten.VollstaendigerPfad))
@@ -223,7 +248,7 @@ namespace DAS_LEBENSARCHIV
 
                         OrdnerKnoten unterKnoten = new OrdnerKnoten
                         {
-                            Name = info.Name,
+                            Name = MarkiereFallsBereitsDurchsucht(info.Name, info.FullName, gedaechtnisFuerMarkierung),
                             VollstaendigerPfad = info.FullName
                         };
 
@@ -378,10 +403,52 @@ namespace DAS_LEBENSARCHIV
             {
                 Directory.CreateDirectory(OrdnerPfad);
 
+                // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Rundgang-
+                // Ergebnisse werden ab jetzt gesammelt statt überschrieben.
+                // Bereits bekannte Dateien (gleicher vollständiger Pfad)
+                // werden durch den frischen Stand ersetzt, alles andere aus
+                // früheren Rundgängen bleibt erhalten. Das ist die
+                // notwendige Voraussetzung dafür, dass bereits durchsuchte
+                // Ordner beim nächsten Mal übersprungen werden können, ohne
+                // ihre Ergebnisse zu verlieren.
+                List<GefundeneDatei> bestehendeDateien = new List<GefundeneDatei>();
+
+                if (File.Exists(ErinnerungsVerzeichnisPfad))
+                {
+                    try
+                    {
+                        string bestehenderJson = File.ReadAllText(ErinnerungsVerzeichnisPfad);
+                        ErinnerungsVerzeichnis bestehendesVerzeichnis = JsonSerializer.Deserialize<ErinnerungsVerzeichnis>(bestehenderJson);
+
+                        if (bestehendesVerzeichnis != null && bestehendesVerzeichnis.Dateien != null)
+                        {
+                            bestehendeDateien = bestehendesVerzeichnis.Dateien;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                Dictionary<string, GefundeneDatei> zusammengefasst = new Dictionary<string, GefundeneDatei>();
+
+                foreach (GefundeneDatei datei in bestehendeDateien)
+                {
+                    if (datei.VollstaendigerPfad != null)
+                    {
+                        zusammengefasst[datei.VollstaendigerPfad] = datei;
+                    }
+                }
+
+                foreach (GefundeneDatei datei in gefundeneDateien)
+                {
+                    zusammengefasst[datei.VollstaendigerPfad] = datei;
+                }
+
                 ErinnerungsVerzeichnis verzeichnis = new ErinnerungsVerzeichnis
                 {
                     ErstelltAm = DateTime.Now,
-                    Dateien = gefundeneDateien
+                    Dateien = zusammengefasst.Values.ToList()
                 };
 
                 JsonSerializerOptions optionen = new JsonSerializerOptions
@@ -392,6 +459,16 @@ namespace DAS_LEBENSARCHIV
                 string json = JsonSerializer.Serialize(verzeichnis, optionen);
 
                 File.WriteAllText(ErinnerungsVerzeichnisPfad, json);
+
+                // Die Zusammenfassung bezieht sich jetzt auf den
+                // gesamten bekannten Bestand, nicht nur auf diesen
+                // einzelnen Rundgang - bleibt dadurch auch nach einem
+                // Neustart über ZeigeGespeicherteZusammenfassung() gültig.
+                Dictionary<string, int> zaehlerGesamt = zusammengefasst.Values
+                    .GroupBy(d => d.Dateityp)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                WerkzeugeStatusText.Text = James.RundgangZusammenfassung(wurdeAbgebrochen, zaehlerGesamt);
             }
             catch (Exception ex)
             {
@@ -416,11 +493,41 @@ namespace DAS_LEBENSARCHIV
 
             SpeichereOrdnergedaechtnis(ordnergedaechtnis);
 
-            WerkzeugeStatusText.Text = James.RundgangZusammenfassung(wurdeAbgebrochen, zaehlerProTyp);
-
             RundgangStartenButton.IsEnabled = true;
             ComputerKennenlernenButton.IsEnabled = true;
             AbbrechenRundgangButton.Visibility = Visibility.Collapsed;
+        }
+
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): berechnet die
+        // "X Bilder, X Videos, ..."-Übersicht aus dem bereits gespeicherten
+        // Erinnerungsverzeichnis - bleibt dadurch auch nach einem Neustart
+        // von James sichtbar, ganz ohne neuen Rundgang.
+        private void ZeigeGespeicherteZusammenfassung()
+        {
+            if (!File.Exists(ErinnerungsVerzeichnisPfad))
+            {
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(ErinnerungsVerzeichnisPfad);
+                ErinnerungsVerzeichnis verzeichnis = JsonSerializer.Deserialize<ErinnerungsVerzeichnis>(json);
+
+                if (verzeichnis == null || verzeichnis.Dateien == null || verzeichnis.Dateien.Count == 0)
+                {
+                    return;
+                }
+
+                Dictionary<string, int> zaehlerProTyp = verzeichnis.Dateien
+                    .GroupBy(d => d.Dateityp)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                WerkzeugeStatusText.Text = James.RundgangZusammenfassung(false, zaehlerProTyp);
+            }
+            catch
+            {
+            }
         }
 
         private void AbbrechenRundgang_Click(object sender, RoutedEventArgs e)

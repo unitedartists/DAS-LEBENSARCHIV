@@ -1,4 +1,4 @@
-﻿<Window x:Class="DAS_LEBENSARCHIV.ErinnerungenFenster"
+<Window x:Class="DAS_LEBENSARCHIV.ErinnerungenFenster"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Erinnerungen"
@@ -140,6 +140,22 @@
                     Height="36"
                     Margin="8,0,0,0"
                     Click="Naechste_Click"/>
+
+                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
+                     Foto dauerhaft drehen. -->
+                <Button
+                    Content="⟲ Links drehen"
+                    Width="120"
+                    Height="36"
+                    Margin="24,0,0,0"
+                    Click="BildLinksDrehen_Click"/>
+
+                <Button
+                    Content="⟳ Rechts drehen"
+                    Width="120"
+                    Height="36"
+                    Margin="8,0,0,0"
+                    Click="BildRechtsDrehen_Click"/>
 
                 <!-- Build 3.3: Positionsanzeige "Erinnerung X von Y" -->
                 <TextBlock

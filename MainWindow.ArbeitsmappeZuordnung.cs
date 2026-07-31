@@ -95,7 +95,11 @@ namespace DAS_LEBENSARCHIV
                     ereignis.WeitereFotoDateinamen.Add(neuerDateiname);
                 }
 
-                arbeitsmappeAusgewaehlt.Remove(pfad);
+                // Punkt 3 (Optimierung nach Test 2): Markierung bleibt
+                // bestehen, damit dieselben markierten Erinnerungen im
+                // selben Arbeitsgang zusätzlich auch einer Person und/oder
+                // einer Sammlung zugeordnet werden können. Nur der Button
+                // "Markierung aufheben" löscht die Markierung noch aktiv.
                 arbeitsmappeBereitsZugeordnet.Add(pfad);
                 verbunden++;
             }
@@ -415,7 +419,8 @@ namespace DAS_LEBENSARCHIV
                         person.TitelbildDateiname = neuerDateiname;
                     }
 
-                    arbeitsmappeAusgewaehlt.Remove(pfad);
+                    // Punkt 3 (Optimierung nach Test 2): Markierung bleibt
+                    // bestehen für gleichzeitige Zuordnung zu Ereignis/Sammlung.
                     arbeitsmappeBereitsZugeordnet.Add(pfad);
                     verbunden++;
                 }
@@ -453,12 +458,8 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<Person> alleAuswaehlbarenPersonen = allePersonen
-                .Concat(ArchivListe.Items.Cast<Person>())
-                .ToList();
-
-            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = alleAuswaehlbarenPersonen;
-            ArbeitsmappeTitelbildPersonComboBox.SelectedIndex = -1;
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = null;
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = allePersonen;
 
             VersteckeAlleArbeitsmappenPanels();
             ArbeitsmappePersonAuswahlPanel.Visibility = Visibility.Visible;
@@ -466,20 +467,23 @@ namespace DAS_LEBENSARCHIV
 
         private void ArbeitsmappeTitelbildPersonComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Person person = ArbeitsmappeTitelbildPersonComboBox.SelectedItem as Person;
+            bool istAusgewaehlt = ArbeitsmappeTitelbildPersonComboBox.SelectedItem != null;
 
-            if (person != null)
-            {
-                int anzahlVorher = ZaehleErinnerungenDerPerson(person);
-                ArbeitsmappeStatusText.Text = James.DiagnosePersonAusgewaehltFuerErinnerungen(person.ToString(), anzahlVorher);
-            }
+            ArbeitsmappeTitelbildBestaetigenButton.IsEnabled = istAusgewaehlt;
+            ArbeitsmappePersonenAnsehenButton.IsEnabled = istAusgewaehlt;
+            ArbeitsmappePersonenArchivierenButton.IsEnabled = istAusgewaehlt;
+            ArbeitsmappePersonenInPapierkorbButton.IsEnabled = istAusgewaehlt;
         }
 
+        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Mehrfachzuordnung -
+        // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDER
+        // markierten Person zugeordnet (z.B. eine Geburtsfotoserie
+        // gleichzeitig an Vater, Mutter, Oma, Opa und Geschwister).
         private void ArbeitsmappeTitelbildBestaetigen_Click(object sender, RoutedEventArgs e)
         {
-            Person person = ArbeitsmappeTitelbildPersonComboBox.SelectedItem as Person;
+            List<Person> ausgewaehltePersonen = ArbeitsmappeTitelbildPersonComboBox.SelectedItems.Cast<Person>().ToList();
 
-            if (person == null)
+            if (ausgewaehltePersonen.Count == 0)
             {
                 James.Hinweis(James.BittePersonAuswaehlen);
                 return;
@@ -487,13 +491,116 @@ namespace DAS_LEBENSARCHIV
 
             List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
 
-            VerknuepfeArbeitsmappenDateienMitPerson(person, pfade);
+            foreach (Person person in ausgewaehltePersonen)
+            {
+                List<string> pfadeKopie = new List<string>(pfade);
+                VerknuepfeArbeitsmappenDateienMitPerson(person, pfadeKopie);
+            }
 
-            int anzahlNachher = ZaehleErinnerungenDerPerson(person);
-            ArbeitsmappeStatusText.Text = James.DiagnoseNachZuordnung(person.ToString(), anzahlNachher);
+            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehltePersonen.Count + " Person(en).";
 
-            ArbeitsmappePersonAuswahlPanel.Visibility = Visibility.Collapsed;
+            // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
+            // und "Archivieren" direkt im Anschluss noch nutzbar sind - schließt
+            // erst, wenn der Benutzer selbst auf "Abbrechen" klickt.
             AktualisiereArbeitsmappe();
+        }
+
+        // Neue Funktion (Generaltest 2): "Erinnerungen ansehen" für Personen
+        // jetzt auch direkt aus der Arbeitsmappe heraus möglich (vorher nur
+        // über den Schreibtisch/das Archiv erreichbar).
+        private void ArbeitsmappePersonenAnsehen_Click(object sender, RoutedEventArgs e)
+        {
+            Person person = ArbeitsmappeTitelbildPersonComboBox.SelectedItem as Person;
+
+            if (person == null)
+            {
+                return;
+            }
+
+            List<ErinnerungsInfo> erinnerungenListe = SammelErinnerungenFuerPerson(person);
+
+            if (erinnerungenListe.Count == 0)
+            {
+                return;
+            }
+
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            fenster.Owner = this;
+            fenster.Show();
+        }
+
+        // Neue Funktion (Generaltest 2): "Archivieren" für Personen jetzt
+        // auch direkt aus der Arbeitsmappe heraus möglich, blockweise.
+        private void ArbeitsmappePersonenArchivieren_Click(object sender, RoutedEventArgs e)
+        {
+            List<Person> ausgewaehltePersonen = ArbeitsmappeTitelbildPersonComboBox.SelectedItems.Cast<Person>().ToList();
+
+            if (ausgewaehltePersonen.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Person person in ausgewaehltePersonen)
+            {
+                allePersonen.Remove(person);
+                ArchivListe.Items.Add(person);
+            }
+
+            AktualisierePersonenAnzeige();
+            SpeichereDaten();
+
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = null;
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = allePersonen;
+
+            ArbeitsmappeStatusText.Text = ausgewaehltePersonen.Count == 1
+                ? James.ImArchivAngekommen(ausgewaehltePersonen[0].ToString())
+                : James.ImArchivAngekommenMehrere(ausgewaehltePersonen.Count);
+        }
+
+        // Neue Funktion (Generaltest 2): "In den Papierkorb legen" für
+        // Personen jetzt auch direkt aus der Arbeitsmappe heraus möglich,
+        // blockweise, mit derselben Sicherheitsabfrage wie sonst im Programm.
+        private void ArbeitsmappePersonenInPapierkorb_Click(object sender, RoutedEventArgs e)
+        {
+            List<Person> ausgewaehltePersonen = ArbeitsmappeTitelbildPersonComboBox.SelectedItems.Cast<Person>().ToList();
+
+            if (ausgewaehltePersonen.Count == 0)
+            {
+                return;
+            }
+
+            string frage = ausgewaehltePersonen.Count == 1
+                ? James.FrageInPapierkorbEinzeln(ausgewaehltePersonen[0].ToString())
+                : James.FrageInPapierkorbMehrere(ausgewaehltePersonen.Count);
+
+            bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            foreach (Person person in ausgewaehltePersonen)
+            {
+                allePersonen.Remove(person);
+                PapierkorbListe.Items.Add(person);
+            }
+
+            AktualisierePersonenAnzeige();
+            SpeichereDaten();
+
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = null;
+            ArbeitsmappeTitelbildPersonComboBox.ItemsSource = allePersonen;
+
+            ArbeitsmappeStatusText.Text = ausgewaehltePersonen.Count == 1
+                ? James.InPapierkorbGelegtEinzeln(ausgewaehltePersonen[0].ToString())
+                : James.InPapierkorbGelegtMehrere(ausgewaehltePersonen.Count);
+        }
+
+        // Neue Funktion (Generaltest 2): einfacher Abbruch.
+        private void ArbeitsmappePersonenAbbrechen_Click(object sender, RoutedEventArgs e)
+        {
+            ArbeitsmappePersonAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)

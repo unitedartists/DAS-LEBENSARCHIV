@@ -364,10 +364,14 @@ namespace DAS_LEBENSARCHIV
             // im Hintergrund mit Fortschrittsanzeige, statt die Oberfläche
             // bei sehr vielen Duplikaten (zehntausende Dateien) einzufrieren.
             ArbeitsmappeDuplikateVerschiebenButton.IsEnabled = false;
+            ArbeitsmappeDuplikateFortschrittsleiste.Visibility = Visibility.Visible;
+            ArbeitsmappeDuplikateFortschrittsleiste.Value = 0;
 
             IProgress<int> fortschritt = new Progress<int>(anzahl =>
             {
-                ArbeitsmappeDuplikateHinweisText.Text = "James verschiebt doppelte Dateien: " + anzahl + " von " + zuVerschieben.Count + " ...";
+                int prozent = (int)(100.0 * anzahl / zuVerschieben.Count);
+                ArbeitsmappeDuplikateFortschrittsleiste.Value = prozent;
+                ArbeitsmappeDuplikateHinweisText.Text = "James räumt auf: " + prozent + " % erledigt (" + anzahl + " von " + zuVerschieben.Count + " Duplikaten verschoben) ...";
             });
 
             HashSet<string> entferntePfade = new HashSet<string>();
@@ -383,7 +387,10 @@ namespace DAS_LEBENSARCHIV
                         verschoben++;
                     }
 
-                    if (verschoben % 200 == 0)
+                    // Optimierung (04.08.): deutlich häufiger aktualisieren
+                    // (statt nur alle 200) - so ist jederzeit erkennbar,
+                    // dass James noch aktiv arbeitet, nicht "eingefroren" ist.
+                    if (verschoben % 10 == 0 || verschoben == zuVerschieben.Count)
                     {
                         fortschritt.Report(verschoben);
                     }
@@ -400,12 +407,34 @@ namespace DAS_LEBENSARCHIV
                 arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
                 AktualisiereAsservatenkammerAnzeige();
                 AktualisiereArbeitsmappe();
-                ArbeitsmappeStatusText.Text = verschoben + " doppelte Datei(en) wurden in die Asservatenkammer verschoben.";
+
+                int fehlgeschlagenBeimVerschieben = zuVerschieben.Count - verschoben;
+
+                ArbeitsmappeStatusText.Text = verschoben + " doppelte Datei(en) wurden in die Asservatenkammer verschoben." +
+                    (fehlgeschlagenBeimVerschieben > 0
+                        ? " " + fehlgeschlagenBeimVerschieben + " weitere konnten NICHT verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden."
+                        : "");
+            }
+            else
+            {
+                // BUGFIX (05.08.): Bisher wurde hier - auch wenn KEINE
+                // einzige Datei verschoben werden konnte (z.B. weil alle
+                // gefundenen "Duplikate" in Wirklichkeit nicht mehr
+                // existierende Dateien waren, etwa .cda-CD-Titel-Verweise) -
+                // gar nichts gemeldet. Der Button verschwand einfach
+                // lautlos, ohne dass der Benutzer erfuhr, was passiert ist.
+                ArbeitsmappeStatusText.Text = "Keine der " + zuVerschieben.Count +
+                    " gefundenen (nahezu) identischen Datei(en) konnte verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden.";
             }
 
-            ArbeitsmappeDuplikateHinweisText.Text = "";
-            ArbeitsmappeDuplikateVerschiebenButton.Visibility = Visibility.Collapsed;
+            ArbeitsmappeDuplikateFortschrittsleiste.Visibility = Visibility.Collapsed;
             ArbeitsmappeDuplikateVerschiebenButton.IsEnabled = true;
+
+            // Zeigt den Button erneut/weiterhin an, falls nach diesem
+            // Durchgang noch (unverschobene) Duplikat-Gruppen übrig sind -
+            // vorher wurde er bedingungslos versteckt, auch wenn gar nichts
+            // verschoben wurde.
+            PruefeUndZeigeDuplikateInArbeitsmappe();
         }
         // Punkt 3 (Optimierung nach Test 2): eigenständiger Button - verschiebt
         // NUR die eigens dafür markierten Erinnerungen (arbeitsmappeAusgewaehlt)
@@ -427,8 +456,9 @@ namespace DAS_LEBENSARCHIV
 
             IProgress<int> fortschritt = new Progress<int>(anzahl =>
             {
+                int prozent = (int)(100.0 * anzahl / zuVerschieben.Count);
                 ArbeitsmappeAsservatenkammerStatusText.Foreground = Brushes.Black;
-                ArbeitsmappeAsservatenkammerStatusText.Text = "James verschiebt: " + anzahl + " von " + zuVerschieben.Count + " ...";
+                ArbeitsmappeAsservatenkammerStatusText.Text = "James verschiebt: " + prozent + " % erledigt (" + anzahl + " von " + zuVerschieben.Count + ") ...";
             });
 
             HashSet<string> entferntePfade = new HashSet<string>();
@@ -444,7 +474,7 @@ namespace DAS_LEBENSARCHIV
                         verschoben++;
                     }
 
-                    if (verschoben % 200 == 0)
+                    if (verschoben % 10 == 0 || verschoben == zuVerschieben.Count)
                     {
                         fortschritt.Report(verschoben);
                     }
@@ -464,9 +494,24 @@ namespace DAS_LEBENSARCHIV
                 arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
                 AktualisiereAsservatenkammerAnzeige();
                 ArbeitsmappeAsservatenkammerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
-                ArbeitsmappeAsservatenkammerStatusText.Text = verschoben == 1
+
+                int fehlgeschlagenBeimVerschieben = zuVerschieben.Count - verschoben;
+
+                ArbeitsmappeAsservatenkammerStatusText.Text = (verschoben == 1
                     ? "1 markierte Erinnerung wurde in die Asservatenkammer verschoben."
-                    : verschoben + " markierte Erinnerungen wurden in die Asservatenkammer verschoben.";
+                    : verschoben + " markierte Erinnerungen wurden in die Asservatenkammer verschoben.") +
+                    (fehlgeschlagenBeimVerschieben > 0
+                        ? " " + fehlgeschlagenBeimVerschieben + " weitere konnten NICHT verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden."
+                        : "");
+            }
+            else
+            {
+                // BUGFIX (05.08.), analog zum Duplikate-Verschieben-Button:
+                // klare Rückmeldung statt stillschweigend nichts zu sagen,
+                // wenn keine einzige markierte Datei verschoben werden konnte.
+                ArbeitsmappeAsservatenkammerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0x00, 0x20));
+                ArbeitsmappeAsservatenkammerStatusText.Text = "Keine der " + zuVerschieben.Count +
+                    " markierten Datei(en) konnte verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden.";
             }
 
             AktualisiereArbeitsmappe();

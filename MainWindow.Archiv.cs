@@ -32,6 +32,58 @@ namespace DAS_LEBENSARCHIV
         // gewählt wurde.
         private CancellationTokenSource archivUmzugAbbruchQuelle;
 
+        // Optimierungswunsch (01.08.): James verwahrt keine Zugangsdaten
+        // selbst, sondern öffnet nur den bewährten, verschlüsselten
+        // Passwort-Tresor (KeePass). Beim ersten Mal fragt James, wo die
+        // Tresordatei liegt (empfohlen: im Notfall-Ordner auf dem
+        // gewählten Lebensarchiv-Laufwerk) und merkt sich das danach.
+        //
+        // KEEPASS-SICHERHEITSREGEL (Vorgabe von A, 01.08.): James darf sich
+        // AUSSCHLIESSLICH den Pfad zur KeePass-Datenbank merken und
+        // KeePass/die Datenbank damit öffnen. Master-Passwort,
+        // Schlüsseldatei-Inhalt oder sonstige Zugangsdaten werden von
+        // James niemals gespeichert, gelesen oder protokolliert - das
+        // Öffnen erfolgt ausschließlich über den externen Windows-
+        // Prozessaufruf (Process.Start), James bekommt den Tresorinhalt
+        // selbst nie zu Gesicht.
+        private void PasswortTresorOeffnen_Click(object sender, RoutedEventArgs e)
+        {
+            ArchivStandortKonfiguration konfiguration = LadeArchivStandortKonfiguration();
+
+            if (string.IsNullOrWhiteSpace(konfiguration.PasswortTresorPfad) || !File.Exists(konfiguration.PasswortTresorPfad))
+            {
+                Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Passwort-Tresor (KeePass-Datei .kdbx) auswählen",
+                    Filter = "KeePass-Tresor (*.kdbx)|*.kdbx|Alle Dateien (*.*)|*.*",
+                    CheckFileExists = true
+                };
+
+                if (dialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                konfiguration.PasswortTresorPfad = dialog.FileName;
+                SpeichereArchivStandortKonfiguration(konfiguration);
+            }
+
+            try
+            {
+                ProcessStartInfo start = new ProcessStartInfo
+                {
+                    FileName = konfiguration.PasswortTresorPfad,
+                    UseShellExecute = true
+                };
+
+                Process.Start(start);
+            }
+            catch (Exception ex)
+            {
+                James.Problem(James.FehlerBeimOeffnenDerErinnerung(ex.Message));
+            }
+        }
+
         private void ZeigeAktuellenArchivSpeicherort()
         {
             if (ArchivSpeicherortAktuellerPfadText == null)
@@ -107,15 +159,12 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            // James legt selbständig einen eigenen Unterordner an, damit der
-            // Benutzer nur den obersten Ordner wählen muss (Wunsch des
-            // Architekten) - z.B. gewählt: H:\, tatsächlicher Archivordner:
-            // H:\Lebensarchiv.
-            string zielArchivOrdner = Path.GetFileName(neuerPfad.TrimEnd('\\')) == "Lebensarchiv"
-                ? neuerPfad
-                : Path.Combine(neuerPfad, "Lebensarchiv");
-
-            StarteArchivUmzugPhase1(alterPfad, zielArchivOrdner);
+            // Architektur-Update (01.08., Wunsch von A): James legt keinen
+            // zusätzlichen "Lebensarchiv"-Unterordner mehr selbständig an -
+            // der Benutzer wählt den Zielordner bereits ganz konkret aus
+            // (z.B. "H:\UNSER LEBENSARCHIV\02 - BUTLER JAMES") und James
+            // verwendet genau diesen Ordner.
+            StarteArchivUmzugPhase1(alterPfad, neuerPfad);
         }
 
         // Phase 1 (Wunsch des Architekten): nur kopieren und prüfen - der

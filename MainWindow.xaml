@@ -1581,9 +1581,66 @@
                             Width="220"
                             Height="40"
                             HorizontalAlignment="Left"
+                            Margin="0,0,0,20"
                             Click="ArbeitsmappeOeffnenButton_Click"/>
 
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Zugangsdaten (z.B. für GitHub, Visual Studio, Claude) verwahrt James nicht selbst, sondern öffnet dafür Ihren sicheren, bewährten Passwort-Tresor (KeePass)."/>
+
+                            <Button
+                            Name="PasswortTresorOeffnenButton"
+                            Content="Passwort-Tresor öffnen"
+                            Width="220"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,20"
+                            Click="PasswortTresorOeffnen_Click"/>
+
+                            <!-- Sprint C, Etappe 1a (04.08.): erster technischer
+                                 Nachweis, dass James Bilder verarbeiten kann -
+                                 noch ohne Kategorie-Erkennung. -->
+                            <TextBlock
+                            FontWeight="Bold"
+                            Margin="0,0,0,4"
+                            Text="Sehzentrum (in Entwicklung)"/>
+
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Erster Testschritt: James verarbeitet ein gewähltes Bild rein lokal und speichert das Ergebnis in seinem Sehgedächtnis. Noch keine Erkennung von Hund, Katze usw. - das folgt als Nächstes."/>
+
+                            <Button
+                            Name="SehzentrumTestenButton"
+                            Content="Sehzentrum testen..."
+                            Width="220"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Click="SehzentrumTesten_Click"/>
+                            <Button Content="Kategorie testen..." Click="SehzentrumKategorieTesten_Click" Margin="0,8,0,0" Padding="8,4"/>
+
+                            <Border
+                            Name="SehzentrumBildVorschauBorder"
+                            Visibility="Collapsed"
+                            BorderBrush="#CCCCCC"
+                            BorderThickness="1"
+                            Background="WhiteSmoke"
+                            MaxWidth="500"
+                            MaxHeight="400"
+                            HorizontalAlignment="Left"
+                            Margin="0,14,0,0">
+                                <Image
+                                Name="SehzentrumBildVorschauBild"
+                                Stretch="Uniform"
+                                MaxWidth="500"
+                                MaxHeight="400"/>
+                            </Border>
+
                         </StackPanel>
+
 
                         <StackPanel
                         Name="OrdnerAuswahlPanel"
@@ -1728,6 +1785,16 @@
                             Name="DoppelgaengerStatusText"
                             TextWrapping="Wrap"
                             FontWeight="Bold"
+                            Margin="0,0,0,10"/>
+
+                            <ProgressBar
+                            Name="DoppelgaengerFortschrittsleiste"
+                            Width="420"
+                            Height="22"
+                            HorizontalAlignment="Left"
+                            Minimum="0"
+                            Maximum="100"
+                            Visibility="Collapsed"
                             Margin="0,0,0,10"/>
 
                             <ListBox
@@ -1898,6 +1965,16 @@
                             <TextBlock
                             Name="ArchivUmzugStatusText"
                             TextWrapping="Wrap"
+                            Margin="0,0,0,10"/>
+
+                            <ProgressBar
+                            Name="ArchivUmzugFortschrittsleiste"
+                            Width="420"
+                            Height="22"
+                            HorizontalAlignment="Left"
+                            Minimum="0"
+                            Maximum="100"
+                            Visibility="Collapsed"
                             Margin="0,0,0,14"/>
 
                             <Button
@@ -2031,9 +2108,23 @@
                             Width="420"
                             Height="36"
                             HorizontalAlignment="Left"
-                            Margin="0,0,0,14"
+                            Margin="0,0,0,8"
                             Visibility="Collapsed"
                             Click="ArbeitsmappeDuplikateVerschieben_Click"/>
+
+                        <!-- Optimierung (04.08.): sichtbarer Fortschrittsbalken
+                             statt einer Zahl, die sich nur alle 200 Dateien
+                             ändert - so ist immer erkennbar, dass James noch
+                             aktiv arbeitet und wie weit er ungefähr ist. -->
+                        <ProgressBar
+                            Name="ArbeitsmappeDuplikateFortschrittsleiste"
+                            Width="420"
+                            Height="22"
+                            HorizontalAlignment="Left"
+                            Minimum="0"
+                            Maximum="100"
+                            Visibility="Collapsed"
+                            Margin="0,0,0,14"/>
 
                         <!-- Build 2.8, Punkt 4: Debug-Anzeige, ob/wann
                              OeffneArbeitsmappe() tatsächlich ausgeführt wird -
@@ -2063,6 +2154,49 @@
                             HorizontalAlignment="Left"
                             Padding="4"
                             TextChanged="ArbeitsmappeSucheTextBox_TextChanged"/>
+
+                        <!-- Neue Funktion (01.08., Wunsch von A): Vorsammlungen
+                             - gezielt nur die Erinnerungen aus einem bereits
+                             vorsortierten Ordner (z.B. D:\Hochzeit) anzeigen,
+                             als Ausgangsbasis für die Zuordnung. Verändert die
+                             Originaldateien nicht, nur eine Anzeige-Auswahl. -->
+                        <TextBlock Text="Vorsammlung: nur einen bestimmten Ordner anzeigen" Margin="0,14,0,4"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+
+                            <Button
+                            Name="ArbeitsmappeOrdnerWaehlenButton"
+                            Content="Ordner wählen..."
+                            Width="160"
+                            Height="32"
+                            Margin="0,0,10,0"
+                            Click="ArbeitsmappeOrdnerWaehlen_Click"/>
+
+                            <Button
+                            Name="ArbeitsmappeOrdnerZuruecksetzenButton"
+                            Content="Zurücksetzen"
+                            Width="120"
+                            Height="32"
+                            Margin="0,0,10,0"
+                            Visibility="Collapsed"
+                            Click="ArbeitsmappeOrdnerZuruecksetzen_Click"/>
+
+                            <CheckBox
+                            Name="ArbeitsmappeOrdnerInklUnterordnerCheckbox"
+                            Content="inkl. Unterordner"
+                            IsChecked="True"
+                            VerticalAlignment="Center"
+                            Checked="ArbeitsmappeOrdnerOption_Changed"
+                            Unchecked="ArbeitsmappeOrdnerOption_Changed"/>
+
+                        </StackPanel>
+
+                        <TextBlock
+                        Name="ArbeitsmappeOrdnerAnzeigeText"
+                        Foreground="#2E7D32"
+                        FontWeight="Bold"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,10"/>
 
                     </StackPanel>
 
@@ -2609,6 +2743,25 @@
                                 Click="ArbeitsmappeMarkierteInAsservatenkammer_Click">
                                     <TextBlock
                                     Text="Markierte Erinnerungen in die Asservatenkammer verschieben"
+                                    TextWrapping="Wrap"
+                                    TextAlignment="Center"/>
+                                </Button>
+
+                                <!-- Sprint C, Etappe 1b-Baukasten (05.08.):
+                                 übergangsweise Möglichkeit, direkt aus der
+                                 Arbeitsmappe heraus Stichwörter für markierte
+                                 Bilder zu bestätigen, bis James genug
+                                 trainiert ist. -->
+                                <Button
+                                Name="ArbeitsmappeJamesLerntButton"
+                                Width="200"
+                                Height="44"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,20"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeJamesLernt_Click">
+                                    <TextBlock
+                                    Text="James merkt sich zu diesen Erinnerungen"
                                     TextWrapping="Wrap"
                                     TextAlignment="Center"/>
                                 </Button>

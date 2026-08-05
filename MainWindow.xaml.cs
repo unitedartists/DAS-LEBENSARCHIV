@@ -213,6 +213,13 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         private List<GefundeneDatei> arbeitsmappeAlleDateien = new List<GefundeneDatei>();
         private string arbeitsmappeFilter = "Alle";
+
+        // Neue Funktion (01.08., Wunsch von A): Vorsammlungen - zeigt auf
+        // Wunsch nur Erinnerungen aus einem bestimmten, bereits vom
+        // Benutzer vorsortierten Ordner an. Rein lesend, verändert keine
+        // Originaldateien.
+        private string arbeitsmappeVorsammlungOrdner = null;
+        private bool arbeitsmappeVorsammlungInklUnterordner = true;
         private int arbeitsmappeSeite = 1;
         // Punkt 2 (letzte Feinjustierung): 14 pro Seite, da im Fenster noch
         // Platz für 2 weitere Kacheln in der 2. Zeile war.

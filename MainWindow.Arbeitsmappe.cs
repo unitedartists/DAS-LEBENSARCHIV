@@ -169,6 +169,25 @@ namespace DAS_LEBENSARCHIV
                     (d.VollstaendigerPfad != null && d.VollstaendigerPfad.ToLower().Contains(suchtext)));
             }
 
+            // Neue Funktion (01.08.): Vorsammlung - nur Erinnerungen aus
+            // einem gewählten Fundort-Ordner zeigen (Anzeige-Filter, ändert
+            // nichts an den Originaldateien).
+            if (!string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner))
+            {
+                string ordnerMitTrenner = arbeitsmappeVorsammlungOrdner.TrimEnd('\\') + "\\";
+
+                if (arbeitsmappeVorsammlungInklUnterordner)
+                {
+                    ergebnis = ergebnis.Where(d => d.VollstaendigerPfad != null
+                        && d.VollstaendigerPfad.StartsWith(ordnerMitTrenner, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    ergebnis = ergebnis.Where(d => d.VollstaendigerPfad != null
+                        && string.Equals(Path.GetDirectoryName(d.VollstaendigerPfad), arbeitsmappeVorsammlungOrdner.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
             // Punkt 3 (Optimierung nach Test 2): bereits zugeordnete
             // Erinnerungen verschwinden automatisch aus James' Vorlage -
             // hier bleiben nur noch nicht zugeordnete Erinnerungen übrig.
@@ -198,6 +217,56 @@ namespace DAS_LEBENSARCHIV
         {
             arbeitsmappeSeite = 1;
             AktualisiereArbeitsmappe();
+        }
+
+        // Neue Funktion (01.08., Wunsch von A): Vorsammlungen. Rein lesend -
+        // wählt nur einen Anzeige-Filter, verändert keine Originaldateien.
+        private void ArbeitsmappeOrdnerWaehlen_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFolderDialog dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Ordner wählen, dessen Erinnerungen angezeigt werden sollen"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            arbeitsmappeVorsammlungOrdner = dialog.FolderName;
+            arbeitsmappeSeite = 1;
+
+            ArbeitsmappeOrdnerZuruecksetzenButton.Visibility = Visibility.Visible;
+            AktualisiereArbeitsmappeOrdnerAnzeigeText();
+            AktualisiereArbeitsmappe();
+        }
+
+        private void ArbeitsmappeOrdnerZuruecksetzen_Click(object sender, RoutedEventArgs e)
+        {
+            arbeitsmappeVorsammlungOrdner = null;
+            arbeitsmappeSeite = 1;
+
+            ArbeitsmappeOrdnerZuruecksetzenButton.Visibility = Visibility.Collapsed;
+            AktualisiereArbeitsmappeOrdnerAnzeigeText();
+            AktualisiereArbeitsmappe();
+        }
+
+        private void ArbeitsmappeOrdnerOption_Changed(object sender, RoutedEventArgs e)
+        {
+            arbeitsmappeVorsammlungInklUnterordner = ArbeitsmappeOrdnerInklUnterordnerCheckbox.IsChecked == true;
+
+            if (!string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner))
+            {
+                arbeitsmappeSeite = 1;
+                AktualisiereArbeitsmappe();
+            }
+        }
+
+        private void AktualisiereArbeitsmappeOrdnerAnzeigeText()
+        {
+            ArbeitsmappeOrdnerAnzeigeText.Text = string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner)
+                ? ""
+                : "Zeige nur: " + arbeitsmappeVorsammlungOrdner;
         }
 
         private void AktualisiereArbeitsmappenFilterButtons()
@@ -524,6 +593,13 @@ namespace DAS_LEBENSARCHIV
             // unabhängig von Person/Ereignis/Sammlung.
             ArbeitsmappeMarkierteInAsservatenkammerButton.IsEnabled = anzahl > 0;
 
+            // Sprint C, Etappe 1b-Baukasten (05.08.): "James merkt sich" -
+            // übergangsweise Möglichkeit, direkt aus der Arbeitsmappe
+            // heraus Stichwörter für markierte Bilder zu bestätigen, bis
+            // James genug trainiert ist. Nutzt dieselbe Logik wie der
+            // Werkzeuge-Button (siehe MainWindow.Sehzentrum.cs).
+            ArbeitsmappeJamesLerntButton.IsEnabled = anzahl > 0;
+
             if (anzahl == 0)
             {
                 VersteckeAlleArbeitsmappenPanels();
@@ -546,6 +622,34 @@ namespace DAS_LEBENSARCHIV
             }
 
             return arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad);
+        }
+
+        // Sprint C, Etappe 1b-Baukasten (05.08.): "James merkt sich zu
+        // diesen Erinnerungen" - für jedes markierte, tatsächlich
+        // vorhandene BILD (das Sehzentrum arbeitet bewusst noch
+        // ausschließlich mit Bildern, wie auch sonst im Projekt) wird
+        // nacheinander dieselbe Stichwort-Zuordnung wie beim
+        // Werkzeuge-Button "Kategorie testen..." durchlaufen - inklusive
+        // Vermutung, Mehrfachauswahl, Bestätigungsschleife und
+        // Wörterbuch-Ergänzung. Übergangslösung, bis James eigenständig
+        // sicher genug erkennt.
+        private void ArbeitsmappeJamesLernt_Click(object sender, RoutedEventArgs e)
+        {
+            List<GefundeneDatei> bilder = arbeitsmappeAusgewaehlt
+                .Select(pfad => arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad))
+                .Where(d => d != null && d.Dateityp == "Bilder" && File.Exists(d.VollstaendigerPfad))
+                .ToList();
+
+            if (bilder.Count == 0)
+            {
+                James.Hinweis("Das Sehzentrum kann bisher nur mit Bildern arbeiten - unter den markierten Erinnerungen ist keine Bilddatei dabei.");
+                return;
+            }
+
+            foreach (GefundeneDatei bild in bilder)
+            {
+                SehzentrumBildKategorisieren(bild.VollstaendigerPfad);
+            }
         }
 
     }

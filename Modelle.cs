@@ -7,16 +7,6 @@ namespace DAS_LEBENSARCHIV
     // ============================================================
     // ARCHITEKTUR-BASISKLASSE
     // ============================================================
-    // Gemeinsame technische Grundlage für alle künftigen Archivobjekte
-    // (Person, Ereignis, später auch Dokument, Erinnerung, ...).
-    //
-    // - Id:        unveränderliche technische Identität (wird einmalig
-    //              beim Anlegen erzeugt, dem Benutzer niemals angezeigt,
-    //              ändert sich niemals - auch nicht bei Namensänderungen).
-    // - CreatedAt: Zeitpunkt der Erstellung.
-    // - ModifiedAt: Zeitpunkt der letzten Änderung (für spätere
-    //              Auswertungen, z.B. "seit Ihrem letzten Besuch neu").
-    // ============================================================
     public abstract class ArchivObjekt
     {
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -24,35 +14,6 @@ namespace DAS_LEBENSARCHIV
         public DateTime ModifiedAt { get; set; } = DateTime.Now;
     }
 
-    // ============================================================
-    // ARCHITEKTURENTSCHEIDUNG 003 (Build 0.5)
-    // ============================================================
-    // Ereignisse sind die Bausteine der Biografie.
-    // Erinnerungen gehören (künftig) zu Ereignissen.
-    // Medien gehören (künftig) zu Erinnerungen.
-    // Personen erleben Ereignisse.
-    //
-    // Architekturregel (lose Kopplung):
-    // Keine Klasse darf jemals wissen, wo sie später angezeigt wird.
-    // Ereignis weiß nichts von der Bedienoberfläche, nichts vom
-    // Schreibtisch, nichts vom Lebensbuch. Ereignis kennt nur sich
-    // selbst. Nur MainWindow (stellvertretend für "James") kennt alle
-    // Objekte und verbindet sie mit der Anzeige.
-    //
-    // Build 0.5 legte das Fundament: eine Person kann beliebig viele
-    // Ereignisse besitzen. Build 0.6 ergaenzt: ein Ereignis kann nun
-    // zusaetzlich ein eigenes Foto besitzen (das bestehende Titelbild
-    // der Person bleibt davon unberuehrt bestehen). Build 0.7 ergaenzt:
-    // ein Ereignis bekommt beschreibende Eigenschaften (Jahreszeit,
-    // Stichwoerter, Bemerkungen), die spaeter eine natuerliche Suche
-    // ermoeglichen sollen (z.B. "Zeige mir alle Gartenbilder aus dem
-    // Fruehjahr 1998."). Architekturkorrektur des Architekten: eine
-    // eigenstaendige Erinnerung-Klasse zwischen Ereignis und Medium
-    // wird erst eingefuehrt, wenn ein Ereignis tatsaechlich mehrere
-    // unterschiedliche Medien (Fotos, Dokumente, Audio, Video) enthalten
-    // soll - bis dahin bleiben die beschreibenden Felder direkt am
-    // Ereignis, das haelt die Architektur so schlank wie noetig.
-    // ============================================================
     public class Ereignis : ArchivObjekt
     {
         public string Titel { get; set; }
@@ -91,17 +52,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // NEUE FUNKTION (Generaltest 2, Wunsch von Oma+Opa): DIE SAMMLUNG
-    // ============================================================
-    // Eine dritte, eigenständige Schublade neben Person und besonderem
-    // Ereignis - für Erinnerungen, die zu keiner Person und keinem
-    // datierten Ereignis gehören, sondern zu einem Thema ("Sammlung
-    // Hund", "Sammlung Bäume", "Sammlung Fische"). Bewusst schlank
-    // gehalten (nur Titel + Fotos) - kein Datum, kein Ort, keine
-    // Jahreszeit, keine Stichwörter, da eine Sammlung anders als ein
-    // Ereignis keinen Zeitpunkt/Ort hat, sondern rein thematisch ist.
-    // ============================================================
     public class Sammlung : ArchivObjekt
     {
         public string Titel { get; set; }
@@ -124,9 +74,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // BUILD 1.2: BEZIEHUNGEN VERSTEHEN
-    // ============================================================
     public class Beziehung
     {
         public string Rolle { get; set; }
@@ -164,14 +111,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // NEUE FUNKTION (Generaltest 2, Wunsch von Oma+Opa): ASSERVATENKAMMER
-    // ============================================================
-    // Hierhin verschiebt James automatisch erkannte, exakte Duplikate -
-    // niemals löschen, immer nur verschieben. Der Benutzer entscheidet
-    // hier in Ruhe, ob eine Datei endgültig gelöscht oder auf den
-    // Schreibtisch zurückgeholt wird.
-    // ============================================================
     public class AsservatenEintrag : ArchivObjekt
     {
         public string Dateiname { get; set; }
@@ -209,9 +148,6 @@ namespace DAS_LEBENSARCHIV
         public List<WissensBeziehung> WissensBeziehungen { get; set; }
     }
 
-    // ============================================================
-    // ETAPPE A: DIE EINHEITLICHE EREIGNISLISTE (Vorbereitung)
-    // ============================================================
     public class EreignisEintrag
     {
         public Ereignis Ereignis { get; set; }
@@ -229,9 +165,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // ETAPPE B (Build 2.9): JAMES' VISUELLES GEDÄCHTNIS
-    // ============================================================
     public class VisuellesMerkmal
     {
         public string Bezeichnung { get; set; }
@@ -254,9 +187,6 @@ namespace DAS_LEBENSARCHIV
         public List<VisuellesMerkmal> VisuelleMerkmale { get; set; } = new List<VisuellesMerkmal>();
     }
 
-    // ============================================================
-    // BUILD 0.8: JAMES FINDET ERINNERUNGEN
-    // ============================================================
     public class Suchtreffer
     {
         public Ereignis Ereignis { get; set; }
@@ -269,9 +199,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // BUILD 1.7: JAMES MACHT VORSCHLÄGE
-    // ============================================================
     public class Vorschlag
     {
         public string Text { get; set; }
@@ -285,9 +212,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // BUILD 1.8: ERINNERUNGEN VERKNÜPFEN
-    // ============================================================
     public class Verknuepfung
     {
         public string Grund { get; set; }
@@ -302,9 +226,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // BUILD 0.4: ERINNERUNGSVERZEICHNIS
-    // ============================================================
     public class GefundeneDatei : ArchivObjekt
     {
         public string Dateiname { get; set; }
@@ -313,6 +234,7 @@ namespace DAS_LEBENSARCHIV
         public DateTime Geaendert { get; set; }
         public string Dateityp { get; set; }
         public string Hashwert { get; set; }
+        public string FundortRolle { get; set; }
     }
 
     public class ErinnerungsVerzeichnis
@@ -321,9 +243,6 @@ namespace DAS_LEBENSARCHIV
         public List<GefundeneDatei> Dateien { get; set; }
     }
 
-    // ============================================================
-    // BUILD 1.0: ERINNERUNGEN AUFRÄUMEN
-    // ============================================================
     public class DoppelgaengerGruppe
     {
         public string Hashwert { get; set; }
@@ -336,9 +255,6 @@ namespace DAS_LEBENSARCHIV
         }
     }
 
-    // ============================================================
-    // BUILD 1.1: BAUMFÖRMIGE ORDNERAUSWAHL
-    // ============================================================
     public class OrdnerKnoten
     {
         public string Name { get; set; }
@@ -348,9 +264,6 @@ namespace DAS_LEBENSARCHIV
         public ObservableCollection<OrdnerKnoten> Kinder { get; set; } = new ObservableCollection<OrdnerKnoten>();
     }
 
-    // ============================================================
-    // BUILD 1.1: ORDNERGEDÄCHTNIS
-    // ============================================================
     public class OrdnerErinnerung
     {
         public string Pfad { get; set; }
@@ -364,9 +277,6 @@ namespace DAS_LEBENSARCHIV
         public List<OrdnerErinnerung> Ordner { get; set; } = new List<OrdnerErinnerung>();
     }
 
-    // ============================================================
-    // BUILD 1.9: JAMES MERKT SICH DIE ARBEIT
-    // ============================================================
     public class Arbeitsstand
     {
         public Guid? PersonId { get; set; }
@@ -375,9 +285,6 @@ namespace DAS_LEBENSARCHIV
         public DateTime Zeitpunkt { get; set; }
     }
 
-    // ============================================================
-    // BUILD 2.0: JAMES LERNT SEINEN BESITZER KENNEN
-    // ============================================================
     public class Einstellungen
     {
         public string Anrede { get; set; }
@@ -387,22 +294,77 @@ namespace DAS_LEBENSARCHIV
         public string Schrittgroesse { get; set; }
     }
 
-    // ============================================================
-    // ARCHITEKTUR: ZENTRALER ARCHIV-SPEICHERORT (31.07., gemeinsam mit
-    // dem Architekten festgelegt) - winziger Zeiger, der in %APPDATA%
-    // liegt und nur verrät, wo der eigentliche (große) Archiv-Ordner
-    // liegt. Keine Bild-/Videodaten in dieser Datei.
-    // ============================================================
     public class ArchivStandortKonfiguration
     {
         public string ArchivPfad { get; set; }
-
-        // Wunsch des Architekten (31.07.): zweistufiger Umzug. Nach dem
-        // Kopieren+Prüfen und einem Neustart soll der Benutzer erst in Ruhe
-        // kontrollieren können, ob alles am neuen Ort funktioniert, bevor er
-        // den alten Speicherort freiwillig löscht. Dieses Feld merkt sich
-        // den alten Pfad über den Neustart hinweg, bis der Benutzer sich
-        // entschieden hat.
         public string AlterPfadZumLoeschen { get; set; }
+        public string PasswortTresorPfad { get; set; }
+    }
+
+    // ============================================================
+    // SPRINT C, ETAPPE 1 (04.08.) / ETAPPE 1b-BAUKASTEN (05.08.):
+    // SEHGEDÄCHTNIS
+    // ============================================================
+    // Architekturentscheidung A (05.08.): "1 Bild = viele kleine
+    // beschreibende Bausteine" statt "1 Bild = 1 Schublade". Ein Bild
+    // kann 0, 1 oder beliebig viele bestätigte Stichwörter besitzen.
+    // James' Vermutungen (CLIP-Ähnlichkeit) und Opas bestätigtes Wissen
+    // bleiben zwei getrennte Ebenen - das bestätigte Wissen hat Vorrang.
+    public class SehgedaechtnisEintrag
+    {
+        public string Hashwert { get; set; }
+        public float[] BildEinbettung { get; set; }
+        public DateTime AnalysiertAm { get; set; }
+        public string Modellversion { get; set; }
+
+        // Baukasten-Modell (05.08.): James' aktuelle Vermutungen, je
+        // Stichwort eine eigene Sicherheit - ersetzt die frühere
+        // Einzelvermutung.
+        public List<VermuteterBegriff> JamesVermutungen { get; set; } = new List<VermuteterBegriff>();
+
+        // Baukasten-Modell (05.08.): vom Benutzer bestätigte Stichwörter -
+        // beliebig viele, unabhängig voneinander. Hat Vorrang vor James'
+        // Vermutungen.
+        public List<string> BestaetigteStichwoerter { get; set; } = new List<string>();
+
+        // Vorbereitet für spätere Erweiterung (A's Punkt 7): ausdrücklich
+        // vom Benutzer verneinte Stichwörter ("keine Katze"). Datenstruktur
+        // bereits vorhanden, Bedienoberfläche dafür bewusst noch nicht
+        // gebaut.
+        public List<string> BestaetigtNichtVorhanden { get; set; } = new List<string>();
+
+        // --- Alte Felder aus Etappe 1b vor dem Baukasten-Umbau ---
+        // Bleiben bewusst hier stehen, damit ein bereits vorhandenes
+        // sehgedaechtnis.json beim Laden automatisch (MigriereSehgedaechtnis
+        // in MainWindow.Sehzentrum.cs) ins neue Listenmodell übernommen
+        // werden kann. Werden danach geleert und nicht mehr neu befüllt.
+        public string JamesVermutungKategorie { get; set; }
+        public int JamesVermutungSicherheit { get; set; }
+        public string BestaetigteKategorie { get; set; }
+    }
+
+    // Eine einzelne Vermutung von James zu einem Stichwort, mit Sicherheit
+    // in Prozent (Kosinus-Ähnlichkeit gegen den Referenz-Durchschnitt).
+    public class VermuteterBegriff
+    {
+        public string Begriff { get; set; }
+        public int SicherheitProzent { get; set; }
+    }
+
+    // ============================================================
+    // SPRINT C, ETAPPE 1b (05.08.): STICHWORT-REFERENZEN
+    // ============================================================
+    // Ein Eintrag pro Stichwort (z.B. "Hund"), enthält die Einbettungen
+    // aller bisher vom Benutzer bestätigten Beispielbilder für dieses
+    // Stichwort. James vergleicht neue Bilder mit dem Durchschnitt dieser
+    // Beispiele. Je mehr bestätigte Beispiele, desto treffsicherer wird
+    // die Vermutung mit der Zeit. (Klassenname bewusst unverändert
+    // gelassen, damit ein bereits vorhandenes kategorien.json ohne
+    // Migration weiterverwendet werden kann - "Kategorie" entspricht
+    // inhaltlich jetzt einem "Stichwort" im Baukastensinn.)
+    public class KategorieReferenz
+    {
+        public string Kategorie { get; set; }
+        public List<float[]> BestaetigteEinbettungen { get; set; } = new List<float[]>();
     }
 }

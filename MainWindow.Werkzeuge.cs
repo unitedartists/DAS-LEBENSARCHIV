@@ -80,7 +80,10 @@ namespace DAS_LEBENSARCHIV
 
             IProgress<int> fortschritt = new Progress<int>(anzahl =>
             {
-                DoppelgaengerStatusText.Text = "James verschiebt doppelte Dateien: " + anzahl + " von " + zuVerschieben.Count + " ...";
+                int prozent = (int)(100.0 * anzahl / zuVerschieben.Count);
+                DoppelgaengerFortschrittsleiste.Visibility = Visibility.Visible;
+                DoppelgaengerFortschrittsleiste.Value = prozent;
+                DoppelgaengerStatusText.Text = "James räumt auf: " + prozent + " % erledigt (" + anzahl + " von " + zuVerschieben.Count + " Duplikaten verschoben) ...";
             });
 
             HashSet<string> entferntePfade = new HashSet<string>();
@@ -100,7 +103,7 @@ namespace DAS_LEBENSARCHIV
                         verschoben++;
                     }
 
-                    if (verschoben % 200 == 0)
+                    if (verschoben % 10 == 0 || verschoben == zuVerschieben.Count)
                     {
                         fortschritt.Report(verschoben);
                     }
@@ -121,6 +124,7 @@ namespace DAS_LEBENSARCHIV
                 DoppelgaengerStatusText.Text = James.KeineDoppelgaengerGefunden;
             }
 
+            DoppelgaengerFortschrittsleiste.Visibility = Visibility.Collapsed;
             ErinnerungenAufraeumenButton.IsEnabled = true;
         }
 

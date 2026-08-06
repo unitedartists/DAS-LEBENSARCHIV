@@ -492,20 +492,226 @@ namespace DAS_LEBENSARCHIV
             referenz.BestaetigteEinbettungen.Add(einbettung);
         }
 
-        // Mehrfachauswahl-Fenster (A's Punkt 4), komplett im Code aufgebaut
-        // (keine eigene XAML-Datei nötig): zeigt alle bekannten Stichwörter
-        // als Häkchen an (mit James' Vermutungsprozent, falls vorhanden),
-        // vorausgewählt sind bereits bestätigte Stichwörter sowie sichere
-        // neue Vermutungen. Zusätzlich ein freies Eingabefeld für neue
-        // Begriffe (kommagetrennt) - "wie das Beschriften eines Fotos mit
-        // kleinen Merkzetteln".
-        private List<string> SehzentrumStichwoerterAuswaehlen(List<string> woerterbuch, List<VermuteterBegriff> vermutungen, List<string> bereitsBestaetigt)
+
+        // ============================================================
+        // OPTIMIERUNGSRUNDE (06.08.): STAPELFÄHIGE ERKENNUNG
+        // ============================================================
+        // A's wichtigster Punkt: "James merkt sich..." wird zu "James
+        // erkennt auf diesem Bild/diesen Bildern...". EIN Codeweg für
+        // 1 bis N Bilder gleichzeitig - kein Bild wird mehr einzeln
+        // nacheinander abgefragt. Für jedes bekannte Stichwort wird
+        // gezählt, bei wie vielen der ausgewählten Bilder es zutrifft
+        // ("Traktor: 4 von 4"); nur bei kompletter Übereinstimmung ist
+        // das Häkchen vorausgewählt. Ein unsicherer Begriff wird NIE
+        // automatisch auf alle Bilder übertragen - der Benutzer
+        // entscheidet das bewusst. Die Auswahl wird bei jedem Aufruf
+        // komplett neu aus den tatsächlichen Daten DIESES Aufrufs
+        // aufgebaut (nichts von einer vorherigen Bearbeitung bleibt
+        // hängen).
+
+        private class SehzentrumBildKontext
         {
+            public string BildPfad;
+            public SehgedaechtnisEintrag Eintrag;
+            public float[] Einbettung;
+            public List<VermuteterBegriff> Vermutungen;
+        }
+
+        // Bereitet 1..N Bilder auf (Einbettung berechnen/wiederverwenden,
+        // Vermutungen ermitteln), zeigt die Stapel-Auswahl und speichert
+        // am Ende das gemeinsam bestätigte Wissen für jedes Bild einzeln -
+        // ohne dabei bereits vorhandene, individuelle Bestätigungen der
+        // Bilder zu löschen.
+        private void SehzentrumStapelErkennen(List<string> bildPfade)
+        {
+            if (bildPfade == null || bildPfade.Count == 0)
+            {
+                return;
+            }
+
+            if (bildPfade.Count == 1)
+            {
+                ZeigeSehzentrumBildVorschau(bildPfade[0]);
+            }
+
+            try
+            {
+                List<SehgedaechtnisEintrag> sehgedaechtnis = LadeSehgedaechtnis();
+                List<KategorieReferenz> referenzen = LadeKategorieReferenzen();
+                List<string> woerterbuch = LadeWoerterbuch();
+
+                List<SehzentrumBildKontext> kontexte = new List<SehzentrumBildKontext>();
+
+                foreach (string bildPfad in bildPfade)
+                {
+                    try
+                    {
+                        string hashwert = BerechneHashwert(bildPfad);
+                        SehgedaechtnisEintrag eintrag = sehgedaechtnis.FirstOrDefault(x => x.Hashwert == hashwert && x.Modellversion == SehzentrumModellversion);
+
+                        float[] einbettung;
+
+                        if (eintrag != null)
+                        {
+                            einbettung = eintrag.BildEinbettung;
+                        }
+                        else
+                        {
+                            einbettung = BerechneBildEinbettung(bildPfad);
+
+                            eintrag = new SehgedaechtnisEintrag
+                            {
+                                Hashwert = hashwert,
+                                BildEinbettung = einbettung,
+                                AnalysiertAm = DateTime.Now,
+                                Modellversion = SehzentrumModellversion
+                            };
+
+                            sehgedaechtnis.Add(eintrag);
+                        }
+
+                        if (eintrag.BestaetigteStichwoerter == null)
+                        {
+                            eintrag.BestaetigteStichwoerter = new List<string>();
+                        }
+
+                        List<VermuteterBegriff> vermutungen = ErmittleVermutungen(einbettung, referenzen);
+                        eintrag.JamesVermutungen = vermutungen;
+
+                        kontexte.Add(new SehzentrumBildKontext
+                        {
+                            BildPfad = bildPfad,
+                            Eintrag = eintrag,
+                            Einbettung = einbettung,
+                            Vermutungen = vermutungen
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        James.Problem("Bild konnte nicht analysiert werden (" + Path.GetFileName(bildPfad) + "): " + ex.Message);
+                    }
+                }
+
+                if (kontexte.Count == 0)
+                {
+                    return;
+                }
+
+                SpeichereSehgedaechtnis(sehgedaechtnis);
+
+                // Bestätigungsschleife wie bisher: bei "Nein" zurück zur
+                // Auswahl statt sofort etwas Falsches zu lernen.
+                List<string> vorauswahl = new List<string>();
+                List<string> gemeinsamBestaetigt;
+
+                while (true)
+                {
+                    gemeinsamBestaetigt = SehzentrumStapelAuswaehlen(woerterbuch, kontexte, vorauswahl);
+
+                    if (gemeinsamBestaetigt.Count == 0)
+                    {
+                        James.Hinweis("Keine Stichwörter bestätigt - James hat sich die Bilder trotzdem gemerkt, aber noch nichts gespeichert.");
+                        return;
+                    }
+
+                    string zusammenfassung = kontexte.Count == 1
+                        ? "James merkt sich für dieses Bild:\n\n" + string.Join(", ", gemeinsamBestaetigt)
+                        : "James merkt sich für alle " + kontexte.Count + " ausgewählten Bilder gemeinsam:\n\n" + string.Join(", ", gemeinsamBestaetigt);
+
+                    MessageBoxResult bestaetigung = MessageBox.Show(
+                        zusammenfassung + "\n\nPasst das so?",
+                        "Bitte kurz bestätigen",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (bestaetigung == MessageBoxResult.Yes)
+                    {
+                        break;
+                    }
+
+                    vorauswahl = gemeinsamBestaetigt;
+                }
+
+                bool woerterbuchGeaendert = false;
+
+                foreach (SehzentrumBildKontext kontext in kontexte)
+                {
+                    foreach (string begriff in gemeinsamBestaetigt)
+                    {
+                        if (!kontext.Eintrag.BestaetigteStichwoerter.Any(x => string.Equals(x, begriff, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            kontext.Eintrag.BestaetigteStichwoerter.Add(begriff);
+                        }
+
+                        BestaetigeStichwort(referenzen, begriff, kontext.Einbettung);
+                    }
+                }
+
+                foreach (string begriff in gemeinsamBestaetigt)
+                {
+                    if (!woerterbuch.Any(w => string.Equals(w, begriff, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        woerterbuch.Add(begriff);
+                        woerterbuchGeaendert = true;
+                    }
+                }
+
+                SpeichereKategorieReferenzen(referenzen);
+                SpeichereSehgedaechtnis(sehgedaechtnis);
+
+                if (woerterbuchGeaendert)
+                {
+                    SpeichereWoerterbuch(woerterbuch);
+                }
+
+                James.Hinweis(kontexte.Count == 1
+                    ? "Danke - James merkt sich für dieses Bild: " + string.Join(", ", gemeinsamBestaetigt) + "."
+                    : "Danke - James merkt sich für alle " + kontexte.Count + " Bilder: " + string.Join(", ", gemeinsamBestaetigt) + ".");
+            }
+            finally
+            {
+                if (bildPfade.Count == 1)
+                {
+                    VerstecktSehzentrumBildVorschau();
+                }
+            }
+        }
+
+        // Mehrfachauswahl-Fenster, stapelfähig: bei mehreren Bildern zeigt
+        // jedes bekannte Stichwort seine Trefferzahl ("4 von 4"). Nur bei
+        // vollständiger Übereinstimmung ist es vorausgewählt - ein
+        // Begriff, der nur auf einem Teil der Bilder zutrifft, wird NIE
+        // automatisch für alle übernommen, kann aber bewusst angehakt
+        // werden ("Sammelbestätigung"). Wörterbuch/Liste ist rein
+        // alphabetisch sortiert. Neue Begriffe im Freitextfeld brauchen
+        // bei mehreren Bildern eine eigene Sammelbestätigung.
+        private List<string> SehzentrumStapelAuswaehlen(List<string> woerterbuch, List<SehzentrumBildKontext> kontexte, List<string> vorausgewaehlteBegriffe)
+        {
+            int anzahlBilder = kontexte.Count;
+            int mindestSicherheitProzent = (int)(SehzentrumMindestSicherheit * 100);
+
+            // Begriffsliste für diesen Aufruf komplett frisch aufbauen -
+            // Wörterbuch plus alle aktuellen Vermutungen dieser Bilder,
+            // rein alphabetisch, nichts aus einer vorherigen Bearbeitung.
+            HashSet<string> alleBegriffe = new HashSet<string>(woerterbuch, StringComparer.OrdinalIgnoreCase);
+
+            foreach (SehzentrumBildKontext kontext in kontexte)
+            {
+                foreach (VermuteterBegriff vermutung in kontext.Vermutungen)
+                {
+                    alleBegriffe.Add(vermutung.Begriff);
+                }
+            }
+
+            List<string> begriffsListe = alleBegriffe.OrderBy(b => b, StringComparer.OrdinalIgnoreCase).ToList();
+
             Window fenster = new Window
             {
-                Title = "Welche Stichwörter passen zu diesem Bild?",
-                Width = 340,
-                Height = 480,
+                Title = anzahlBilder == 1
+                    ? "Was erkennt James auf diesem Bild?"
+                    : "Was erkennt James auf diesen " + anzahlBilder + " Bildern?",
+                Width = 360,
+                Height = 500,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 ResizeMode = ResizeMode.NoResize
@@ -515,7 +721,9 @@ namespace DAS_LEBENSARCHIV
 
             TextBlock ueberschrift = new TextBlock
             {
-                Text = "Häkchen setzen für alles, was auf dem Bild zu sehen ist:",
+                Text = anzahlBilder == 1
+                    ? "Häkchen setzen für alles, was auf dem Bild zu sehen ist:"
+                    : "Häkchen setzen für alles, was auf ALLEN " + anzahlBilder + " Bildern zu sehen ist (bei X von " + anzahlBilder + " selbst entscheiden):",
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 8)
             };
@@ -527,7 +735,7 @@ namespace DAS_LEBENSARCHIV
 
             TextBlock freitextLabel = new TextBlock
             {
-                Text = "Weitere Begriffe (mit Komma getrennt):",
+                Text = "Weitere Begriffe (mit Komma oder Leerzeichen getrennt):",
                 Margin = new Thickness(0, 10, 0, 4)
             };
             untererBereich.Children.Add(freitextLabel);
@@ -549,20 +757,25 @@ namespace DAS_LEBENSARCHIV
             ScrollViewer scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             StackPanel checkboxPanel = new StackPanel();
 
-            List<string> anzeigeListe = woerterbuch
-                .OrderByDescending(w => vermutungen.Any(v => string.Equals(v.Begriff, w, StringComparison.OrdinalIgnoreCase)))
-                .ThenBy(w => w)
-                .ToList();
-
             List<CheckBox> checkboxen = new List<CheckBox>();
 
-            foreach (string begriff in anzeigeListe)
+            foreach (string begriff in begriffsListe)
             {
-                VermuteterBegriff vermutung = vermutungen.FirstOrDefault(v => string.Equals(v.Begriff, begriff, StringComparison.OrdinalIgnoreCase));
+                int treffer = kontexte.Count(k =>
+                    k.Eintrag.BestaetigteStichwoerter.Any(b => string.Equals(b, begriff, StringComparison.OrdinalIgnoreCase)) ||
+                    k.Vermutungen.Any(v => string.Equals(v.Begriff, begriff, StringComparison.OrdinalIgnoreCase) && v.SicherheitProzent >= mindestSicherheitProzent));
 
-                string beschriftung = vermutung != null
-                    ? begriff + " (" + vermutung.SicherheitProzent + "%)"
-                    : begriff;
+                string beschriftung;
+
+                if (anzahlBilder == 1)
+                {
+                    VermuteterBegriff vermutung = kontexte[0].Vermutungen.FirstOrDefault(v => string.Equals(v.Begriff, begriff, StringComparison.OrdinalIgnoreCase));
+                    beschriftung = vermutung != null ? begriff + " (" + vermutung.SicherheitProzent + "%)" : begriff;
+                }
+                else
+                {
+                    beschriftung = begriff + " (" + treffer + " von " + anzahlBilder + ")";
+                }
 
                 CheckBox checkbox = new CheckBox
                 {
@@ -571,10 +784,12 @@ namespace DAS_LEBENSARCHIV
                     Margin = new Thickness(2, 3, 2, 3)
                 };
 
-                bool schonBestaetigt = bereitsBestaetigt.Any(b => string.Equals(b, begriff, StringComparison.OrdinalIgnoreCase));
-                bool sichereVermutung = vermutung != null && vermutung.SicherheitProzent >= (int)(SehzentrumMindestSicherheit * 100);
+                bool vorausgewaehlt = vorausgewaehlteBegriffe.Any(b => string.Equals(b, begriff, StringComparison.OrdinalIgnoreCase));
 
-                checkbox.IsChecked = schonBestaetigt || sichereVermutung;
+                // Nur bei VOLLER Übereinstimmung (alle Bilder) automatisch
+                // ankreuzen - ein Begriff, der nur auf einem Teil zutrifft,
+                // wird nie stillschweigend übernommen.
+                checkbox.IsChecked = vorausgewaehlt || treffer == anzahlBilder;
 
                 checkboxen.Add(checkbox);
                 checkboxPanel.Children.Add(checkbox);
@@ -599,21 +814,42 @@ namespace DAS_LEBENSARCHIV
                     }
                 }
 
+                List<string> neueFreitextBegriffe = new List<string>();
+
                 if (!string.IsNullOrWhiteSpace(freitextBox.Text))
                 {
-                    // Bewusst auch bei Leerzeichen aufteilen (nicht nur
-                    // Komma/Semikolon): "baum winter" soll als zwei
-                    // einzelne Begriffe erkannt werden, nicht als ein neuer
-                    // zusammengesetzter Begriff "baum winter" - sonst wird
-                    // das Wörterbuch schnell unübersichtlich.
                     foreach (string teil in freitextBox.Text.Split(new[] { ',', ';', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
                     {
                         string bereinigt = teil.Trim();
 
-                        if (bereinigt.Length > 0 && !ergebnis.Any(x => string.Equals(x, bereinigt, StringComparison.OrdinalIgnoreCase)))
+                        if (bereinigt.Length > 0
+                            && !ergebnis.Any(x => string.Equals(x, bereinigt, StringComparison.OrdinalIgnoreCase))
+                            && !neueFreitextBegriffe.Any(x => string.Equals(x, bereinigt, StringComparison.OrdinalIgnoreCase)))
                         {
-                            ergebnis.Add(bereinigt);
+                            neueFreitextBegriffe.Add(bereinigt);
                         }
+                    }
+                }
+
+                if (neueFreitextBegriffe.Count > 0)
+                {
+                    // Bei mehreren Bildern braucht ein neuer, frei
+                    // eingegebener Begriff eine eigene Sammelbestätigung -
+                    // keine stillschweigende Massenänderung.
+                    bool uebernehmen = true;
+
+                    if (anzahlBilder > 1)
+                    {
+                        string frage = neueFreitextBegriffe.Count == 1
+                            ? "'" + neueFreitextBegriffe[0] + "' zu allen " + anzahlBilder + " markierten Erinnerungen hinzufügen?"
+                            : string.Join(", ", neueFreitextBegriffe.Select(b => "'" + b + "'")) + " zu allen " + anzahlBilder + " markierten Erinnerungen hinzufügen?";
+
+                        uebernehmen = MessageBox.Show(frage, "Neue Begriffe bestätigen", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+                    }
+
+                    if (uebernehmen)
+                    {
+                        ergebnis.AddRange(neueFreitextBegriffe);
                     }
                 }
 
@@ -625,15 +861,11 @@ namespace DAS_LEBENSARCHIV
             return ergebnis;
         }
 
-        // Testfunktion für das Baukasten-Modell (weiterhin über den
-        // bestehenden Button "Kategorie testen..." erreichbar - Klick-
-        // Handler-Name bewusst unverändert, damit an der XAML nichts
-        // angepasst werden muss): Bild wählen, Einbettung berechnen (oder
-        // aus dem Sehgedächtnis wiederverwenden), Stichwörter vermuten,
-        // Benutzer wählt per Mehrfachauswahl die passenden Stichwörter
-        // (inkl. freier Ergänzung), Ergebnis dauerhaft merken - sowohl im
-        // Sehgedächtnis des Bildes als auch im persönlichen Wörterbuch und
-        // in den Stichwort-Referenzen (fürs Lernen).
+        // Weiterhin über den Werkzeuge-Button "Kategorie testen..."
+        // erreichbar (Entwicklungswerkzeug, siehe A's Punkt 4 - fliegt erst
+        // nach erfolgreicher Integration aus der normalen Oberfläche).
+        // Nutzt jetzt denselben Stapelweg wie die Arbeitsmappe, nur mit
+        // genau einem Bild.
         private void SehzentrumKategorieTesten_Click(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
@@ -647,123 +879,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            SehzentrumBildKategorisieren(dialog.FileName);
-        }
-
-        // Kernlogik ausgelagert (05.08.), damit sie sowohl vom
-        // Werkzeuge-Button (ein einzelnes, per Dialog gewähltes Bild) als
-        // auch von der Arbeitsmappe aus (mehrere markierte Bilder
-        // nacheinander) genutzt werden kann - siehe
-        // ArbeitsmappeJamesLernt_Click in MainWindow.Arbeitsmappe.cs.
-        private void SehzentrumBildKategorisieren(string bildPfad)
-        {
-            ZeigeSehzentrumBildVorschau(bildPfad);
-
-            try
-            {
-                string hashwert = BerechneHashwert(bildPfad);
-
-                List<SehgedaechtnisEintrag> sehgedaechtnis = LadeSehgedaechtnis();
-                SehgedaechtnisEintrag eintrag = sehgedaechtnis.FirstOrDefault(x => x.Hashwert == hashwert && x.Modellversion == SehzentrumModellversion);
-
-                float[] einbettung;
-
-                if (eintrag != null)
-                {
-                    einbettung = eintrag.BildEinbettung;
-                }
-                else
-                {
-                    einbettung = BerechneBildEinbettung(bildPfad);
-
-                    eintrag = new SehgedaechtnisEintrag
-                    {
-                        Hashwert = hashwert,
-                        BildEinbettung = einbettung,
-                        AnalysiertAm = DateTime.Now,
-                        Modellversion = SehzentrumModellversion
-                    };
-
-                    sehgedaechtnis.Add(eintrag);
-                }
-
-                List<KategorieReferenz> referenzen = LadeKategorieReferenzen();
-                List<string> woerterbuch = LadeWoerterbuch();
-
-                List<VermuteterBegriff> vermutungen = ErmittleVermutungen(einbettung, referenzen);
-
-                eintrag.JamesVermutungen = vermutungen;
-                SpeichereSehgedaechtnis(sehgedaechtnis);
-
-                // Bestätigungsschleife (05.08., Wunsch des Nutzers): vor dem
-                // tatsächlichen Speichern zeigt James die gewählten
-                // Stichwörter zur Kontrolle. Bei "Nein" geht's zurück zum
-                // Auswahlfenster (mit der bisherigen Auswahl vorausgewählt,
-                // nichts geht verloren) statt sofort etwas Falsches zu
-                // lernen.
-                List<string> vorauswahl = eintrag.BestaetigteStichwoerter;
-                List<string> gewaehlteStichwoerter;
-
-                while (true)
-                {
-                    gewaehlteStichwoerter = SehzentrumStichwoerterAuswaehlen(woerterbuch, vermutungen, vorauswahl);
-
-                    if (gewaehlteStichwoerter.Count == 0)
-                    {
-                        James.Hinweis("Keine Stichwörter ausgewählt - James hat sich trotzdem gemerkt, welches Bild das war, aber noch nichts bestätigt.");
-                        return;
-                    }
-
-                    MessageBoxResult bestaetigung = MessageBox.Show(
-                        "James merkt sich für dieses Bild:\n\n" + string.Join(", ", gewaehlteStichwoerter) + "\n\nPasst das so?",
-                        "Bitte kurz bestätigen",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (bestaetigung == MessageBoxResult.Yes)
-                    {
-                        break;
-                    }
-
-                    // "Nein" gewählt - zurück zur Auswahl, diesmal mit der
-                    // gerade getroffenen (falschen/unvollständigen) Auswahl
-                    // vorausgewählt, damit nur noch korrigiert werden muss.
-                    vorauswahl = gewaehlteStichwoerter;
-                }
-
-                eintrag.BestaetigteStichwoerter = gewaehlteStichwoerter;
-
-                bool woerterbuchGeaendert = false;
-
-                foreach (string stichwort in gewaehlteStichwoerter)
-                {
-                    BestaetigeStichwort(referenzen, stichwort, einbettung);
-
-                    if (!woerterbuch.Any(w => string.Equals(w, stichwort, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        woerterbuch.Add(stichwort);
-                        woerterbuchGeaendert = true;
-                    }
-                }
-
-                SpeichereKategorieReferenzen(referenzen);
-                SpeichereSehgedaechtnis(sehgedaechtnis);
-
-                if (woerterbuchGeaendert)
-                {
-                    SpeichereWoerterbuch(woerterbuch);
-                }
-
-                James.Hinweis("Danke - James merkt sich für dieses Bild: " + string.Join(", ", gewaehlteStichwoerter) + ".");
-            }
-            catch (Exception ex)
-            {
-                James.Problem("Das Sehzentrum konnte das Bild nicht verarbeiten: " + ex.Message);
-            }
-            finally
-            {
-                VerstecktSehzentrumBildVorschau();
-            }
+            SehzentrumStapelErkennen(new List<string> { dialog.FileName });
         }
     }
 }

@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Windows.Data;
+using System.Windows.Media.Imaging;
 
 namespace DAS_LEBENSARCHIV
 {
@@ -366,5 +371,54 @@ namespace DAS_LEBENSARCHIV
     {
         public string Kategorie { get; set; }
         public List<float[]> BestaetigteEinbettungen { get; set; } = new List<float[]>();
+    }
+
+    // ============================================================
+    // OPTIMIERUNGSRUNDE (06.08.), PUNKT 2: ASSERVATENKAMMER VISUELL
+    // ============================================================
+    // Wandelt den Pfad einer Asservatenkammer-Datei in ein Vorschaubild um
+    // (nur für Bilder, sonst null - die XAML zeigt dann stattdessen ein
+    // einfaches Symbol dahinter an). Rein lesend, verändert nichts.
+    public class AsservatenBildConverter : IValueConverter
+    {
+        private static readonly string[] Bilddateiendungen = { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string pfad = value as string;
+
+            if (string.IsNullOrEmpty(pfad) || !File.Exists(pfad))
+            {
+                return null;
+            }
+
+            string endung = Path.GetExtension(pfad).ToLowerInvariant();
+
+            if (!Bilddateiendungen.Contains(endung))
+            {
+                return null;
+            }
+
+            try
+            {
+                BitmapImage bild = new BitmapImage();
+                bild.BeginInit();
+                bild.CacheOption = BitmapCacheOption.OnLoad;
+                bild.DecodePixelWidth = 200;
+                bild.UriSource = new Uri(pfad);
+                bild.EndInit();
+                bild.Freeze();
+                return bild;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

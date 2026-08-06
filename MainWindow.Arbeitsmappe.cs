@@ -598,7 +598,18 @@ namespace DAS_LEBENSARCHIV
             // heraus Stichwörter für markierte Bilder zu bestätigen, bis
             // James genug trainiert ist. Nutzt dieselbe Logik wie der
             // Werkzeuge-Button (siehe MainWindow.Sehzentrum.cs).
-            ArbeitsmappeJamesLerntButton.IsEnabled = anzahl > 0;
+            // Sprint C, Etappe 1b-Optimierung (06.08.): "James erkennt..."
+            // (vormals "James merkt sich..."), Text wechselt je nach
+            // Anzahl markierter Bilder.
+            ArbeitsmappeJamesErkenntButton.IsEnabled = anzahl > 0;
+            ArbeitsmappeJamesErkenntButton.Content = new TextBlock
+            {
+                Text = anzahl == 1
+                    ? "James erkennt auf diesem Bild ..."
+                    : "James erkennt auf diesen Bildern ...",
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center
+            };
 
             if (anzahl == 0)
             {
@@ -624,32 +635,30 @@ namespace DAS_LEBENSARCHIV
             return arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad);
         }
 
-        // Sprint C, Etappe 1b-Baukasten (05.08.): "James merkt sich zu
-        // diesen Erinnerungen" - für jedes markierte, tatsächlich
-        // vorhandene BILD (das Sehzentrum arbeitet bewusst noch
-        // ausschließlich mit Bildern, wie auch sonst im Projekt) wird
-        // nacheinander dieselbe Stichwort-Zuordnung wie beim
-        // Werkzeuge-Button "Kategorie testen..." durchlaufen - inklusive
-        // Vermutung, Mehrfachauswahl, Bestätigungsschleife und
-        // Wörterbuch-Ergänzung. Übergangslösung, bis James eigenständig
-        // sicher genug erkennt.
-        private void ArbeitsmappeJamesLernt_Click(object sender, RoutedEventArgs e)
+        // Optimierungsrunde (06.08.), A's wichtigster Punkt: "James merkt
+        // sich..." wird zu "James erkennt auf diesem Bild/diesen
+        // Bildern...", jetzt echte STAPELERKENNUNG statt einzeln
+        // nacheinander abzufragen - James analysiert alle markierten
+        // Bilder gemeinsam und zeigt eine Trefferstatistik je Stichwort
+        // (z.B. "Traktor: 4 von 4"). Nutzt SehzentrumStapelErkennen in
+        // MainWindow.Sehzentrum.cs (dieselbe Logik wie der
+        // Werkzeuge-Button "Kategorie testen...", nur dort mit genau
+        // einem Bild).
+        private void ArbeitsmappeJamesErkennt_Click(object sender, RoutedEventArgs e)
         {
-            List<GefundeneDatei> bilder = arbeitsmappeAusgewaehlt
+            List<string> bildPfade = arbeitsmappeAusgewaehlt
                 .Select(pfad => arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad))
                 .Where(d => d != null && d.Dateityp == "Bilder" && File.Exists(d.VollstaendigerPfad))
+                .Select(d => d.VollstaendigerPfad)
                 .ToList();
 
-            if (bilder.Count == 0)
+            if (bildPfade.Count == 0)
             {
                 James.Hinweis("Das Sehzentrum kann bisher nur mit Bildern arbeiten - unter den markierten Erinnerungen ist keine Bilddatei dabei.");
                 return;
             }
 
-            foreach (GefundeneDatei bild in bilder)
-            {
-                SehzentrumBildKategorisieren(bild.VollstaendigerPfad);
-            }
+            SehzentrumStapelErkennen(bildPfade);
         }
 
     }

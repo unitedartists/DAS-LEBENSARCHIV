@@ -369,6 +369,12 @@ namespace DAS_LEBENSARCHIV
             AbbrechenRundgangButton.Visibility = Visibility.Visible;
             WerkzeugeStatusText.Text = James.RundgangLaeuft(0);
 
+            // Optimierungsrunde (06.08.), Punkt 3: der Button "Alle Funde
+            // auf den Schreibtisch" soll erst erscheinen, wenn tatsächlich
+            // ein frisches Ergebnis vorliegt - während des Rundgangs bleibt
+            // er verborgen.
+            WerkzeugeAlleFundeAufSchreibtischButton.Visibility = Visibility.Collapsed;
+
             List<GefundeneDatei> gefundeneDateien = new List<GefundeneDatei>();
             Dictionary<string, int> zaehlerProTyp = new Dictionary<string, int>();
             Dictionary<string, int> anzahlProAusgewaehltemOrdner = new Dictionary<string, int>();
@@ -402,6 +408,8 @@ namespace DAS_LEBENSARCHIV
             {
                 wurdeAbgebrochen = true;
             }
+
+            int gesamtAnzahlNachDiesemRundgang = 0;
 
             try
             {
@@ -472,6 +480,8 @@ namespace DAS_LEBENSARCHIV
                     .GroupBy(d => d.Dateityp)
                     .ToDictionary(g => g.Key, g => g.Count());
 
+                gesamtAnzahlNachDiesemRundgang = zusammengefasst.Count;
+
                 WerkzeugeStatusText.Text = James.RundgangZusammenfassung(wurdeAbgebrochen, zaehlerGesamt);
             }
             catch (Exception ex)
@@ -497,9 +507,35 @@ namespace DAS_LEBENSARCHIV
 
             SpeichereOrdnergedaechtnis(ordnergedaechtnis);
 
+            // Optimierungsrunde (06.08.), Punkt 3: Nach einem erfolgreichen
+            // Rundgang mit Ergebnissen bietet James an, direkt zur
+            // Arbeitsmappe zu wechseln - rein anzeigend, keine
+            // Dateioperation. Die Arbeitsmappe zeigt ohnehin bereits den
+            // gesamten bekannten Bestand (siehe OeffneArbeitsmappe), dieser
+            // Button macht den natürlichen nächsten Schritt nur sichtbar.
+            if (gesamtAnzahlNachDiesemRundgang > 0)
+            {
+                WerkzeugeAlleFundeAufSchreibtischButton.Visibility = Visibility.Visible;
+            }
+
             RundgangStartenButton.IsEnabled = true;
             ComputerKennenlernenButton.IsEnabled = true;
             AbbrechenRundgangButton.Visibility = Visibility.Collapsed;
+        }
+
+        // Optimierungsrunde (06.08.), Punkt 3: schaltet einfach zur
+        // Arbeitsmappe um - kein Kopieren, kein Verschieben. Die
+        // Arbeitsmappe lädt beim Öffnen automatisch den gesamten bekannten
+        // Bestand aus dem Erinnerungsverzeichnis (OeffneArbeitsmappe),
+        // wiederverwendet also bereits vorhandene Technik statt etwas
+        // Neues zu bauen. "Markierte Funde auf Schreibtisch" (nur einen
+        // Teil der Funde übernehmen) ist bewusst noch NICHT umgesetzt -
+        // dafür fehlt bislang eine anklickbare Fundliste direkt nach dem
+        // Rundgang; das wäre eine neue Oberfläche, kein Wiederverwenden
+        // von Bestehendem, und wurde deshalb zurückgestellt.
+        private void WerkzeugeAlleFundeAufSchreibtisch_Click(object sender, RoutedEventArgs e)
+        {
+            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
         }
 
         // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): berechnet die
@@ -528,6 +564,11 @@ namespace DAS_LEBENSARCHIV
                     .ToDictionary(g => g.Key, g => g.Count());
 
                 WerkzeugeStatusText.Text = James.RundgangZusammenfassung(false, zaehlerProTyp);
+
+                // Auch beim Neustart erscheint der Button, wenn bereits
+                // Funde vorliegen - nicht nur direkt nach einem frischen
+                // Rundgang.
+                WerkzeugeAlleFundeAufSchreibtischButton.Visibility = Visibility.Visible;
             }
             catch
             {

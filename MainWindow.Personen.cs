@@ -36,16 +36,6 @@ namespace DAS_LEBENSARCHIV
         // BUILD 1.2: BEZIEHUNGEN VERSTEHEN
         // ============================================================
 
-        // Zeigt die gespeicherte Beziehung einer Person im Rollenfeld an
-        // (oder leert es, wenn keine Person/keine Beziehung vorhanden ist).
-        //
-        // Build 2.1a, Ergonomie-Anpassung: Das Rollenfeld ist jetzt frei
-        // beschreibbar (IsEditable="True" in der XAML) statt einer
-        // Auswahlliste mit gesonderter "Sonstige"-Bezeichnung. Dank
-        // Beziehung.ToString() (löst "Sonstige" + eigene Bezeichnung
-        // automatisch auf) reicht ein einziger Zeilencode - bereits
-        // gespeicherte, alte Beziehungen werden dabei unverändert korrekt
-        // angezeigt, ohne dass sich an der Datenstruktur etwas ändert.
         private void ZeigeBeziehung(Person person)
         {
             BeziehungRolleComboBox.Text = person != null && person.Beziehung != null
@@ -53,10 +43,6 @@ namespace DAS_LEBENSARCHIV
                 : "";
         }
 
-        // Baut aus der aktuellen Eingabe ein Beziehung-Objekt (oder null,
-        // wenn das Feld leer gelassen wurde). Der Benutzer kann frei
-        // tippen oder einen der vorgeschlagenen Begriffe aus der
-        // Auswahlliste übernehmen - beides landet gleichermaßen in Rolle.
         private Beziehung ErstelleBeziehungAusEingabe()
         {
             string text = BeziehungRolleComboBox.Text != null ? BeziehungRolleComboBox.Text.Trim() : "";
@@ -108,10 +94,6 @@ namespace DAS_LEBENSARCHIV
             ArchivAktionPanel.Visibility = Visibility.Collapsed;
         }
 
-        // Etappe B.1b, Punkt 2: ersetzt den bisherigen grünen Link aus
-        // Etappe B.1a - dieselbe, bereits vorhandene Sammel- und
-        // Fenster-Logik, jetzt aber als Menüpunkt im "Was möchten wir
-        // tun?"-Menü erreichbar, genau wie beim Ereignis-Archiv.
         private void ArchivPersonErinnerungenAnsehen_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArchivListe.SelectedItem as Person;
@@ -173,11 +155,6 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
-        // Build 2.5: gleiche Konsolidierung wie bei FotoHinzufuegen_Click -
-        // auch für archivierte Personen läuft die Zuordnung jetzt
-        // ausschließlich über die Arbeitsmappe (deren Personen-Auswahl
-        // dafür um archivierte Personen erweitert wurde, siehe
-        // ArbeitsmappePersonZuordnen_Click).
         private void ArchivFotoHinzufuegen_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArchivListe.SelectedItem as Person;
@@ -203,10 +180,6 @@ namespace DAS_LEBENSARCHIV
             HoleAusArchivZurueckAufSchreibtisch(person, null);
         }
 
-        // Holt eine archivierte Person zurück auf den Schreibtisch und macht
-        // sie dort vollständig bearbeitbar. Wird sowohl vom Button "Zurück
-        // auf den Schreibtisch" im Archiv genutzt, als auch beim Anklicken
-        // eines archivierten James-Suchtreffers (Build 0.8).
         private void HoleAusArchivZurueckAufSchreibtisch(Person person, Ereignis auszuwaehlendesEreignis)
         {
             ArchivListe.Items.Remove(person);
@@ -222,10 +195,6 @@ namespace DAS_LEBENSARCHIV
 
             HauptTabControl.SelectedIndex = 0;
 
-            // Derselbe Wechsel wie an anderer Stelle bereits korrekt
-            // gemacht (Build 5.1, "Letzte Arbeit fortsetzen") - fehlte
-            // hier bisher, wodurch die Startseite sichtbar blieb und die
-            // wiederhergestellte Person "leer" wirkte.
             StartseiteBereich.Visibility = Visibility.Collapsed;
             EreignisBereich.Visibility = Visibility.Collapsed;
             EreignismappeBereich.Visibility = Visibility.Collapsed;
@@ -254,10 +223,9 @@ namespace DAS_LEBENSARCHIV
             ZeigeStatusMeldung(James.ZurueckAufSchreibtisch(person.ToString()));
         }
 
-        // Etappe B.1b, Punkt 4: ersetzt die bisherige sofortige, endgültige
-        // Entfernung durch dieselbe Papierkorb-Logik, die für freie
-        // Ereignisse bereits verwendet wird (siehe ArchivEreignisInPapierkorb_Click) -
-        // dieselben James-Texte, dasselbe Bestätigungsprinzip.
+        // Etappe B.1b, Punkt 4: ArchivListe ist NICHT im Extended-Auswahlmodus
+        // (siehe MainWindow.xaml) - hier ist immer nur genau eine Person
+        // gemeint, daher weiterhin die einfache, einzelne Bestätigung.
         private void ArchivPersonInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArchivListe.SelectedItem as Person;
@@ -280,14 +248,6 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
-        // Build 2.5: Die Arbeitsmappe ist der einzige Einstiegspunkt, um
-        // einer Person Erinnerungen zuzuordnen (siehe
-        // VerknuepfeArbeitsmappenDateienMitPerson). Dieser Button öffnet
-        // deshalb keinen Windows-Dateidialog mehr, sondern führt direkt
-        // dorthin - so entsteht keine zweite, abweichende Zuordnungslogik
-        // mehr (die vorherige Fassung setzte TitelbildDateiname z.B.
-        // direkt, ohne die Erinnerung auch in ErinnerungsDateinamen
-        // aufzunehmen).
         private void FotoHinzufuegen_Click(object sender, RoutedEventArgs e)
         {
             Person person = PersonenListe.SelectedItem as Person;
@@ -310,7 +270,6 @@ namespace DAS_LEBENSARCHIV
                 .ToList();
         }
 
-        // Zeigt in PersonenListe nur die Personen, die zum Suchtext passen
         private void AktualisierePersonenAnzeige()
         {
             Person vorherAusgewaehlt = PersonenListe.SelectedItem as Person;
@@ -362,7 +321,6 @@ namespace DAS_LEBENSARCHIV
 
             if (aktuellBearbeitetePerson != null)
             {
-                // Vorhandene Person aktualisieren.
                 aktuellBearbeitetePerson.Vorname = vorname;
                 aktuellBearbeitetePerson.Nachname = nachname;
                 aktuellBearbeitetePerson.Geburt = GeburtTextBox.Text.Trim();
@@ -381,7 +339,6 @@ namespace DAS_LEBENSARCHIV
             }
             else
             {
-                // Neue Person anlegen
                 Person neuePerson = new Person
                 {
                     Vorname = vorname,
@@ -403,14 +360,6 @@ namespace DAS_LEBENSARCHIV
                 gespeichertePerson = neuePerson;
             }
 
-            // Ergonomie (Build 2.1a): Nach jedem erfolgreichen Speichern -
-            // ob neu angelegt oder aktualisiert - wird das Formular
-            // vollständig zurückgesetzt. Der Benutzer kann dadurch sofort
-            // die nächste Person erfassen, ohne die vorherige zuerst
-            // archivieren zu müssen. Da gleichzeitig aktuellBearbeitetePerson
-            // auf null gesetzt wird, würde ein versehentlicher zweiter Klick
-            // auf "Speichern" bei leeren Feldern nur den Hinweis "bitte
-            // Namen eingeben" zeigen, statt Daten zu überschreiben.
             aktuellBearbeitetePerson = null;
 
             VornameTextBox.Clear();
@@ -427,6 +376,10 @@ namespace DAS_LEBENSARCHIV
             VornameTextBox.Focus();
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): PersonenListe hat
+        // SelectionMode="Extended" - bei mehreren markierten Personen
+        // nennt die Bestätigung jetzt namentlich, WER betroffen ist,
+        // statt nur eine Zahl zu zeigen.
         private void Loeschen_Click(object sender, RoutedEventArgs e)
         {
             List<Person> ausgewaehltePersonen = PersonenListe.SelectedItems.Cast<Person>().ToList();
@@ -446,7 +399,7 @@ namespace DAS_LEBENSARCHIV
             }
             else
             {
-                frage = James.FrageInPapierkorbMehrere(ausgewaehltePersonen.Count);
+                frage = James.FrageInPapierkorbMehrere(ausgewaehltePersonen.Select(p => p.ToString()).ToList());
             }
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
@@ -589,10 +542,6 @@ namespace DAS_LEBENSARCHIV
             {
                 Person wiederhergestelltePerson = ausgewaehltePersonen[0];
 
-                // Dieselbe Anzeige-Logik wie beim Zurückholen aus dem Archiv
-                // (siehe HoleAusArchivZurueckAufSchreibtisch) - fehlte hier
-                // bisher, wodurch die wiederhergestellte Person "leer"
-                // wirkte, obwohl die Daten tatsächlich korrekt da waren.
                 HauptTabControl.SelectedIndex = 0;
 
                 StartseiteBereich.Visibility = Visibility.Collapsed;
@@ -623,6 +572,11 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): PapierkorbListe hat
+        // SelectionMode="Extended" - bei mehreren markierten Personen zeigt
+        // die endgültige Löschbestätigung jetzt namentlich, WER betroffen
+        // ist, statt nur eine Zahl. Gerade hier (unwiderrufliches Löschen)
+        // ist das besonders wichtig.
         private void EndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
         {
             List<Person> ausgewaehltePersonen = PapierkorbListe.SelectedItems.Cast<Person>().ToList();
@@ -642,7 +596,7 @@ namespace DAS_LEBENSARCHIV
             }
             else
             {
-                frage = James.FrageEndgueltigLoeschenMehrere(ausgewaehltePersonen.Count);
+                frage = James.FrageEndgueltigLoeschenMehrere(ausgewaehltePersonen.Select(p => p.ToString()).ToList());
             }
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);

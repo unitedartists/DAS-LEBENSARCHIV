@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace DAS_LEBENSARCHIV
 {
@@ -23,33 +24,206 @@ namespace DAS_LEBENSARCHIV
         // identische) Duplikate - die Erkennung "ähnlicher", nicht ganz
         // identischer Aufnahmen ist ein eigenes, späteres Vorhaben.
 
+        // ============================================================
+        // OPTIMIERUNGSRUNDE (06.08.), NACHBESSERUNG: SEITENWEISE KACHELN
+        // ============================================================
+        // Ersetzt die vorherige (fehleranfällige) einspaltige Liste bzw.
+        // das Kachel-WrapPanel-Experiment, das die Anwendung bei vielen
+        // Einträgen aufgehängt hat (siehe TÜV-Bericht 06.08., Priorität 2).
+        // Nutzt jetzt dieselbe bewährte Technik wie die Arbeitsmappe: nur
+        // eine kleine, feste Anzahl Kacheln (AsservatenkammerProSeite) wird
+        // je Seite tatsächlich aufgebaut - dadurch ist ein Hängen bei
+        // vielen tausend AK-Einträgen technisch ausgeschlossen, und das
+        // Fenster wird trotzdem mit Zeilen UND Spalten voll ausgenutzt
+        // (Wunsch des Nutzers).
+        private const int AsservatenkammerProSeite = 24;
+
+        private int asservatenkammerSeite = 1;
+
+        // Auswahl über den Asservatenkammer-Pfad (eindeutiger Schlüssel,
+        // wie arbeitsmappeAusgewaehlt in der Arbeitsmappe) statt über
+        // ListBox.SelectedItems - dieselbe bewährte Mechanik, nur ohne
+        // ListBox.
+        private readonly HashSet<string> asservatenkammerAusgewaehlt = new HashSet<string>();
+
         private void AktualisiereAsservatenkammerAnzeige()
         {
-            object ausgewaehlt = AsservatenkammerListe.SelectedItem;
+            int gesamtSeiten = Math.Max(1, (int)Math.Ceiling(asservatenkammer.Count / (double)AsservatenkammerProSeite));
 
-            AsservatenkammerListe.ItemsSource = null;
-            AsservatenkammerListe.ItemsSource = asservatenkammer;
-
-            if (ausgewaehlt != null && asservatenkammer.Contains(ausgewaehlt))
+            if (asservatenkammerSeite > gesamtSeiten)
             {
-                AsservatenkammerListe.SelectedItem = ausgewaehlt;
+                asservatenkammerSeite = gesamtSeiten;
             }
+
+            if (asservatenkammerSeite < 1)
+            {
+                asservatenkammerSeite = 1;
+            }
+
+            List<AsservatenEintrag> seite = asservatenkammer
+                .Skip((asservatenkammerSeite - 1) * AsservatenkammerProSeite)
+                .Take(AsservatenkammerProSeite)
+                .ToList();
+
+            AsservatenkammerKachelnPanel.Children.Clear();
+
+            foreach (AsservatenEintrag eintrag in seite)
+            {
+                AsservatenkammerKachelnPanel.Children.Add(ErstelleAsservatenkammerKachel(eintrag));
+            }
+
+            AsservatenkammerSeiteText.Text = asservatenkammer.Count == 0
+                ? "Die Asservatenkammer ist leer."
+                : "Seite " + asservatenkammerSeite + " von " + gesamtSeiten + " (" + asservatenkammer.Count + " insgesamt)";
+
+            AsservatenkammerVorherigeSeiteButton.IsEnabled = asservatenkammerSeite > 1;
+
+            AktualisiereAsservatenkammerWerkzeuge();
         }
 
-        private void AsservatenkammerListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void AsservatenkammerVorherigeSeite_Click(object sender, RoutedEventArgs e)
         {
-            bool istAusgewaehlt = AsservatenkammerListe.SelectedItem != null;
+            asservatenkammerSeite--;
+            AktualisiereAsservatenkammerAnzeige();
+        }
 
-            AsservatenkammerAnsehenButton.IsEnabled = istAusgewaehlt;
-            AsservatenkammerZurueckholenButton.IsEnabled = istAusgewaehlt;
-            AsservatenkammerEndgueltigLoeschenButton.IsEnabled = istAusgewaehlt;
+        private static TextBlock ErstelleAsservatenkammerSymbol(string symbol)
+        {
+            return new TextBlock
+            {
+                Text = symbol,
+                FontSize = 30,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
+        private static readonly string[] AsservatenkammerBilddateiendungen = { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
+
+        private Border ErstelleAsservatenkammerKachel(AsservatenEintrag eintrag)
+        {
+            Border rahmen = new Border
+            {
+                Width = 190,
+                Height = 210,
+                Margin = new Thickness(6),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(1),
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(4)
+            };
+
+            StackPanel inhalt = new StackPanel { Margin = new Thickness(8) };
+
+            CheckBox auswahlBox = new CheckBox
+            {
+                IsChecked = asservatenkammerAusgewaehlt.Contains(eintrag.AsservatenPfad),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            auswahlBox.Checked += (sender, e) =>
+            {
+                asservatenkammerAusgewaehlt.Add(eintrag.AsservatenPfad);
+                AktualisiereAsservatenkammerWerkzeuge();
+            };
+
+            auswahlBox.Unchecked += (sender, e) =>
+            {
+                asservatenkammerAusgewaehlt.Remove(eintrag.AsservatenPfad);
+                AktualisiereAsservatenkammerWerkzeuge();
+            };
+
+            inhalt.Children.Add(auswahlBox);
+
+            Border bildRahmen = new Border
+            {
+                Width = 170,
+                Height = 120,
+                Background = Brushes.WhiteSmoke,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            bool dateiVorhanden = File.Exists(eintrag.AsservatenPfad);
+            string endung = dateiVorhanden ? Path.GetExtension(eintrag.AsservatenPfad).ToLowerInvariant() : "";
+            bool istBild = dateiVorhanden && AsservatenkammerBilddateiendungen.Contains(endung);
+
+            if (istBild)
+            {
+                try
+                {
+                    BitmapImage bild = new BitmapImage();
+                    bild.BeginInit();
+                    bild.CacheOption = BitmapCacheOption.OnLoad;
+                    bild.DecodePixelWidth = 170;
+                    bild.UriSource = new Uri(eintrag.AsservatenPfad);
+                    bild.EndInit();
+
+                    bildRahmen.Child = new Image
+                    {
+                        Source = bild,
+                        Stretch = Stretch.Uniform
+                    };
+                }
+                catch
+                {
+                    bildRahmen.Child = ErstelleAsservatenkammerSymbol("🖼️");
+                }
+            }
+            else
+            {
+                bildRahmen.Child = ErstelleAsservatenkammerSymbol(dateiVorhanden ? "📦" : "❓");
+            }
+
+            inhalt.Children.Add(bildRahmen);
+
+            TextBlock nameText = new TextBlock
+            {
+                Text = eintrag.Dateiname,
+                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxHeight = 34,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+
+            inhalt.Children.Add(nameText);
+
+            TextBlock grundText = new TextBlock
+            {
+                Text = eintrag.Grund,
+                FontSize = 10,
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+
+            inhalt.Children.Add(grundText);
+
+            rahmen.Child = inhalt;
+
+            return rahmen;
+        }
+
+        private void AktualisiereAsservatenkammerWerkzeuge()
+        {
+            int anzahl = asservatenkammerAusgewaehlt.Count;
+
+            // "Ansehen" ergibt nur bei genau einer ausgewählten Datei Sinn.
+            AsservatenkammerAnsehenButton.IsEnabled = anzahl == 1;
+            AsservatenkammerZurueckholenButton.IsEnabled = anzahl > 0;
+            AsservatenkammerEndgueltigLoeschenButton.IsEnabled = anzahl > 0;
         }
 
         private void AsservatenkammerAnsehen_Click(object sender, RoutedEventArgs e)
         {
-            AsservatenEintrag eintrag = AsservatenkammerListe.SelectedItem as AsservatenEintrag;
+            if (asservatenkammerAusgewaehlt.Count != 1)
+            {
+                return;
+            }
 
-            if (eintrag == null || !File.Exists(eintrag.AsservatenPfad))
+            string pfad = asservatenkammerAusgewaehlt.First();
+
+            if (!File.Exists(pfad))
             {
                 return;
             }
@@ -58,7 +232,7 @@ namespace DAS_LEBENSARCHIV
             {
                 ProcessStartInfo start = new ProcessStartInfo
                 {
-                    FileName = eintrag.AsservatenPfad,
+                    FileName = pfad,
                     UseShellExecute = true
                 };
 
@@ -72,7 +246,9 @@ namespace DAS_LEBENSARCHIV
 
         private void AsservatenkammerZurueckholen_Click(object sender, RoutedEventArgs e)
         {
-            List<AsservatenEintrag> ausgewaehlte = AsservatenkammerListe.SelectedItems.Cast<AsservatenEintrag>().ToList();
+            List<AsservatenEintrag> ausgewaehlte = asservatenkammer
+                .Where(x => asservatenkammerAusgewaehlt.Contains(x.AsservatenPfad))
+                .ToList();
 
             if (ausgewaehlte.Count == 0)
             {
@@ -117,6 +293,7 @@ namespace DAS_LEBENSARCHIV
                     });
 
                     asservatenkammer.Remove(eintrag);
+                    asservatenkammerAusgewaehlt.Remove(eintrag.AsservatenPfad);
                     zurueckgeholt++;
                 }
                 catch
@@ -134,7 +311,9 @@ namespace DAS_LEBENSARCHIV
 
         private void AsservatenkammerEndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
         {
-            List<AsservatenEintrag> ausgewaehlte = AsservatenkammerListe.SelectedItems.Cast<AsservatenEintrag>().ToList();
+            List<AsservatenEintrag> ausgewaehlte = asservatenkammer
+                .Where(x => asservatenkammerAusgewaehlt.Contains(x.AsservatenPfad))
+                .ToList();
 
             if (ausgewaehlte.Count == 0)
             {
@@ -164,6 +343,7 @@ namespace DAS_LEBENSARCHIV
                     }
 
                     asservatenkammer.Remove(eintrag);
+                    asservatenkammerAusgewaehlt.Remove(eintrag.AsservatenPfad);
                     geloescht++;
                 }
                 catch
@@ -493,10 +673,10 @@ namespace DAS_LEBENSARCHIV
                 SpeichereDaten();
                 arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
                 AktualisiereAsservatenkammerAnzeige();
-                ArbeitsmappeAsservatenkammerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
 
                 int fehlgeschlagenBeimVerschieben = zuVerschieben.Count - verschoben;
 
+                ArbeitsmappeAsservatenkammerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
                 ArbeitsmappeAsservatenkammerStatusText.Text = (verschoben == 1
                     ? "1 markierte Erinnerung wurde in die Asservatenkammer verschoben."
                     : verschoben + " markierte Erinnerungen wurden in die Asservatenkammer verschoben.") +
@@ -506,9 +686,6 @@ namespace DAS_LEBENSARCHIV
             }
             else
             {
-                // BUGFIX (05.08.), analog zum Duplikate-Verschieben-Button:
-                // klare Rückmeldung statt stillschweigend nichts zu sagen,
-                // wenn keine einzige markierte Datei verschoben werden konnte.
                 ArbeitsmappeAsservatenkammerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xB0, 0x00, 0x20));
                 ArbeitsmappeAsservatenkammerStatusText.Text = "Keine der " + zuVerschieben.Count +
                     " markierten Datei(en) konnte verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden.";

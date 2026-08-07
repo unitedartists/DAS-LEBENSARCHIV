@@ -1306,7 +1306,23 @@
                         Margin="0,0,0,16"
                         Text="Manche Erinnerungen brauchen Zeit, bevor sie ihren Platz finden. Hierhin verschiebt James automatisch erkannte, exakte Duplikate - niemals gelöscht, nur beiseitegelegt."/>
 
+                    <!-- Optimierungsrunde (06.08.), Nachbesserung: statt der
+                         einspaltigen Liste jetzt dieselbe bewährte
+                         Seiten-Kachel-Technik wie in der Arbeitsmappe -
+                         nutzt das Fenster mit Zeilen UND Spalten voll aus,
+                         baut aber nie mehr als eine Seite (Konstante
+                         AsservatenkammerProSeite) gleichzeitig auf. Das ist
+                         der eigentliche Grund, warum das vorherige WrapPanel
+                         die Anwendung zum Hängen brachte (siehe Bugfix-
+                         Kommentar in MainWindow.Asservatenkammer.cs) - jetzt
+                         technisch unmöglich, da immer nur eine kleine,
+                         feste Anzahl Kacheln existiert. -->
                     <Grid Grid.Row="2">
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -1314,56 +1330,16 @@
                             <ColumnDefinition Width="220"/>
                         </Grid.ColumnDefinitions>
 
-                        <ListBox
-                            Name="AsservatenkammerListe"
-                            Grid.Column="0"
-                            SelectionMode="Extended"
-                            SelectionChanged="AsservatenkammerListe_SelectionChanged">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button Name="AsservatenkammerVorherigeSeiteButton" Content="◀ Vorherige Seite" Padding="10,4" Margin="0,0,10,0" Click="AsservatenkammerVorherigeSeite_Click"/>
+                            <TextBlock Name="AsservatenkammerSeiteText" VerticalAlignment="Center"/>
+                        </StackPanel>
 
-                            <!-- Optimierungsrunde (06.08.), Punkt 2: visuelle
-                                 Kachelansicht statt kryptischer Dateinamen -
-                                 Auswahl-Mechanik (Extended, SelectionChanged)
-                                 bleibt komplett unverändert, nur die Anzeige
-                                 jeder einzelnen Zeile ändert sich. -->
-                            <ListBox.Resources>
-                                <local:AsservatenBildConverter x:Key="AsservatenBildConverter"/>
-                            </ListBox.Resources>
+                        <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                            <WrapPanel Name="AsservatenkammerKachelnPanel"/>
+                        </ScrollViewer>
 
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Width="170" Margin="4" Padding="6" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Background="White">
-                                        <StackPanel>
-                                            <Grid Width="150" Height="105" Background="WhiteSmoke">
-                                                <TextBlock Text="📦" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                <Image Source="{Binding AsservatenPfad, Converter={StaticResource AsservatenBildConverter}}" Stretch="Uniform"/>
-                                            </Grid>
-                                            <TextBlock
-                                                Text="{Binding Dateiname}"
-                                                TextWrapping="Wrap"
-                                                TextTrimming="CharacterEllipsis"
-                                                MaxHeight="34"
-                                                FontSize="11"
-                                                FontWeight="SemiBold"
-                                                Margin="0,4,0,0"/>
-                                            <TextBlock
-                                                Text="{Binding Grund}"
-                                                TextWrapping="Wrap"
-                                                FontSize="10"
-                                                Foreground="Gray"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-
-                        </ListBox>
-
-                        <StackPanel Grid.Column="2">
+                        <StackPanel Grid.Row="1" Grid.Column="2">
 
                             <Button
                                 Name="AsservatenkammerAnsehenButton"

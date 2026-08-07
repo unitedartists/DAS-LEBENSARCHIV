@@ -404,7 +404,7 @@ namespace DAS_LEBENSARCHIV
                 BitmapImage bild = new BitmapImage();
                 bild.BeginInit();
                 bild.CacheOption = BitmapCacheOption.OnLoad;
-                bild.DecodePixelWidth = 200;
+                bild.DecodePixelWidth = 100;
                 bild.UriSource = new Uri(pfad);
                 bild.EndInit();
                 bild.Freeze();

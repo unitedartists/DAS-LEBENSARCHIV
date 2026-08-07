@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -62,6 +62,52 @@ namespace DAS_LEBENSARCHIV
         }
 
         // ============================================================
+        // TÜV-REPARATUR (06./07.08.), PRIORITÄT 1: NAMENTLICHE
+        // BESTÄTIGUNGEN BEI MEHRFACHAUSWAHL
+        // ============================================================
+        // A's Grundregel: "Vor destruktiven Operationen muss die
+        // Bestätigung verständlich benennen, WAS betroffen ist." Die
+        // bisherigen FrageInPapierkorbMehrere(int)/FrageEndgueltigLoeschenMehrere(int)
+        // zeigten nur eine Zahl, nie die tatsächlich betroffenen Titel/
+        // Namen - bei versehentlicher Mehrfachauswahl (SelectionMode
+        // "Extended" in mehreren Listen, z.B. ArchivEreignisseListe,
+        // ArchivSammlungenListe) konnte der Benutzer dadurch nicht
+        // erkennen, was er gerade bestätigt. Diese neuen Überladungen
+        // (Liste statt Zahl) listen die betroffenen Namen konkret auf -
+        // die bisherigen int-Überladungen bleiben unverändert bestehen
+        // (falls irgendwo weiterhin nur die Zahl bekannt ist), werden
+        // aber an allen Mehrfachauswahl-Stellen durch die neuen,
+        // namentlichen Überladungen ersetzt (siehe MainWindow.Personen.cs,
+        // MainWindow.BesondereEreignisse.cs, MainWindow.Sammlungen.cs).
+
+        // Zeigt bis zu 8 Namen einzeln auf, danach zusammengefasst
+        // ("... und 3 weitere") - bei sehr großen Mehrfachauswahlen bliebe
+        // die Bestätigung sonst selbst unübersichtlich.
+        private static string ErstelleNamentlicheAufzaehlung(List<string> namen)
+        {
+            const int maximalAnzeigen = 8;
+
+            List<string> anzuzeigen = namen.Take(maximalAnzeigen).ToList();
+            string text = string.Join("\n", anzuzeigen.Select(name => "• " + name));
+
+            if (namen.Count > maximalAnzeigen)
+            {
+                text += "\n... und " + (namen.Count - maximalAnzeigen) + " weitere";
+            }
+
+            return text;
+        }
+
+        public static string FrageInPapierkorbMehrere(List<string> namen) =>
+            "Möchten Sie diese " + namen.Count + " Erinnerungen gemeinsam in den Papierkorb legen?\n\n" +
+            ErstelleNamentlicheAufzaehlung(namen);
+
+        public static string FrageEndgueltigLoeschenMehrere(List<string> namen) =>
+            "Diese " + namen.Count + " Erinnerungen würden damit endgültig und unwiderruflich gelöscht:\n\n" +
+            ErstelleNamentlicheAufzaehlung(namen) +
+            "\n\nSind Sie sicher?";
+
+        // ============================================================
         // KONKRETE SÄTZE, DIE JAMES IM PROGRAMM SAGT
         // (nach Themenbereich sortiert, wie im Programm verwendet)
         // ============================================================
@@ -95,6 +141,9 @@ namespace DAS_LEBENSARCHIV
         public static string FrageInPapierkorbEinzeln(string name) =>
             "Möchten Sie die Erinnerung an \"" + name + "\" in den Papierkorb legen?";
 
+        // Bleibt unverändert bestehen (siehe Kommentar oben) - wird aber
+        // an allen bisherigen Mehrfachauswahl-Stellen durch die neue,
+        // namentliche Überladung ersetzt.
         public static string FrageInPapierkorbMehrere(int anzahl) =>
             "Möchten Sie die Erinnerungen an " + anzahl + " Personen gemeinsam in den Papierkorb legen?";
 
@@ -122,6 +171,9 @@ namespace DAS_LEBENSARCHIV
         public static string FrageEndgueltigLoeschenEinzeln(string name) =>
             "Die Erinnerung an \"" + name + "\" würde damit endgültig und unwiderruflich gelöscht. Sind Sie sicher?";
 
+        // Bleibt unverändert bestehen (siehe Kommentar oben) - wird aber
+        // an allen bisherigen Mehrfachauswahl-Stellen durch die neue,
+        // namentliche Überladung ersetzt.
         public static string FrageEndgueltigLoeschenMehrere(int anzahl) =>
             "Die Erinnerungen an " + anzahl + " Personen würden damit endgültig und unwiderruflich gelöscht. Sind Sie sicher?";
 
@@ -136,10 +188,6 @@ namespace DAS_LEBENSARCHIV
         public static string SucheMehrereTreffer(int anzahl) =>
             "Ich glaube, diese " + anzahl + " Erinnerungen könnten gemeint sein.";
 
-        // Build 6.0, Punkt 7: Statusmeldung während einer laufenden Suche -
-        // aktuell noch für den Bruchteil einer Sekunde sichtbar (synchrone
-        // Suche), bereitet aber bereits die Bedienlogik für spätere,
-        // länger laufende Suchvorgänge vor.
         public static string SucheLaeuftErinnerungen =>
             "James durchsucht derzeit Ihre Erinnerungen...";
 
@@ -245,8 +293,6 @@ namespace DAS_LEBENSARCHIV
             "Ich habe keine echten Doppelgänger gefunden.";
 
         // ---- Arbeitsmappe (Build 2.1) ----
-        // Architekturbeschluss 013: James legt gefundene Erinnerungen
-        // übersichtlich aus, statt Dateilisten zu zeigen.
 
         public static string ArbeitsmappeUeberschrift(int anzahl)
         {
@@ -312,10 +358,6 @@ namespace DAS_LEBENSARCHIV
             "Das hat diesmal leider nicht geklappt. Beim Öffnen ist ein Fehler aufgetreten:\n" + fehlermeldung;
 
         // ---- Personen-Erinnerungen (Build 2.3) ----
-        // Architekturbeschluss "Abschluss Etappe A": eine Person besitzt
-        // nicht nur ein Titelbild, sondern auch die Erinnerungen, die
-        // über ihre Ereignisse mit ihr verbunden sind. Das Titelbild
-        // bleibt lediglich "das Gesicht" der Person.
 
         public static string PersonErinnerungenLink(int anzahl)
         {
@@ -343,10 +385,6 @@ namespace DAS_LEBENSARCHIV
         }
 
         // ---- Erinnerungen zuerst (Build 2.2) ----
-        // Architekturbeschluss: die Arbeitsmappe wird zum Ausgangspunkt.
-        // James führt den Benutzer, statt ihn zwischen Reitern hin- und
-        // herspringen zu lassen (James-Regel Nr. 2: Der Benutzer folgt
-        // James, nicht umgekehrt).
 
         public static string ArbeitsmappeRueckkehrHinweis =>
             "Sobald wir hier fertig sind, kehren wir automatisch zur Arbeitsmappe zurück.";
@@ -358,10 +396,6 @@ namespace DAS_LEBENSARCHIV
             "Bitte wählen wir zuerst aus, zu welcher Person dieses Ereignis gehören soll.";
 
         // ---- Build 2.5: Ein einziger Weg für Erinnerungen ----
-        // Architekturbeschluss: Die Arbeitsmappe ist der einzige
-        // Einstiegspunkt, um Erinnerungen einer Person oder einem
-        // Ereignis zuzuordnen. Die früheren, direkten Wege über einen
-        // Windows-Dateidialog führen jetzt stattdessen dorthin.
 
         public static string ArbeitsmappeUmleitungPerson(string personName) =>
             "Erinnerungen ordnen wir jetzt über die Arbeitsmappe zu. Wählen wir dort die gewünschte(n) Erinnerung(en) aus und dann \"Erinnerungen zuordnen\" - " + personName + " lässt sich in der Liste auswählen.";
@@ -370,19 +404,11 @@ namespace DAS_LEBENSARCHIV
             "Erinnerungen ordnen wir jetzt über die Arbeitsmappe zu. Wählen wir dort die gewünschte(n) Erinnerung(en) aus und dann \"Vorhandenem Ereignis zuordnen\" - \"" + ereignisTitel + "\" lässt sich in der Liste auswählen.";
 
         // ---- Build 5.0: Erinnerungen über Personen ODER Ereignisse ----
-        // Ein "freies" Ereignis ist eigenständig, unabhängig von jeder
-        // Person. James macht dabei keine eigenen Namensvorschläge - der
-        // Benutzer vergibt den Namen selbst.
 
         public static string BitteErstFreiesEreignisAnlegen =>
             "Es gibt noch kein besonderes Ereignis. Legen wir zuerst eines an?";
 
         // ---- Etappe A.5: Aufräumen und Bedienbarkeit ----
-        // Punkt 2 (Papierkorb) verwendet bewusst dieselben, bereits
-        // vorhandenen Texte wie beim Personen-Papierkorb (FrageInPapierkorb...,
-        // InPapierkorbGelegt..., Wiederhergestellt..., FrageEndgueltigLoeschen...) -
-        // nur die beiden folgenden Texte sind neu, weil "Personen" dort
-        // wörtlich vorkam und nicht zu Ereignissen passt.
 
         public static string BitteFreieEreignisseAuswaehlen =>
             "Bitte wählen wir zuerst ein oder mehrere besondere Ereignisse aus.";
@@ -390,7 +416,6 @@ namespace DAS_LEBENSARCHIV
         public static string BitteEreignisPapierkorbAuswaehlen =>
             "Bitte wählen wir zuerst ein oder mehrere Ereignisse im Papierkorb aus.";
 
-        // Punkt 3 (Dubletten vermeiden)
         public static string FrageEreignisBereitsVorhanden(string ereignisTitel) =>
             "Ein Ereignis namens \"" + ereignisTitel + "\" gibt es bereits. Möchten Sie dieses bestehende Ereignis verwenden? (Bei \"Nein\" legen wir bewusst ein weiteres, neues Ereignis mit diesem Namen an.)";
 
@@ -418,9 +443,6 @@ namespace DAS_LEBENSARCHIV
             "Bitte in der Arbeitsmappe die gewünschten Bilder auswählen und dann \"Vorhandenem Ereignis zuordnen\" wählen - \"" + ereignisTitel + "\" lässt sich dort in der Liste auswählen.";
 
         // ---- Build 2.7: sichtbare Diagnose ----
-        // Diese Texte dienen ausschließlich dazu, den tatsächlichen Ablauf
-        // Schritt für Schritt sichtbar zu machen (keine Annahmen mehr,
-        // sondern überprüfbare Fakten direkt auf dem Bildschirm).
 
         public static string DiagnosePersonAusgewaehltFuerEreignis(string personName, int anzahlEreignisse)
         {
@@ -449,9 +471,6 @@ namespace DAS_LEBENSARCHIV
             "Erinnerungen zu \"" + ereignisTitel + "\"";
 
         // ---- Einstellungen (Build 2.0) ----
-        // Architekturbeschluss 012: James lernt seinen Besitzer kennen -
-        // freiwillige, jederzeit änderbare Einstellungen. Keine KI, keine
-        // Bewertung, keine Analyse.
 
         public static string EinstellungenGespeichert =>
             "Die Einstellungen wurden gespeichert. Wir können sie jederzeit wieder ändern.";
@@ -463,17 +482,11 @@ namespace DAS_LEBENSARCHIV
             "🙂 Darf ich Sie kurz kennenlernen? Unter \"Einstellungen\" können Sie mir ein paar freiwillige Fragen beantworten.";
 
         // ---- Arbeitsstand (Build 1.9) ----
-        // Architekturbeschluss 011 (Fortsetzung): James merkt sich, woran
-        // zuletzt gearbeitet wurde, und bietet - niemals automatisch -
-        // an, dort weiterzumachen.
 
         public static string ArbeitFortsetzenFrage(string beschreibung) =>
             "Beim letzten Mal haben wir an \"" + beschreibung + "\" gearbeitet. Möchten wir dort weitermachen?";
 
         // ---- Werkzeuge: James macht Vorschläge (Build 1.7) ----
-        // Architekturbeschluss 010: James entscheidet niemals, er schlägt
-        // ausschließlich vor. Alle Texte bleiben bewusst zurückhaltend
-        // formuliert ("vielleicht", "könnte") statt bestimmend.
 
         public static string VorschlaegeUeberschrift(int anzahl)
         {
@@ -487,14 +500,9 @@ namespace DAS_LEBENSARCHIV
             return gruss + ". Ich hätte heute " + anzahl + " Vorschläge für Sie:";
         }
 
-        // Build 6.0: Gruß-Zeile für den Vorschlag auf der neuen Startseite -
-        // nutzt denselben Tagesrhythmus wie VorschlaegeUeberschrift.
         public static string StartseiteVorschlagGruss() =>
             TageszeitGruss() + ". Heute möchte ich Ihnen folgenden Vorschlag machen:";
 
-        // Einfacher Tagesrhythmus nur für diese Begrüßung (noch nicht die
-        // vom Architekten angedachte umfassende "Stimmung" von James -
-        // das bleibt bewusst einem späteren Build vorbehalten).
         private static string TageszeitGruss()
         {
             int stunde = DateTime.Now.Hour;

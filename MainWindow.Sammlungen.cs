@@ -249,8 +249,6 @@ namespace DAS_LEBENSARCHIV
                     sammlung.WeitereFotoDateinamen.Add(neuerDateiname);
                 }
 
-                // Punkt 3 (Optimierung nach Test 2): Markierung bleibt
-                // bestehen für gleichzeitige Zuordnung zu Person/Ereignis.
                 arbeitsmappeBereitsZugeordnet.Add(pfad);
                 verbunden++;
             }
@@ -369,15 +367,11 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Visible;
         }
 
-        // Neue Funktion (Generaltest 2): einfacher Abbruch.
         private void ArbeitsmappeSammlungAbbrechen_Click(object sender, RoutedEventArgs e)
         {
             ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
-        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Mehrfachzuordnung -
-        // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDER
-        // markierten Sammlung zugeordnet.
         private void SammlungBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
@@ -398,8 +392,6 @@ namespace DAS_LEBENSARCHIV
 
             ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteSammlungen.Count + " Sammlung(en).";
 
-            // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
-            // und "Archivieren" direkt im Anschluss noch nutzbar sind.
             AktualisiereArbeitsmappe();
         }
 
@@ -457,6 +449,9 @@ namespace DAS_LEBENSARCHIV
                 : ausgewaehlteSammlungen.Count + " Sammlungen archiviert.";
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): FreieSammlungenListe
+        // hat SelectionMode="Extended" - Bestätigung nennt jetzt
+        // namentlich, welche Sammlungen betroffen sind.
         private void SammlungInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
@@ -468,7 +463,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteSammlungen.Count == 1
                 ? James.FrageInPapierkorbEinzeln(ausgewaehlteSammlungen[0].Titel)
-                : James.FrageInPapierkorbMehrere(ausgewaehlteSammlungen.Count);
+                : James.FrageInPapierkorbMehrere(ausgewaehlteSammlungen.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
 
@@ -550,6 +545,10 @@ namespace DAS_LEBENSARCHIV
             AktualisiereSammlungenAnzeige();
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): ArchivSammlungenListe
+        // hat SelectionMode="Extended" - dieselbe Risikostelle wie bei
+        // ArchivEreignisseListe. Bestätigung nennt jetzt namentlich, welche
+        // Sammlungen betroffen sind.
         private void ArchivSammlungInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Sammlung> ausgewaehlteSammlungen = ArchivSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
@@ -562,7 +561,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteSammlungen.Count == 1
                 ? James.FrageInPapierkorbEinzeln(ausgewaehlteSammlungen[0].Titel)
-                : James.FrageInPapierkorbMehrere(ausgewaehlteSammlungen.Count);
+                : James.FrageInPapierkorbMehrere(ausgewaehlteSammlungen.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
 
@@ -622,6 +621,9 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): SammlungenPapierkorbListe
+        // hat SelectionMode="Extended" - gerade beim endgültigen,
+        // unwiderruflichen Löschen besonders wichtig.
         private void SammlungEndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
         {
             List<Sammlung> ausgewaehlteSammlungen = SammlungenPapierkorbListe.SelectedItems.Cast<Sammlung>().ToList();
@@ -634,7 +636,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteSammlungen.Count == 1
                 ? James.FrageEndgueltigLoeschenEinzeln(ausgewaehlteSammlungen[0].Titel)
-                : James.FrageEndgueltigLoeschenMehrere(ausgewaehlteSammlungen.Count);
+                : James.FrageEndgueltigLoeschenMehrere(ausgewaehlteSammlungen.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);
 

@@ -241,10 +241,6 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Visible;
         }
 
-        // Neue Funktion (Generaltest 2, Wunsch von Oma+Opa): Mehrfachzuordnung -
-        // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDEM
-        // markierten besonderen Ereignis zugeordnet (z.B. eine Fotoserie
-        // gleichzeitig an mehrere Ereignisse).
         private void FreiesEreignisBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -265,13 +261,9 @@ namespace DAS_LEBENSARCHIV
 
             ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteEreignisse.Count + " besondere(s) Ereignis(se).";
 
-            // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
-            // und "Archivieren" direkt im Anschluss noch nutzbar sind.
             AktualisiereArbeitsmappe();
         }
 
-        // Neue Funktion (Generaltest 2): einfacher Abbruch - schließt das
-        // Panel, ohne etwas zu speichern oder zu verändern.
         private void ArbeitsmappeFreiesEreignisAbbrechen_Click(object sender, RoutedEventArgs e)
         {
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
@@ -364,6 +356,9 @@ namespace DAS_LEBENSARCHIV
             FreiesEreignisInPapierkorbButton.IsEnabled = istAusgewaehlt;
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): FreieEreignisseListe
+        // hat SelectionMode="Extended" - Bestätigung nennt jetzt
+        // namentlich, welche Ereignisse betroffen sind.
         private void FreiesEreignisInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -376,7 +371,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteEreignisse.Count == 1
                 ? James.FrageInPapierkorbEinzeln(ausgewaehlteEreignisse[0].Titel)
-                : James.FrageInPapierkorbMehrere(ausgewaehlteEreignisse.Count);
+                : James.FrageInPapierkorbMehrere(ausgewaehlteEreignisse.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
 
@@ -503,6 +498,15 @@ namespace DAS_LEBENSARCHIV
             AktualisiereFreieEreignisseAnzeige();
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): DAS ist genau die von
+        // A explizit vermutete Risikostelle - ArchivEreignisseListe hat
+        // SelectionMode="Extended". Eine unbemerkte Mehrfachauswahl
+        // (z.B. durch einen alten Shift-/Strg-Klick) konnte bisher dazu
+        // führen, dass die Bestätigung nur "3 Ereignisse in den
+        // Papierkorb legen?" zeigte, OHNE zu verraten, welche drei
+        // gemeint sind - der Benutzer dachte womöglich, nur das eine
+        // gerade betrachtete Ereignis sei ausgewählt. Jetzt werden die
+        // betroffenen Titel namentlich aufgelistet.
         private void ArchivEreignisInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = ArchivEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -515,7 +519,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteEreignisse.Count == 1
                 ? James.FrageInPapierkorbEinzeln(ausgewaehlteEreignisse[0].Titel)
-                : James.FrageInPapierkorbMehrere(ausgewaehlteEreignisse.Count);
+                : James.FrageInPapierkorbMehrere(ausgewaehlteEreignisse.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
 
@@ -571,6 +575,10 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): FreieEreignissePapierkorbListe
+        // hat SelectionMode="Extended" - gerade beim endgültigen,
+        // unwiderruflichen Löschen besonders wichtig, dass die
+        // betroffenen Titel namentlich genannt werden.
         private void FreiesEreignisEndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = FreieEreignissePapierkorbListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -583,7 +591,7 @@ namespace DAS_LEBENSARCHIV
 
             string frage = ausgewaehlteEreignisse.Count == 1
                 ? James.FrageEndgueltigLoeschenEinzeln(ausgewaehlteEreignisse[0].Titel)
-                : James.FrageEndgueltigLoeschenMehrere(ausgewaehlteEreignisse.Count);
+                : James.FrageEndgueltigLoeschenMehrere(ausgewaehlteEreignisse.Select(x => x.Titel).ToList());
 
             bool ergebnis = James.FrageJaNein(frage, James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);
 

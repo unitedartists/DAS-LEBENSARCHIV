@@ -508,6 +508,11 @@ namespace DAS_LEBENSARCHIV
         // Neue Funktion (Generaltest 2): "Erinnerungen ansehen" für Personen
         // jetzt auch direkt aus der Arbeitsmappe heraus möglich (vorher nur
         // über den Schreibtisch/das Archiv erreichbar).
+        // TÜV-Reparatur (07.08.), NACHTRAG: dies war die 10. (bisher
+        // übersehene) Aufrufstelle von ErinnerungenFenster - hatte beim
+        // ersten Umbau noch den fehlenden entferneAusKontext-Callback,
+        // jetzt ergänzt (analog zu ArchivPersonErinnerungenAnsehen_Click
+        // in MainWindow.Personen.cs).
         private void ArbeitsmappePersonenAnsehen_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArbeitsmappeTitelbildPersonComboBox.SelectedItem as Person;
@@ -524,7 +529,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusPersonCallback(person), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -47,12 +48,39 @@ namespace DAS_LEBENSARCHIV
 
         private readonly Func<string, string, string, int> zaehleVorkommenMerkmal;
 
+        // ============================================================
+        // TÜV-REPARATUR (07.08.), FREIGEGEBENE ERWEITERUNG (Problem 1+3)
+        // ============================================================
+        // Callback, den der jeweilige Aufrufer (Sammlung/Ereignis/Person)
+        // beim Öffnen dieses Fensters mitgibt. Er kennt (per Closure) genau
+        // das eine Kontext-Objekt, aus dem heraus das Fenster geöffnet
+        // wurde, und entfernt eine Erinnerung (per Pfad) AUSSCHLIESSLICH
+        // aus dessen Zuordnung - siehe Opas Papierkorb-Kontext-Regel: nie
+        // die Erinnerung selbst, nie ihre anderen Zuordnungen, nie die
+        // Originaldatei. Gibt zurück, ob die Erinnerung dort gefunden und
+        // entfernt wurde.
+        private readonly Func<string, bool> entferneAusKontext;
+
+        // SANIERUNG BAUPHASE 4 (08.08.): schickt die Pfade der markierten
+        // Erinnerungen an die neue AM-Arbeitsauswahl (MainWindow.
+        // ErinnerungsmodellZustand.cs) - rein additiv, verändert nichts
+        // an der bisherigen Papierkorb-Kontext-Funktion.
+        private readonly Action<List<string>> sendeZurArbeitsmappe;
+
+        // Merkt sich die in der Übersicht markierten Erinnerungen (per
+        // Pfad) für die Sammelaktion "Markierte Erinnerungen in den
+        // Papierkorb". Bleibt über Sortier-/Suchänderungen hinweg
+        // bestehen (nur nicht mehr sichtbare Kacheln bleiben markiert).
+        private readonly HashSet<string> markierteErinnerungen = new HashSet<string>();
+
         public ErinnerungenFenster(
             string titel,
             List<ErinnerungsInfo> erinnerungen,
             Func<string, List<VisuellesMerkmal>> liesMerkmale,
             Action<string, List<VisuellesMerkmal>> speichereMerkmale,
-            Func<string, string, string, int> zaehleVorkommenMerkmal)
+            Func<string, string, string, int> zaehleVorkommenMerkmal,
+            Func<string, bool> entferneAusKontext,
+            Action<List<string>> sendeZurArbeitsmappe)
         {
             InitializeComponent();
 
@@ -61,6 +89,8 @@ namespace DAS_LEBENSARCHIV
             this.liesMerkmale = liesMerkmale;
             this.speichereMerkmale = speichereMerkmale;
             this.zaehleVorkommenMerkmal = zaehleVorkommenMerkmal;
+            this.entferneAusKontext = entferneAusKontext;
+            this.sendeZurArbeitsmappe = sendeZurArbeitsmappe;
 
             BildZoomTransform.ScaleX = zuletzterZoomFaktor;
             BildZoomTransform.ScaleY = zuletzterZoomFaktor;
@@ -235,6 +265,8 @@ namespace DAS_LEBENSARCHIV
                     Cursor = Cursors.Hand
                 };
 
+                Image bildElement;
+
                 try
                 {
                     BitmapImage bild = new BitmapImage();
@@ -244,7 +276,7 @@ namespace DAS_LEBENSARCHIV
                     bild.UriSource = new Uri(info.Pfad);
                     bild.EndInit();
 
-                    rahmen.Child = new Image
+                    bildElement = new Image
                     {
                         Source = bild,
                         Stretch = Stretch.Uniform
@@ -254,6 +286,30 @@ namespace DAS_LEBENSARCHIV
                 {
                     continue;
                 }
+
+                // TÜV-Reparatur (07.08.), freigegebene Erweiterung: eine
+                // Checkbox oben links auf jeder Kachel erlaubt das
+                // Markieren einzelner ODER mehrerer Erinnerungen, ohne
+                // den bisherigen Einzelklick-öffnet-Großansicht-Ablauf zu
+                // stören (die Checkbox verarbeitet ihren eigenen Klick).
+                Grid inhaltGrid = new Grid();
+                inhaltGrid.Children.Add(bildElement);
+
+                CheckBox markierenCheckBox = new CheckBox
+                {
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(4),
+                    IsChecked = markierteErinnerungen.Contains(info.Pfad),
+                    Tag = info.Pfad
+                };
+
+                markierenCheckBox.Checked += MarkierenCheckBox_Changed;
+                markierenCheckBox.Unchecked += MarkierenCheckBox_Changed;
+
+                inhaltGrid.Children.Add(markierenCheckBox);
+
+                rahmen.Child = inhaltGrid;
 
                 int diesIndex = i;
 
@@ -271,6 +327,178 @@ namespace DAS_LEBENSARCHIV
             }
 
             TrefferAnzahlText.Text = "Gefunden: " + treffer + " von " + gueltigeErinnerungen.Count + " Erinnerungen";
+
+            AktualisiereMarkierungsleiste();
+        }
+
+        private void MarkierenCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            CheckBox checkBox = sender as CheckBox;
+
+            if (checkBox == null)
+            {
+                return;
+            }
+
+            string pfad = checkBox.Tag as string;
+
+            if (pfad == null)
+            {
+                return;
+            }
+
+            if (checkBox.IsChecked == true)
+            {
+                markierteErinnerungen.Add(pfad);
+            }
+            else
+            {
+                markierteErinnerungen.Remove(pfad);
+            }
+
+            AktualisiereMarkierungsleiste();
+        }
+
+        private void AktualisiereMarkierungsleiste()
+        {
+            int anzahl = markierteErinnerungen.Count;
+
+            MarkierteAnzahlText.Text = anzahl == 0
+                ? "Keine Erinnerung markiert."
+                : anzahl == 1
+                    ? "1 Erinnerung markiert."
+                    : anzahl + " Erinnerungen markiert.";
+
+            MarkierteInPapierkorbButton.IsEnabled = anzahl > 0;
+            MarkierteZuordnenButton.IsEnabled = anzahl > 0 && sendeZurArbeitsmappe != null;
+        }
+
+        // SANIERUNG BAUPHASE 4 (08.08.): schickt die markierten
+        // Erinnerungen (per Pfad) an die neue AM-Arbeitsauswahl. Rein
+        // additiv - entfernt nichts, verändert keine bestehende
+        // Zuordnung. Das Fenster selbst muss dafür nicht wissen, wie
+        // die AM-Anbindung im Detail funktioniert (siehe MainWindow.
+        // ErinnerungsmodellZustand.cs).
+        private void MarkierteZuordnen_Click(object sender, RoutedEventArgs e)
+        {
+            if (sendeZurArbeitsmappe == null || markierteErinnerungen.Count == 0)
+            {
+                return;
+            }
+
+            List<string> pfade = gueltigeErinnerungen
+                .Where(info => markierteErinnerungen.Contains(info.Pfad))
+                .Select(info => info.Pfad)
+                .ToList();
+
+            sendeZurArbeitsmappe(pfade);
+        }
+
+        // Ermittelt einen für den Menschen sinnvollen Anzeigenamen einer
+        // Erinnerung für Rückfragen/Fehlermeldungen (Titel, sonst Dateiname).
+        private static string AnzeigeName(ErinnerungsInfo info)
+        {
+            if (!string.IsNullOrWhiteSpace(info.Titel))
+            {
+                return info.Titel;
+            }
+
+            return Path.GetFileName(info.Pfad);
+        }
+
+        // TÜV-Reparatur (07.08.), freigegebene Erweiterung (Problem 1):
+        // entfernt alle markierten Erinnerungen GEMEINSAM aus genau
+        // diesem Kontext (Papierkorb-Kontext-Regel) - vorhandene
+        // Bestätigungslogik aus james.cs wiederverwendet (namentliche
+        // Auflistung bei Mehrfachauswahl), keine zweite Löschtechnik.
+        private void MarkierteInPapierkorb_Click(object sender, RoutedEventArgs e)
+        {
+            if (entferneAusKontext == null || markierteErinnerungen.Count == 0)
+            {
+                return;
+            }
+
+            List<ErinnerungsInfo> ausgewaehlt = gueltigeErinnerungen
+                .Where(info => markierteErinnerungen.Contains(info.Pfad))
+                .ToList();
+
+            if (ausgewaehlt.Count == 0)
+            {
+                return;
+            }
+
+            List<string> namen = ausgewaehlt.Select(AnzeigeName).ToList();
+
+            string frage = ausgewaehlt.Count == 1
+                ? James.FrageInPapierkorbEinzeln(namen[0])
+                : James.FrageInPapierkorbMehrere(namen);
+
+            bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            int entfernt = 0;
+
+            foreach (ErinnerungsInfo info in ausgewaehlt)
+            {
+                if (entferneAusKontext(info.Pfad))
+                {
+                    erinnerungen.Remove(info);
+                    markierteErinnerungen.Remove(info.Pfad);
+                    entfernt++;
+                }
+            }
+
+            ZeigeUebersicht();
+
+            if (entfernt > 0)
+            {
+                James.Hinweis(entfernt == 1
+                    ? "1 Erinnerung wurde aus diesem Zusammenhang in den Papierkorb gelegt."
+                    : entfernt + " Erinnerungen wurden aus diesem Zusammenhang in den Papierkorb gelegt.");
+            }
+        }
+
+        // TÜV-Reparatur (07.08.), freigegebene Erweiterung (Problem 3):
+        // betrifft ausschließlich die gerade in der Großansicht gezeigte
+        // Einzelerinnerung, aus genau diesem Kontext (Papierkorb-Kontext-
+        // Regel) - vorhandene zentrale Papierkorb-Logik wiederverwendet.
+        private void EinzelnInPapierkorb_Click(object sender, RoutedEventArgs e)
+        {
+            if (entferneAusKontext == null || aktuellerIndex < 0 || aktuellerIndex >= gueltigeErinnerungen.Count)
+            {
+                return;
+            }
+
+            ErinnerungsInfo info = gueltigeErinnerungen[aktuellerIndex];
+
+            bool ergebnis = James.FrageJaNein(
+                James.FrageInPapierkorbEinzeln(AnzeigeName(info)),
+                James.TitelEntscheidung,
+                MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            if (entferneAusKontext(info.Pfad))
+            {
+                erinnerungen.Remove(info);
+                markierteErinnerungen.Remove(info.Pfad);
+
+                if (zuletztGeoeffneterPfad == info.Pfad)
+                {
+                    zuletztGeoeffneterPfad = null;
+                }
+
+                ZeigeUebersicht();
+
+                James.Hinweis("„" + AnzeigeName(info) + "\u201c wurde aus diesem Zusammenhang in den Papierkorb gelegt.");
+            }
         }
 
         private void SucheTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -346,6 +574,8 @@ namespace DAS_LEBENSARCHIV
             NaechsteButton.IsEnabled = aktuellerIndex < gueltigeErinnerungen.Count - 1;
 
             PositionsanzeigeText.Text = "Erinnerung " + (aktuellerIndex + 1) + " von " + gueltigeErinnerungen.Count;
+
+            EinzelnInPapierkorbButton.IsEnabled = entferneAusKontext != null;
 
             BekanntesWissenPanel.Visibility = Visibility.Collapsed;
             BekanntesWissenPanel.Children.Clear();

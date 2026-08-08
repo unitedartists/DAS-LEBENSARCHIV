@@ -40,24 +40,87 @@ namespace DAS_LEBENSARCHIV
         public const string TitelWiederhergestellt = "Wiederhergestellt";
 
         // ============================================================
+        // TÜV-REPARATUR (07.08.), OWNER-FIX FÜR ALLE DIALOGE
+        // ============================================================
+        // A's Auftrag: alle James-Dialoge (Hinweis, Problem, FrageJaNein)
+        // müssen zuverlässig sichtbar VOR dem jeweils aktiven Lebensarchiv-
+        // Fenster erscheinen - egal ob das gerade das Hauptfenster ist
+        // oder ein separat geöffnetes Fenster wie ErinnerungenFenster.
+        //
+        // Ursache des bisherigen Fehlers: MessageBox.Show(...) wurde ohne
+        // Owner-Parameter aufgerufen. Ohne Owner kann eine MessageBox unter
+        // WPF/Win32 hinter dem aktuell fokussierten Fenster liegen, statt
+        // garantiert davor - besonders bei nicht-modal geöffneten Fenstern
+        // (Show() statt ShowDialog(), z.B. ErinnerungenFenster). Dadurch
+        // konnte eine Ja/Nein-Rückfrage unbemerkt im Hintergrund liegen.
+        //
+        // Fix: ein zentraler Helfer ermittelt das aktuell AKTIVE Fenster
+        // der Anwendung (nicht zwingend das Hauptfenster) und übergibt es
+        // MessageBox.Show(...) als Owner. Dadurch wird die MessageBox vom
+        // Betriebssystem garantiert vor genau diesem Fenster angezeigt und
+        // ist zusätzlich für dieses Fenster modal (der Benutzer kann nicht
+        // versehentlich daneben klicken, ohne die Rückfrage zu sehen).
+        // Fällt aus irgendeinem Grund kein Fenster als "aktiv" auf (z.B.
+        // sehr seltener Randfall beim Programmstart), wird ersatzweise das
+        // Hauptfenster verwendet - damit niemals ein Absturz durch einen
+        // fehlenden Owner entsteht.
+        private static Window ErmittleAktivesFenster()
+        {
+            foreach (Window fenster in Application.Current.Windows)
+            {
+                if (fenster.IsActive)
+                {
+                    return fenster;
+                }
+            }
+
+            return Application.Current.MainWindow;
+        }
+
+        // ============================================================
         // GRUNDBAUSTEINE: WIE James spricht (nicht WAS er sagt)
         // ============================================================
 
         // Zeigt einen einfachen Hinweis (z.B. "bitte erst etwas auswählen").
         public static void Hinweis(string text, string titel = TitelHinweis)
         {
-            MessageBox.Show(text, titel, MessageBoxButton.OK, MessageBoxImage.Information);
+            Window owner = ErmittleAktivesFenster();
+
+            if (owner != null)
+            {
+                MessageBox.Show(owner, text, titel, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(text, titel, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         // Zeigt, dass etwas technisch nicht geklappt hat.
         public static void Problem(string text)
         {
-            MessageBox.Show(text, TitelProblem, MessageBoxButton.OK, MessageBoxImage.Warning);
+            Window owner = ErmittleAktivesFenster();
+
+            if (owner != null)
+            {
+                MessageBox.Show(owner, text, TitelProblem, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show(text, TitelProblem, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // Stellt eine Ja/Nein-Frage und gibt zurück, ob mit "Ja" geantwortet wurde.
         public static bool FrageJaNein(string text, string titel = TitelEntscheidung, MessageBoxImage bild = MessageBoxImage.Question)
         {
+            Window owner = ErmittleAktivesFenster();
+
+            if (owner != null)
+            {
+                return MessageBox.Show(owner, text, titel, MessageBoxButton.YesNo, bild) == MessageBoxResult.Yes;
+            }
+
             return MessageBox.Show(text, titel, MessageBoxButton.YesNo, bild) == MessageBoxResult.Yes;
         }
 
@@ -402,6 +465,13 @@ namespace DAS_LEBENSARCHIV
 
         public static string ArbeitsmappeUmleitungEreignis(string ereignisTitel) =>
             "Erinnerungen ordnen wir jetzt über die Arbeitsmappe zu. Wählen wir dort die gewünschte(n) Erinnerung(en) aus und dann \"Vorhandenem Ereignis zuordnen\" - \"" + ereignisTitel + "\" lässt sich in der Liste auswählen.";
+
+        // TÜV-Reparatur Teil B (08.08.): dieselbe Umleitung jetzt auch für
+        // Sammlungen, analog zu Person/Ereignis - keine eigene
+        // Zuordnungslogik im Archiv, sondern Verweis auf die zentrale
+        // Arbeitsmappen-Zuordnung.
+        public static string ArbeitsmappeUmleitungSammlung(string sammlungTitel) =>
+            "Erinnerungen ordnen wir jetzt über die Arbeitsmappe zu. Wählen wir dort die gewünschte(n) Erinnerung(en) aus und dann \"Bestehender Sammlung zuordnen\" - \"" + sammlungTitel + "\" lässt sich in der Liste auswählen.";
 
         // ---- Build 5.0: Erinnerungen über Personen ODER Ereignisse ----
 

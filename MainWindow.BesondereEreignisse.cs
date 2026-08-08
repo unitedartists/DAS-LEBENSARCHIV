@@ -10,6 +10,30 @@ namespace DAS_LEBENSARCHIV
     public partial class MainWindow : Window
     {
         // ============================================================
+        // TÜV-REPARATUR (07.08.), FREIGEGEBENE ERWEITERUNG: PAPIERKORB-
+        // KONTEXT-REGEL (freie Ereignisse ohne Person)
+        // ============================================================
+        // Baut den Papierkorb-Kontext-Callback für ein freies Ereignis
+        // (person == null) - wiederverwendet EntferneErinnerungAusEreignis
+        // aus MainWindow.Erinnerungskarte.cs, kennt per Closure genau
+        // dieses eine Ereignis, aus dem heraus das Fenster geöffnet wurde.
+        private Func<string, bool> ErstelleEntferneAusEreignisCallback(Ereignis ereignis)
+        {
+            return pfad =>
+            {
+                bool entfernt = EntferneErinnerungAusEreignis(ereignis, pfad);
+
+                if (entfernt)
+                {
+                    SpeichereDaten();
+                    AktualisiereFreieEreignisseAnzeige();
+                }
+
+                return entfernt;
+            };
+        }
+
+        // ============================================================
         // BUILD 5.1: EREIGNISVERWALTUNG
         // ============================================================
 
@@ -140,7 +164,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusEreignisCallback(ereignis), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
@@ -415,7 +439,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusEreignisCallback(ereignis), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
@@ -443,22 +467,19 @@ namespace DAS_LEBENSARCHIV
                 : ausgewaehlteEreignisse.Count + " besondere Ereignisse archiviert.";
         }
 
+        // TÜV-Reparatur Teil B (08.08.): Teil der vereinheitlichten
+        // Archiv-Aktionsleiste (siehe MainWindow.Personen.cs) - eine
+        // Auswahl hier leert automatisch die Auswahl in den beiden
+        // anderen Archiv-Listen.
         private void ArchivEreignisseListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ArchivEreignisAktionPanel.Visibility = Visibility.Collapsed;
-        }
-
-        private void ArchivEreignisAktion_Click(object sender, RoutedEventArgs e)
-        {
-            if (ArchivEreignisseListe.SelectedItem == null)
+            if (ArchivEreignisseListe.SelectedItems.Count > 0)
             {
-                James.Hinweis(James.BitteFreieEreignisseAuswaehlen);
-                return;
+                ArchivListe.SelectedItem = null;
+                ArchivSammlungenListe.SelectedItem = null;
             }
 
-            ArchivEreignisAktionPanel.Visibility = ArchivEreignisAktionPanel.Visibility == Visibility.Visible
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            AktualisiereArchivAuswahl();
         }
 
         private void ArchivEreignisErinnerungenAnsehen_Click(object sender, RoutedEventArgs e)
@@ -477,12 +498,14 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusEreignisCallback(ereignis), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
 
-        private void ArchivEreignisWiederherstellen_Click(object sender, RoutedEventArgs e)
+        // TÜV-Reparatur Teil B (08.08.), Punkt 3: "Zuordnen" verweist jetzt
+        // auch für Ereignisse auf die Arbeitsmappe, analog zu Person.
+        private void ArchivEreignisZuordnen_Click(object sender, RoutedEventArgs e)
         {
             Ereignis ereignis = ArchivEreignisseListe.SelectedItem as Ereignis;
 
@@ -491,11 +514,33 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            freieEreignisseArchiv.Remove(ereignis);
-            freieEreignisse.Add(ereignis);
+            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
+            James.Hinweis(James.ArbeitsmappeUmleitungEreignis(ereignis.Titel));
+        }
+
+        // TÜV-Reparatur Teil B (08.08.): jetzt mehrfachauswahlfähig, analog
+        // zu ArchivEreignisInPapierkorb_Click.
+        private void ArchivEreignisWiederherstellen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Ereignis> ausgewaehlteEreignisse = ArchivEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
+
+            if (ausgewaehlteEreignisse.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Ereignis ereignis in ausgewaehlteEreignisse)
+            {
+                freieEreignisseArchiv.Remove(ereignis);
+                freieEreignisse.Add(ereignis);
+            }
 
             SpeichereDaten();
             AktualisiereFreieEreignisseAnzeige();
+
+            ZeigeStatusMeldung(ausgewaehlteEreignisse.Count == 1
+                ? "\u201e" + ausgewaehlteEreignisse[0].Titel + "\u201c ist zurück auf dem Schreibtisch."
+                : ausgewaehlteEreignisse.Count + " Ereignisse sind zurück auf dem Schreibtisch.");
         }
 
         // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): DAS ist genau die von

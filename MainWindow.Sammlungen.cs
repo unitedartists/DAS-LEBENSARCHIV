@@ -23,6 +23,65 @@ namespace DAS_LEBENSARCHIV
             return Path.Combine(ErinnerungenOrdnerPfad, "Sammlungen", sammlung.Id.ToString());
         }
 
+        // ============================================================
+        // TÜV-REPARATUR (07.08.), FREIGEGEBENE ERWEITERUNG: PAPIERKORB-
+        // KONTEXT-REGEL
+        // ============================================================
+        // Entfernt eine einzelne Erinnerung (per Pfad) NUR aus dieser
+        // Sammlung - die physische Datei und andere Zuordnungen dieser
+        // Erinnerung (Person, Ereignis, andere Sammlungen) bleiben dabei
+        // unangetastet (Opas Grundsatzentscheidung vom 07.08.). War es
+        // das Haupt-Foto der Sammlung, rückt das nächste aus
+        // WeitereFotoDateinamen nach. Gibt zurück, ob die Erinnerung in
+        // dieser Sammlung gefunden und entfernt wurde.
+        private bool EntferneErinnerungAusSammlung(Sammlung sammlung, string pfad)
+        {
+            string dateiname = Path.GetFileName(pfad);
+
+            if (sammlung.SammlungFotoDateiname == dateiname)
+            {
+                if (sammlung.WeitereFotoDateinamen != null && sammlung.WeitereFotoDateinamen.Count > 0)
+                {
+                    sammlung.SammlungFotoDateiname = sammlung.WeitereFotoDateinamen[0];
+                    sammlung.WeitereFotoDateinamen.RemoveAt(0);
+                }
+                else
+                {
+                    sammlung.SammlungFotoDateiname = null;
+                }
+
+                sammlung.ModifiedAt = DateTime.Now;
+                return true;
+            }
+
+            if (sammlung.WeitereFotoDateinamen != null && sammlung.WeitereFotoDateinamen.Remove(dateiname))
+            {
+                sammlung.ModifiedAt = DateTime.Now;
+                return true;
+            }
+
+            return false;
+        }
+
+        // Baut den Papierkorb-Kontext-Callback für eine bestimmte Sammlung -
+        // wird an ErinnerungenFenster übergeben und kennt per Closure genau
+        // diese eine Sammlung, aus der heraus das Fenster geöffnet wurde.
+        private Func<string, bool> ErstelleEntferneAusSammlungCallback(Sammlung sammlung)
+        {
+            return pfad =>
+            {
+                bool entfernt = EntferneErinnerungAusSammlung(sammlung, pfad);
+
+                if (entfernt)
+                {
+                    SpeichereDaten();
+                    AktualisiereSammlungenAnzeige();
+                }
+
+                return entfernt;
+            };
+        }
+
         private void SammlungenListeSchreibtisch_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Sammlung sammlung = SammlungenListeSchreibtisch.SelectedItem as Sammlung;
@@ -136,7 +195,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusSammlungCallback(sammlung), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
@@ -421,7 +480,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusSammlungCallback(sammlung), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
@@ -490,22 +549,20 @@ namespace DAS_LEBENSARCHIV
         // NEUE FUNKTION: SAMMLUNG IM ARCHIV
         // ============================================================
 
+        // TÜV-Reparatur Teil B (08.08.): Teil der vereinheitlichten
+        // Archiv-Aktionsleiste (siehe MainWindow.Personen.cs) - eine
+        // Auswahl hier leert automatisch die Auswahl in den beiden
+        // anderen Archiv-Listen, damit immer eindeutig ist, worauf eine
+        // Aktion wirkt.
         private void ArchivSammlungenListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ArchivSammlungAktionPanel.Visibility = Visibility.Collapsed;
-        }
-
-        private void ArchivSammlungAktion_Click(object sender, RoutedEventArgs e)
-        {
-            if (ArchivSammlungenListe.SelectedItem == null)
+            if (ArchivSammlungenListe.SelectedItems.Count > 0)
             {
-                James.Hinweis(James.BitteFreieEreignisseAuswaehlen);
-                return;
+                ArchivListe.SelectedItem = null;
+                ArchivEreignisseListe.SelectedItem = null;
             }
 
-            ArchivSammlungAktionPanel.Visibility = ArchivSammlungAktionPanel.Visibility == Visibility.Visible
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            AktualisiereArchivAuswahl();
         }
 
         private void ArchivSammlungErinnerungenAnsehen_Click(object sender, RoutedEventArgs e)
@@ -524,12 +581,15 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(sammlung.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusSammlungCallback(sammlung), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
 
-        private void ArchivSammlungWiederherstellen_Click(object sender, RoutedEventArgs e)
+        // TÜV-Reparatur Teil B (08.08.), Punkt 3: "Zuordnen" verweist jetzt
+        // auch für Sammlungen auf die Arbeitsmappe, analog zu Person -
+        // kein eigener Zuordnungsmechanismus im Archiv.
+        private void ArchivSammlungZuordnen_Click(object sender, RoutedEventArgs e)
         {
             Sammlung sammlung = ArchivSammlungenListe.SelectedItem as Sammlung;
 
@@ -538,11 +598,33 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            sammlungenArchiv.Remove(sammlung);
-            sammlungen.Add(sammlung);
+            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
+            James.Hinweis(James.ArbeitsmappeUmleitungSammlung(sammlung.Titel));
+        }
+
+        // TÜV-Reparatur Teil B (08.08.): jetzt mehrfachauswahlfähig, analog
+        // zu ArchivSammlungInPapierkorb_Click.
+        private void ArchivSammlungWiederherstellen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Sammlung> ausgewaehlteSammlungen = ArchivSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
+
+            if (ausgewaehlteSammlungen.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Sammlung sammlung in ausgewaehlteSammlungen)
+            {
+                sammlungenArchiv.Remove(sammlung);
+                sammlungen.Add(sammlung);
+            }
 
             SpeichereDaten();
             AktualisiereSammlungenAnzeige();
+
+            ZeigeStatusMeldung(ausgewaehlteSammlungen.Count == 1
+                ? "\u201e" + ausgewaehlteSammlungen[0].Titel + "\u201c ist zurück auf dem Schreibtisch."
+                : ausgewaehlteSammlungen.Count + " Sammlungen sind zurück auf dem Schreibtisch.");
         }
 
         // BUGFIX (TÜV-Reparatur 07.08., Priorität 1): ArchivSammlungenListe

@@ -1,0 +1,65 @@
+<Window x:Class="DAS_LEBENSARCHIV.MigrationTrockenlaufFenster"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Migrations-Trockenlauf (Bauphase 2)"
+        Height="620"
+        Width="760"
+        WindowStartupLocation="CenterOwner">
+
+    <!--
+    ============================================================
+    SANIERUNG BAUPHASE 2 - MIGRATIONS-TROCKENLAUF (08.08.)
+    ============================================================
+    Rein lesend: rechnet mit den bereits geladenen echten Daten,
+    schreibt/verändert/kopiert aber nichts. Zeigt nur, was ein
+    echter Migrationslauf erzeugen würde.
+    -->
+
+    <Grid Margin="20">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            FontSize="16"
+            FontWeight="Bold"
+            Margin="0,0,0,4"
+            Text="Migrations-Trockenlauf"/>
+
+        <TextBlock
+            Grid.Row="1"
+            FontStyle="Italic"
+            Foreground="#777777"
+            TextWrapping="Wrap"
+            Margin="0,0,0,14"
+            Text="Rein lesend - es wird nichts verändert, gespeichert oder kopiert. Zeigt nur, was ein echter Migrationslauf mit den heutigen Daten erzeugen würde."/>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,10">
+            <ProgressBar
+                Name="Fortschrittsleiste"
+                Height="20"
+                IsIndeterminate="True"
+                Margin="0,0,0,6"/>
+            <TextBlock
+                Name="StatusText"
+                TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+            <TextBox
+                Name="ErgebnisText"
+                IsReadOnly="True"
+                TextWrapping="Wrap"
+                BorderThickness="0"
+                Background="Transparent"
+                FontFamily="Consolas"/>
+        </ScrollViewer>
+
+    </Grid>
+
+</Window>

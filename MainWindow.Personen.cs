@@ -87,11 +87,93 @@ namespace DAS_LEBENSARCHIV
             SpeichereArbeitsstand();
         }
 
+        // ============================================================
+        // TÜV-REPARATUR TEIL B (08.08.): VEREINHEITLICHTES ARCHIV
+        // ============================================================
+        // A's Grundsatz "Gleiche Situation = gleiche Bedienung": eine
+        // gemeinsame Aktionsleiste für Person/Ereignis/Sammlung statt drei
+        // fast identischer, getrennter Bedienkonzepte (der bisherige
+        // "Was möchten wir tun?"-Aufklapp-Button entfällt dadurch). James
+        // muss dabei intern immer eindeutig wissen, welcher Typ UND welches
+        // konkrete Element gerade gemeint ist (A's Punkt 5) - deshalb leert
+        // eine Auswahl in einer der drei Listen automatisch die Auswahl in
+        // den beiden anderen (siehe ArchivListe_SelectionChanged unten und
+        // die Pendants ArchivEreignisseListe_SelectionChanged/
+        // ArchivSammlungenListe_SelectionChanged in
+        // MainWindow.BesondereEreignisse.cs/MainWindow.Sammlungen.cs).
+        private enum ArchivTyp { Keine, Person, Ereignis, Sammlung }
+
+        private ArchivTyp ErmittleAktuellenArchivTyp()
+        {
+            if (ArchivListe.SelectedItems.Count > 0)
+            {
+                return ArchivTyp.Person;
+            }
+
+            if (ArchivEreignisseListe.SelectedItems.Count > 0)
+            {
+                return ArchivTyp.Ereignis;
+            }
+
+            if (ArchivSammlungenListe.SelectedItems.Count > 0)
+            {
+                return ArchivTyp.Sammlung;
+            }
+
+            return ArchivTyp.Keine;
+        }
+
+        // Aktualisiert die gemeinsame Aktionsleiste (Beschriftung + welche
+        // Buttons aktiv sind), passend zur aktuellen Auswahl. "Ansehen" und
+        // "Zuordnen" ergeben nur bei genau EINEM ausgewählten Element Sinn
+        // (die Erinnerungsansicht bzw. die Umleitungs-Nachricht beziehen
+        // sich immer auf ein konkretes Element) - "Zurück auf den
+        // Schreibtisch" und "In den Papierkorb legen" funktionieren dagegen
+        // auch mit mehreren gleichzeitig ausgewählten Elementen.
+        private void AktualisiereArchivAuswahl()
+        {
+            ArchivTyp typ = ErmittleAktuellenArchivTyp();
+            int anzahl = 0;
+            string text = "Bitte links eine Person, ein Ereignis oder eine Sammlung auswählen.";
+
+            switch (typ)
+            {
+                case ArchivTyp.Person:
+                    List<Person> personen = ArchivListe.SelectedItems.Cast<Person>().ToList();
+                    anzahl = personen.Count;
+                    text = anzahl == 1 ? "Ausgewählt: " + personen[0].ToString() : anzahl + " Personen ausgewählt";
+                    break;
+
+                case ArchivTyp.Ereignis:
+                    List<Ereignis> ereignisse = ArchivEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
+                    anzahl = ereignisse.Count;
+                    text = anzahl == 1 ? "Ausgewählt: " + ereignisse[0].Titel : anzahl + " Ereignisse ausgewählt";
+                    break;
+
+                case ArchivTyp.Sammlung:
+                    List<Sammlung> sammlungenAuswahl = ArchivSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
+                    anzahl = sammlungenAuswahl.Count;
+                    text = anzahl == 1 ? "Ausgewählt: " + sammlungenAuswahl[0].Titel : anzahl + " Sammlungen ausgewählt";
+                    break;
+            }
+
+            ArchivAuswahlText.Text = text;
+
+            ArchivAnsehenButton.IsEnabled = anzahl == 1;
+            ArchivZuordnenButton.IsEnabled = anzahl == 1;
+            ArchivZurueckButton.IsEnabled = anzahl >= 1;
+            ArchivInPapierkorbButton.IsEnabled = anzahl >= 1;
+        }
+
         private void ArchivListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Person person = ArchivListe.SelectedItem as Person;
-            ZeigeArchivFoto(person);
-            ArchivAktionPanel.Visibility = Visibility.Collapsed;
+            if (ArchivListe.SelectedItems.Count > 0)
+            {
+                ArchivEreignisseListe.SelectedItem = null;
+                ArchivSammlungenListe.SelectedItem = null;
+            }
+
+            AktualisiereArchivAuswahl();
         }
 
         private void ArchivPersonErinnerungenAnsehen_Click(object sender, RoutedEventArgs e)
@@ -110,49 +192,9 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusPersonCallback(person), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
-        }
-
-        private void ZeigeArchivFoto(Person person)
-        {
-            if (person != null && person.TitelbildDateiname != null)
-            {
-                string pfad = Path.Combine(PersonErinnerungsOrdner(person), person.TitelbildDateiname);
-
-                if (File.Exists(pfad))
-                {
-                    BitmapImage bild = new BitmapImage();
-                    bild.BeginInit();
-                    bild.CacheOption = BitmapCacheOption.OnLoad;
-                    bild.UriSource = new Uri(pfad);
-                    bild.EndInit();
-
-                    ArchivFotoBild.Source = bild;
-                    return;
-                }
-            }
-
-            ArchivFotoBild.Source = null;
-        }
-
-        private void ArchivAktion_Click(object sender, RoutedEventArgs e)
-        {
-            if (ArchivListe.SelectedItem == null)
-            {
-                James.Hinweis(James.BitteArchivPersonAuswaehlen);
-                return;
-            }
-
-            if (ArchivAktionPanel.Visibility == Visibility.Visible)
-            {
-                ArchivAktionPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                ArchivAktionPanel.Visibility = Visibility.Visible;
-            }
         }
 
         private void ArchivFotoHinzufuegen_Click(object sender, RoutedEventArgs e)
@@ -168,16 +210,135 @@ namespace DAS_LEBENSARCHIV
             James.Hinweis(James.ArbeitsmappeUmleitungPerson(person.ToString()));
         }
 
+        // ============================================================
+        // GEMEINSAME AKTIONSLEISTE - DISPATCHER
+        // ============================================================
+        // Diese vier Methoden hängen an den vier Buttons der neuen
+        // gemeinsamen Aktionsleiste (siehe MainWindow.xaml, Archiv-Tab) und
+        // leiten je nach aktuellem ArchivTyp an die bestehende, bewährte
+        // typ-spezifische Logik weiter - keine neue Parallellogik.
+
+        private void ArchivAnsehen_Click(object sender, RoutedEventArgs e)
+        {
+            switch (ErmittleAktuellenArchivTyp())
+            {
+                case ArchivTyp.Person:
+                    ArchivPersonErinnerungenAnsehen_Click(sender, e);
+                    break;
+                case ArchivTyp.Ereignis:
+                    ArchivEreignisErinnerungenAnsehen_Click(sender, e);
+                    break;
+                case ArchivTyp.Sammlung:
+                    ArchivSammlungErinnerungenAnsehen_Click(sender, e);
+                    break;
+            }
+        }
+
+        // Teil B, Punkt 3: "Zuordnen" verweist für alle drei Typen
+        // einheitlich auf die Arbeitsmappe - kein eigener
+        // Zuordnungsmechanismus im Archiv (Prinzip, das bei Person schon
+        // bestand, jetzt auch für Ereignis/Sammlung).
+        private void ArchivZuordnen_Click(object sender, RoutedEventArgs e)
+        {
+            switch (ErmittleAktuellenArchivTyp())
+            {
+                case ArchivTyp.Person:
+                    ArchivFotoHinzufuegen_Click(sender, e);
+                    break;
+                case ArchivTyp.Ereignis:
+                    ArchivEreignisZuordnen_Click(sender, e);
+                    break;
+                case ArchivTyp.Sammlung:
+                    ArchivSammlungZuordnen_Click(sender, e);
+                    break;
+            }
+        }
+
         private void ArchivZurueck_Click(object sender, RoutedEventArgs e)
         {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
+            switch (ErmittleAktuellenArchivTyp())
             {
-                return;
-            }
+                case ArchivTyp.Person:
+                    List<Person> personen = ArchivListe.SelectedItems.Cast<Person>().ToList();
 
-            HoleAusArchivZurueckAufSchreibtisch(person, null);
+                    if (personen.Count == 1)
+                    {
+                        HoleAusArchivZurueckAufSchreibtisch(personen[0], null);
+                    }
+                    else if (personen.Count > 1)
+                    {
+                        foreach (Person person in personen)
+                        {
+                            ArchivListe.Items.Remove(person);
+                            allePersonen.Add(person);
+                        }
+
+                        SortiereAllePersonen();
+                        AktualisierePersonenAnzeige();
+                        SpeichereDaten();
+
+                        ZeigeStatusMeldung(personen.Count + " Personen sind zurück auf Ihrem Schreibtisch.");
+                    }
+                    break;
+
+                case ArchivTyp.Ereignis:
+                    ArchivEreignisWiederherstellen_Click(sender, e);
+                    break;
+
+                case ArchivTyp.Sammlung:
+                    ArchivSammlungWiederherstellen_Click(sender, e);
+                    break;
+            }
+        }
+
+        // BUGFIX (TÜV-Reparatur 07.08., Priorität 1) + TEIL B (08.08.): jetzt
+        // mehrfachauswahlfähig wie die Pendants bei Ereignis/Sammlung
+        // (ArchivListe hat jetzt ebenfalls SelectionMode="Extended"), mit
+        // namentlicher Bestätigung bei mehreren markierten Personen.
+        private void ArchivInPapierkorb_Click(object sender, RoutedEventArgs e)
+        {
+            switch (ErmittleAktuellenArchivTyp())
+            {
+                case ArchivTyp.Person:
+                    List<Person> personen = ArchivListe.SelectedItems.Cast<Person>().ToList();
+
+                    if (personen.Count == 0)
+                    {
+                        return;
+                    }
+
+                    string frage = personen.Count == 1
+                        ? James.FrageInPapierkorbEinzeln(personen[0].ToString())
+                        : James.FrageInPapierkorbMehrere(personen.Select(p => p.ToString()).ToList());
+
+                    bool ergebnis = James.FrageJaNein(frage, James.TitelEntscheidung, MessageBoxImage.Warning);
+
+                    if (!ergebnis)
+                    {
+                        return;
+                    }
+
+                    foreach (Person person in personen)
+                    {
+                        ArchivListe.Items.Remove(person);
+                        PapierkorbListe.Items.Add(person);
+                    }
+
+                    SpeichereDaten();
+
+                    ZeigeStatusMeldung(personen.Count == 1
+                        ? James.InPapierkorbGelegtEinzeln(personen[0].ToString())
+                        : James.InPapierkorbGelegtMehrere(personen.Count));
+                    break;
+
+                case ArchivTyp.Ereignis:
+                    ArchivEreignisInPapierkorb_Click(sender, e);
+                    break;
+
+                case ArchivTyp.Sammlung:
+                    ArchivSammlungInPapierkorb_Click(sender, e);
+                    break;
+            }
         }
 
         private void HoleAusArchivZurueckAufSchreibtisch(Person person, Ereignis auszuwaehlendesEreignis)
@@ -189,9 +350,6 @@ namespace DAS_LEBENSARCHIV
             AktualisierePersonenAnzeige();
 
             SpeichereDaten();
-
-            ArchivAktionPanel.Visibility = Visibility.Collapsed;
-            ArchivFotoBild.Source = null;
 
             HauptTabControl.SelectedIndex = 0;
 
@@ -221,31 +379,6 @@ namespace DAS_LEBENSARCHIV
             }
 
             ZeigeStatusMeldung(James.ZurueckAufSchreibtisch(person.ToString()));
-        }
-
-        // Etappe B.1b, Punkt 4: ArchivListe ist NICHT im Extended-Auswahlmodus
-        // (siehe MainWindow.xaml) - hier ist immer nur genau eine Person
-        // gemeint, daher weiterhin die einfache, einzelne Bestätigung.
-        private void ArchivPersonInPapierkorb_Click(object sender, RoutedEventArgs e)
-        {
-            Person person = ArchivListe.SelectedItem as Person;
-
-            if (person == null)
-            {
-                return;
-            }
-
-            bool ergebnis = James.FrageJaNein(James.FrageInPapierkorbEinzeln(person.ToString()), James.TitelEntscheidung, MessageBoxImage.Warning);
-
-            if (ergebnis)
-            {
-                ArchivListe.Items.Remove(person);
-                PapierkorbListe.Items.Add(person);
-                SpeichereDaten();
-
-                ArchivAktionPanel.Visibility = Visibility.Collapsed;
-                ArchivFotoBild.Source = null;
-            }
         }
 
         private void FotoHinzufuegen_Click(object sender, RoutedEventArgs e)

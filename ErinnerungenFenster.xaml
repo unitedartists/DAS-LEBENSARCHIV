@@ -25,6 +25,18 @@
     Build 3.1: zusätzlich "James, was weißt du bereits?" - reine
     Auswertung bereits bestätigter Merkmale, keine neuen Begriffe.
 
+    TÜV-REPARATUR (07.08.), FREIGEGEBENE ERWEITERUNG (Problem 1+3):
+    Das Fenster war bewusst rein anzeigend gebaut - nach Praxistest
+    von A/Opa ausdrücklich freigegeben: Kacheln in der Übersicht
+    sind jetzt einzeln UND mehrfach markierbar (Checkbox je Kachel),
+    dazu ein Sammelbutton "Markierte Erinnerungen in den Papierkorb".
+    Die Großansicht bekommt einen eigenen Papierkorb-Button, der
+    ausschließlich die gerade angezeigte Erinnerung betrifft. Beide
+    Wege respektieren Opas Papierkorb-Kontext-Regel: es wird nur die
+    Zuordnung zu GENAU DIESEM Kontext (Person/Ereignis/Sammlung, aus
+    dem das Fenster geöffnet wurde) entfernt - nie die Erinnerung
+    selbst, nie ihre anderen Zuordnungen, nie die Originaldatei.
+
     Bewusst als eigenständiges Fenster (kein Overlay im Hauptfenster),
     damit der Schreibtisch beim Schließen garantiert unverändert bleibt.
     Verwendet ausschließlich Standard-WPF-Steuerelemente.
@@ -45,10 +57,11 @@
             TextWrapping="Wrap"
             Margin="0,0,0,14"/>
 
-        <!-- Übersicht: Suchfeld + Sortierung + Trefferanzahl + Vorschaubilder -->
+        <!-- Übersicht: Suchfeld + Sortierung + Trefferanzahl + Markierungsleiste + Vorschaubilder -->
         <Grid Grid.Row="1">
 
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -94,8 +107,40 @@
                 Foreground="#555555"
                 Margin="0,0,0,10"/>
 
-            <ScrollViewer
+            <!-- TÜV-Reparatur (07.08.), freigegebene Erweiterung: Mehrfachauswahl
+                 in der Übersicht - Kacheln markieren, dann gemeinsam in den
+                 Papierkorb (nur aus diesem Kontext, siehe Kommentar oben). -->
+            <StackPanel
                 Grid.Row="3"
+                Name="MarkierungsleistePanel"
+                Orientation="Horizontal"
+                Margin="0,0,0,10">
+                <TextBlock
+                    Name="MarkierteAnzahlText"
+                    VerticalAlignment="Center"
+                    Foreground="#555555"
+                    Margin="0,0,12,0"/>
+                <Button
+                    Name="MarkierteInPapierkorbButton"
+                    Content="Markierte Erinnerungen in den Papierkorb"
+                    Padding="10,4"
+                    Margin="0,0,10,0"
+                    IsEnabled="False"
+                    Click="MarkierteInPapierkorb_Click"/>
+                <!-- SANIERUNG BAUPHASE 4 (08.08.): schickt die markierten
+                     Erinnerungen in die neue AM-Arbeitsauswahl (nur wenn
+                     bereits ins neue Modell migriert - siehe
+                     MainWindow.ErinnerungsmodellZustand.cs). -->
+                <Button
+                    Name="MarkierteZuordnenButton"
+                    Content="Markierte Erinnerungen zuordnen (neu, Testphase)"
+                    Padding="10,4"
+                    IsEnabled="False"
+                    Click="MarkierteZuordnen_Click"/>
+            </StackPanel>
+
+            <ScrollViewer
+                Grid.Row="4"
                 Name="UebersichtScrollViewer"
                 VerticalScrollBarVisibility="Auto">
                 <WrapPanel Name="MiniaturenPanel"/>
@@ -156,6 +201,17 @@
                     Height="36"
                     Margin="8,0,0,0"
                     Click="BildRechtsDrehen_Click"/>
+
+                <!-- TÜV-Reparatur (07.08.), freigegebene Erweiterung: eigener
+                     Papierkorb-Button für die Einzelerinnerung - betrifft
+                     ausschließlich diese eine, geöffnete Erinnerung. -->
+                <Button
+                    Name="EinzelnInPapierkorbButton"
+                    Content="🗑 In den Papierkorb"
+                    Width="150"
+                    Height="36"
+                    Margin="24,0,0,0"
+                    Click="EinzelnInPapierkorb_Click"/>
 
                 <!-- Build 3.3: Positionsanzeige "Erinnerung X von Y" -->
                 <TextBlock

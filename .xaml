@@ -1526,37 +1526,7 @@
                             Width="260"
                             Height="40"
                             HorizontalAlignment="Left"
-                            Margin="0,0,0,10"
                             Click="SanierungTestbereichOeffnen_Click"/>
-
-                            <TextBlock
-                            TextWrapping="Wrap"
-                            Foreground="#555555"
-                            Margin="0,0,0,12"
-                            Text="Migrations-Trockenlauf (Bauphase 2) - rein lesend, zeigt nur, was eine echte Migration mit den heutigen Daten erzeugen würde. Nichts wird verändert, kopiert oder gespeichert."/>
-
-                            <Button
-                            Name="MigrationTrockenlaufOeffnenButton"
-                            Content="🧪 Migrations-Trockenlauf starten"
-                            Width="260"
-                            Height="40"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,10"
-                            Click="MigrationTrockenlaufOeffnen_Click"/>
-
-                            <TextBlock
-                            TextWrapping="Wrap"
-                            Foreground="#555555"
-                            Margin="0,0,0,12"
-                            Text="Sicherung + Migration (Bauphase 3) - sichert personen.json zuerst, erzeugt dann das neue Modell in einer eigenen, neuen Datei. personen.json bleibt dabei unverändert."/>
-
-                            <Button
-                            Name="MigrationDurchfuehrenOeffnenButton"
-                            Content="🧪 Sicherung + Migration durchführen"
-                            Width="260"
-                            Height="40"
-                            HorizontalAlignment="Left"
-                            Click="MigrationDurchfuehrenOeffnen_Click"/>
 
                         </StackPanel>
 
@@ -2024,47 +1994,6 @@
                             FontWeight="Bold"
                             TextWrapping="Wrap"
                             Margin="0,0,0,14"/>
-
-                        <!-- SANIERUNG BAUPHASE 4 (08.08.), TESTPHASE: neue
-                             AM-Arbeitsauswahl aus dem neuen Erinnerungsmodell.
-                             Zeigt AUSSCHLIESSLICH die aus dem Archiv gezielt
-                             hierher geschickten Erinnerungen - komplett
-                             getrennt von der bisherigen Kachel-Ansicht unten,
-                             die unverändert bleibt. Rein additiv, verändert
-                             an keiner Stelle personen.json. -->
-                        <Border
-                            Name="AmArbeitsauswahlBorder"
-                            Background="#F0F7EE"
-                            BorderBrush="#CFE3C8"
-                            BorderThickness="1"
-                            Padding="14"
-                            Margin="0,0,0,14">
-
-                            <StackPanel>
-                                <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Neues Modell (Testphase): Arbeitsauswahl aus dem Archiv"/>
-                                <TextBlock Name="AmArbeitsauswahlText" TextWrapping="Wrap" Margin="0,0,0,10" Text="Noch keine Erinnerungen aus dem Archiv hierher geschickt."/>
-
-                                <ListBox Name="AmArbeitsauswahlListe" Height="90" Margin="0,0,0,10"/>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Neu zuordnen zu:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Name="AmZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="AmZielTypComboBox_SelectionChanged">
-                                        <ComboBoxItem Content="Person"/>
-                                        <ComboBoxItem Content="Ereignis"/>
-                                        <ComboBoxItem Content="Sammlung"/>
-                                    </ComboBox>
-                                    <ComboBox Name="AmZielObjektComboBox" Width="220"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Name="AmZuordnenBestaetigenButton" Content="Neue Zuordnung anlegen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="AmZuordnenBestaetigen_Click"/>
-                                    <Button Name="AmArbeitsauswahlLeerenButton" Content="Arbeitsauswahl leeren" Padding="10,4" IsEnabled="False" Click="AmArbeitsauswahlLeeren_Click"/>
-                                </StackPanel>
-
-                                <TextBlock Name="AmStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                            </StackPanel>
-
-                        </Border>
 
                         <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
                              James erkennt automatisch exakte Duplikate und

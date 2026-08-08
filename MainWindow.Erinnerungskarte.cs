@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -271,11 +271,124 @@ namespace DAS_LEBENSARCHIV
             PersonErinnerungenLinkText.Tag = anzahl > 0 ? person : null;
         }
 
+        // ============================================================
+        // TÜV-REPARATUR (07.08.), FREIGEGEBENE ERWEITERUNG: PAPIERKORB-
+        // KONTEXT-REGEL
+        // ============================================================
+        // Entfernt eine einzelne Erinnerung (per Pfad) NUR aus diesem
+        // Ereignis - die physische Datei und andere Zuordnungen (Person,
+        // andere Ereignisse, Sammlungen) bleiben unangetastet (Opas
+        // Grundsatzentscheidung vom 07.08., siehe auch
+        // EntferneErinnerungAusSammlung in MainWindow.Sammlungen.cs).
+        // War es das Haupt-Foto des Ereignisses, rückt das nächste aus
+        // WeitereFotoDateinamen nach. Gibt zurück, ob die Erinnerung in
+        // diesem Ereignis gefunden und entfernt wurde.
+        private bool EntferneErinnerungAusEreignis(Ereignis ereignis, string pfad)
+        {
+            string dateiname = Path.GetFileName(pfad);
+
+            if (ereignis.EreignisFotoDateiname == dateiname)
+            {
+                if (ereignis.WeitereFotoDateinamen != null && ereignis.WeitereFotoDateinamen.Count > 0)
+                {
+                    ereignis.EreignisFotoDateiname = ereignis.WeitereFotoDateinamen[0];
+                    ereignis.WeitereFotoDateinamen.RemoveAt(0);
+                }
+                else
+                {
+                    ereignis.EreignisFotoDateiname = null;
+                }
+
+                ereignis.ModifiedAt = DateTime.Now;
+                return true;
+            }
+
+            if (ereignis.WeitereFotoDateinamen != null && ereignis.WeitereFotoDateinamen.Remove(dateiname))
+            {
+                ereignis.ModifiedAt = DateTime.Now;
+                return true;
+            }
+
+            return false;
+        }
+
+        // Entfernt eine einzelne Erinnerung NUR aus dieser Person - prüft
+        // zuerst die direkt zugeordneten Erinnerungen der Person, dann
+        // (da Personen-Erinnerungen sich über ihre Ereignisse aggregieren,
+        // siehe SammelErinnerungenFuerPerson) jedes ihrer Ereignisse
+        // einzeln, bis eine Übereinstimmung gefunden wird.
+        private bool EntferneErinnerungAusPerson(Person person, string pfad)
+        {
+            string dateiname = Path.GetFileName(pfad);
+
+            if (person.ErinnerungsDateinamen != null && person.ErinnerungsDateinamen.Remove(dateiname))
+            {
+                person.ModifiedAt = DateTime.Now;
+                return true;
+            }
+
+            if (person.Ereignisse != null)
+            {
+                foreach (Ereignis ereignis in person.Ereignisse)
+                {
+                    if (EntferneErinnerungAusEreignis(ereignis, pfad))
+                    {
+                        person.ModifiedAt = DateTime.Now;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // Baut den Papierkorb-Kontext-Callback für eine bestimmte Person -
+        // wird an ErinnerungenFenster übergeben und kennt per Closure genau
+        // diese eine Person, aus der heraus das Fenster geöffnet wurde.
+        private Func<string, bool> ErstelleEntferneAusPersonCallback(Person person)
+        {
+            return pfad =>
+            {
+                bool entfernt = EntferneErinnerungAusPerson(person, pfad);
+
+                if (entfernt)
+                {
+                    SpeichereDaten();
+                    AktualisiereSchreibtischFallsBetroffen(person);
+                }
+
+                return entfernt;
+            };
+        }
+
+        // Baut den Papierkorb-Kontext-Callback für ein bestimmtes Ereignis
+        // einer Person (nicht für ein freies Ereignis, siehe
+        // ErstelleEntferneAusFreiemEreignisCallback in
+        // MainWindow.BesondereEreignisse.cs für den Fall ohne Person).
+        private Func<string, bool> ErstelleEntferneAusPersonEreignisCallback(Person person, Ereignis ereignis)
+        {
+            return pfad =>
+            {
+                bool entfernt = EntferneErinnerungAusEreignis(ereignis, pfad);
+
+                if (entfernt)
+                {
+                    SpeichereDaten();
+                    AktualisiereErinnerungskarteFallsBetroffen(person, ereignis);
+                    ZeigeEreignisErinnerungenLink(ereignis);
+                }
+
+                return entfernt;
+            };
+        }
+
         // Build 2.9 (Etappe B.1): Öffnet das einfache Erinnerungsfenster mit
         // allen Vorschaubildern dieser Person - sowohl direkt zugeordnete
         // Erinnerungen als auch alle über Ereignisse verknüpften Fotos.
-        // Bewusst nur anzeigen (siehe ErinnerungenFenster) - keine
-        // Bearbeitung, keine Titelbild-Auswahl mehr an dieser Stelle.
+        // TÜV-Reparatur (07.08.), freigegebene Erweiterung: das Fenster
+        // erlaubt jetzt zusätzlich Mehrfachauswahl+Papierkorb (siehe
+        // ErinnerungenFenster) - Titelbild-Auswahl bleibt weiterhin an
+        // anderer Stelle.
         private void PersonErinnerungenLinkText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             Person person = PersonErinnerungenLinkText.Tag as Person;
@@ -292,7 +405,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelPerson(person.ToString()), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusPersonCallback(person), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }
@@ -403,7 +516,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal);
+            ErinnerungenFenster fenster = new ErinnerungenFenster(James.ErinnerungenFensterTitelEreignis(ereignis.Titel), erinnerungenListe, LiesVisuelleMerkmale, SpeichereVisuelleMerkmale, ZaehleVorkommenVisuellesMerkmal, ErstelleEntferneAusPersonEreignisCallback(person, ereignis), SendeMarkierteZurArbeitsmappe);
             fenster.Owner = this;
             fenster.Show();
         }

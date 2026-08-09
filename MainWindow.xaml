@@ -1556,7 +1556,22 @@
                             Width="260"
                             Height="40"
                             HorizontalAlignment="Left"
+                            Margin="0,0,0,10"
                             Click="MigrationDurchfuehrenOeffnen_Click"/>
+
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Betrachter (Bauphase 09.08.) - zeigt den Inhalt des neuen Erinnerungsmodells (rein lesend) und erlaubt, bereits zugeordnete Erinnerungen eines Ziels direkt zur Arbeitsmappe zu schicken."/>
+
+                            <Button
+                            Name="ErinnerungsmodellBetrachterOeffnenButton"
+                            Content="🔍 Neues Modell ansehen"
+                            Width="260"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Click="ErinnerungsmodellBetrachterOeffnen_Click"/>
 
                         </StackPanel>
 
@@ -2044,7 +2059,29 @@
                                 <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Neues Modell (Testphase): Arbeitsauswahl aus dem Archiv"/>
                                 <TextBlock Name="AmArbeitsauswahlText" TextWrapping="Wrap" Margin="0,0,0,10" Text="Noch keine Erinnerungen aus dem Archiv hierher geschickt."/>
 
-                                <ListBox Name="AmArbeitsauswahlListe" Height="90" Margin="0,0,0,10"/>
+                                <ListBox Name="AmArbeitsauswahlListe" Height="150" Margin="0,0,0,10" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                </ListBox>
+
+                                <!-- WEG B (09.08.): direkte Auswahl innerhalb der AM, ohne
+                                     zwingend aus einem Archiv zu kommen - ergänzt Weg A, ersetzt
+                                     ihn nicht. Sucht/filtert im bereits geladenen, migrierten
+                                     Erinnerungsbestand (kein zweiter Bestand, keine neue Kopie). -->
+                                <TextBlock FontWeight="Bold" Margin="0,4,0,4" Text="Weitere Erinnerungen direkt hier auswählen"/>
+                                <TextBox Name="AmDirekteSucheTextBox" Padding="4" Margin="0,0,0,6" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
+                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,-4,0,6" Text="Nach Dateiname suchen (z.B. Teil des Namens oder Ordners)"/>
+                                <ListBox Name="AmDirekteAuswahlListe" Height="220" Margin="0,0,0,8" SelectionMode="Extended" SelectionChanged="AmDirekteAuswahlListe_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                </ListBox>
+                                <Button Name="AmDirekteAuswahlHinzufuegenButton" Content="Ausgewählte zur Arbeitsauswahl hinzufügen" Padding="10,4" HorizontalAlignment="Left" Margin="0,0,0,10" IsEnabled="False" Click="AmDirekteAuswahlHinzufuegen_Click"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <TextBlock Text="Neu zuordnen zu:" VerticalAlignment="Center" Margin="0,0,8,0"/>

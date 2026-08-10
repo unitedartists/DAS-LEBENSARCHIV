@@ -25,6 +25,18 @@ namespace DAS_LEBENSARCHIV
     // im Testfenster (SanierungTestFenster) fort: an keiner Stelle
     // im gesamten Sanierungscode wird File.Copy aufgerufen.
 
+    // ARBEITSMOTOR (09.08.): Erinnerungen sind nicht zwingend Bilder.
+    // Bewusst einfach gehalten - nur zur Unterscheidung in Suche/
+    // Anzeige, keine typspezifische Sonderlogik (OCR, Videoanalyse
+    // usw.) in dieser Bauphase.
+    public enum MedienTyp
+    {
+        Bild,
+        Pdf,
+        Dokument,
+        Video
+    }
+
     public enum ZuordnungsZielTyp
     {
         Person,
@@ -38,11 +50,23 @@ namespace DAS_LEBENSARCHIV
     // ausdrücklicher Einwand vom 08.08.) - zwei Dateien mit demselben
     // Hash werden dadurch NICHT automatisch zu derselben Erinnerung
     // zusammengeführt; das bliebe eine spätere, eigens zu
-    // entscheidende Deduplizierung.
+    // entscheidende Deduplizierung. Ausnahme (09.08.): beim
+    // TESTIMPORT wird der Hash genutzt, um zu erkennen, ob genau
+    // dieselbe Datei bereits importiert wurde - das ist ein reiner
+    // Import-Schutz, keine Zusammenführung bestehender Erinnerungen.
     public class Erinnerung : ArchivObjekt
     {
         public string Hashwert { get; set; }
         public List<Fundort> Fundorte { get; set; } = new List<Fundort>();
+
+        // ARBEITSMOTOR (09.08.), additiv, bricht nichts Bestehendes:
+        // Medientyp Default = Bild (alle bisher migrierten 288
+        // Erinnerungen sind Bilder). Erstellungsdatum wird beim
+        // Testimport aus dem Dateidatum übernommen - ermöglicht die
+        // von A verlangte Sortierung nach Datum, ohne Originaldaten
+        // zu verändern.
+        public MedienTyp MedienTyp { get; set; } = MedienTyp.Bild;
+        public DateTime? Erstellungsdatum { get; set; }
 
         public override string ToString()
         {
@@ -90,14 +114,21 @@ namespace DAS_LEBENSARCHIV
     }
 
     // ============================================================
-    // SANIERUNG BAUPHASE 3 (08.08.): SPEICHER-CONTAINER
+    // SANIERUNG BAUPHASE 3 (08.08.) + INTEGRATION (10.08.): SPEICHER-CONTAINER
     // ============================================================
     // Reine Serialisierungshülle für eine EIGENE, NEUE Datei
     // (erinnerungsmodell.json) - getrennt von personen.json, die
     // dabei an keiner Stelle beschrieben wird.
+    //
+    // A/Opa-Auftrag "Integrations- und Sanierungsauftrag" (10.08.),
+    // Punkt 12+13: ZuordnungenPapierkorb ergänzt den bisherigen
+    // Container additiv - eine hierhin verschobene Zuordnung betrifft
+    // NIE die Erinnerung selbst oder ihre Fundorte, nur den
+    // Zuordnungs-Datensatz.
     public class ArchivErinnerungsDaten
     {
         public List<Erinnerung> Erinnerungen { get; set; } = new List<Erinnerung>();
         public List<Zuordnung> Zuordnungen { get; set; } = new List<Zuordnung>();
+        public List<Zuordnung> ZuordnungenPapierkorb { get; set; } = new List<Zuordnung>();
     }
 }

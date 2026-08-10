@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -36,6 +37,7 @@ namespace DAS_LEBENSARCHIV
     {
         private List<Erinnerung> erinnerungsmodellErinnerungen;
         private List<Zuordnung> erinnerungsmodellZuordnungen;
+        private List<Zuordnung> erinnerungsmodellZuordnungenPapierkorb;
         private bool erinnerungsmodellGeladen;
 
         // Rein session-interne Hilfsklasse (NICHT Teil des abgenommenen
@@ -61,6 +63,7 @@ namespace DAS_LEBENSARCHIV
 
             erinnerungsmodellErinnerungen = new List<Erinnerung>();
             erinnerungsmodellZuordnungen = new List<Zuordnung>();
+            erinnerungsmodellZuordnungenPapierkorb = new List<Zuordnung>();
 
             try
             {
@@ -79,6 +82,11 @@ namespace DAS_LEBENSARCHIV
                         if (daten.Zuordnungen != null)
                         {
                             erinnerungsmodellZuordnungen = daten.Zuordnungen;
+                        }
+
+                        if (daten.ZuordnungenPapierkorb != null)
+                        {
+                            erinnerungsmodellZuordnungenPapierkorb = daten.ZuordnungenPapierkorb;
                         }
                     }
                 }
@@ -116,9 +124,9 @@ namespace DAS_LEBENSARCHIV
 
             Border rahmen = new Border
             {
-                Width = 190,
+                Width = 155,
                 Height = 70,
-                Margin = new Thickness(4),
+                Margin = new Thickness(3),
                 BorderBrush = Brushes.LightGray,
                 BorderThickness = new Thickness(1),
                 Background = Brushes.WhiteSmoke,
@@ -129,9 +137,9 @@ namespace DAS_LEBENSARCHIV
 
             Border bildRahmen = new Border
             {
-                Width = 60,
-                Height = 60,
-                Margin = new Thickness(4),
+                Width = 54,
+                Height = 54,
+                Margin = new Thickness(3),
                 Background = Brushes.White
             };
 
@@ -164,7 +172,7 @@ namespace DAS_LEBENSARCHIV
             {
                 Text = beschriftung,
                 TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 110,
+                MaxWidth = 90,
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 11
             });
@@ -287,7 +295,228 @@ namespace DAS_LEBENSARCHIV
         }
 
         // ============================================================
-        // BETRACHTER ÖFFNEN
+        // ARBEITSMOTOR (09.08.): TESTIMPORT
+        // ============================================================
+        // Kopierender, additiver Vorgang (A's Regel) - Originaldateien
+        // werden nie verschoben, gelöscht, umbenannt oder überschrieben.
+        // Dopplungsschutz über den Hash: wird derselbe Ordner erneut
+        // importiert, erkennt James bereits vorhandene Dateien anhand
+        // ihres Hashes und überspringt sie - reiner Import-Schutz,
+        // KEINE Zusammenführung/Deduplizierung bestehender Erinnerungen
+        // (die bleibt eine spätere, eigens freizugebende Entscheidung).
+        private class TestimportErgebnis
+        {
+            public int Importiert;
+            public int UebersprungenDuplikat;
+            public int UebersprungenTyp;
+        }
+
+        private static readonly string[] BildEndungen = { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".heic", ".webp" };
+        private static readonly string[] PdfEndungen = { ".pdf" };
+        private static readonly string[] DokumentEndungen = { ".doc", ".docx", ".odt", ".rtf", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".md" };
+        private static readonly string[] VideoEndungen = { ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".m4v" };
+
+        // ARBEITSMOTOR, Punkt 9+10: einheitliche Medienlogik - erkennt
+        // den Medientyp rein anhand der Dateiendung, bewusst ohne
+        // typspezifische Sonderbehandlung (OCR, Videoanalyse folgen
+        // erst später, falls gewünscht).
+        private static MedienTyp? ErmittleMedienTyp(string dateiendung)
+        {
+            string endung = (dateiendung ?? "").ToLowerInvariant();
+
+            if (BildEndungen.Contains(endung)) { return MedienTyp.Bild; }
+            if (PdfEndungen.Contains(endung)) { return MedienTyp.Pdf; }
+            if (DokumentEndungen.Contains(endung)) { return MedienTyp.Dokument; }
+            if (VideoEndungen.Contains(endung)) { return MedienTyp.Video; }
+
+            return null;
+        }
+
+        private static DateTime? SicheresDateiDatum(string pfad)
+        {
+            try
+            {
+                return File.GetLastWriteTime(pfad);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private TestimportErgebnis TestimportDurchfuehren(List<string> quellDateien)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            TestimportErgebnis ergebnis = new TestimportErgebnis();
+
+            string zielOrdner = Path.Combine(OrdnerPfad, "Testimport");
+            Directory.CreateDirectory(zielOrdner);
+
+            HashSet<string> bekannteHashes = erinnerungsmodellErinnerungen
+                .Where(er => !string.IsNullOrEmpty(er.Hashwert))
+                .Select(er => er.Hashwert)
+                .ToHashSet();
+
+            foreach (string quellDatei in quellDateien)
+            {
+                MedienTyp? typ = ErmittleMedienTyp(Path.GetExtension(quellDatei));
+
+                if (typ == null)
+                {
+                    ergebnis.UebersprungenTyp++;
+                    continue;
+                }
+
+                string hash;
+
+                try
+                {
+                    using (SHA256 sha256 = SHA256.Create())
+                    using (FileStream stream = File.OpenRead(quellDatei))
+                    {
+                        hash = Convert.ToHexString(sha256.ComputeHash(stream));
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (bekannteHashes.Contains(hash))
+                {
+                    ergebnis.UebersprungenDuplikat++;
+                    continue;
+                }
+
+                // Kopierender Vorgang - die Originaldatei am gewählten
+                // Ort bleibt vollständig unangetastet.
+                string neuerDateiname = Guid.NewGuid() + Path.GetExtension(quellDatei);
+                string zielPfad = Path.Combine(zielOrdner, neuerDateiname);
+                File.Copy(quellDatei, zielPfad, overwrite: false);
+
+                Erinnerung erinnerung = new Erinnerung
+                {
+                    Hashwert = hash,
+                    MedienTyp = typ.Value,
+                    Erstellungsdatum = SicheresDateiDatum(quellDatei)
+                };
+                erinnerung.Fundorte.Add(new Fundort { Pfad = zielPfad, FundortRolle = "Testimport-Kopie" });
+
+                erinnerungsmodellErinnerungen.Add(erinnerung);
+                bekannteHashes.Add(hash);
+                ergebnis.Importiert++;
+            }
+
+            if (ergebnis.Importiert > 0)
+            {
+                SpeichereErinnerungsmodell();
+            }
+
+            return ergebnis;
+        }
+
+        // Gemeinsame Vorschau+Bestätigung+Ausführung für beide Einstiege
+        // (Einzeldateien und ganzer Ordner) - eine Stelle statt zwei fast
+        // gleicher Abläufe (A/Opa-Prinzip "keine Nebenbaustellen, vorhandenes
+        // wiederverwenden").
+        private void BestaetigeUndFuehreTestimportAus(List<string> dateien, string quellBeschreibung)
+        {
+            if (dateien == null || dateien.Count == 0)
+            {
+                James.Hinweis("Keine Datei(en) ausgewählt.");
+                return;
+            }
+
+            int unterstuetzt = dateien.Count(d => ErmittleMedienTyp(Path.GetExtension(d)) != null);
+
+            bool bestaetigt = James.FrageJaNein(
+                quellBeschreibung + "\n\n" +
+                dateien.Count + " Datei(en) zum Import ausgewählt, davon " + unterstuetzt + " unterstützte Bild-/PDF-/Dokument-/Videodateien.\n\n" +
+                "Diese werden KOPIERT (das Original bleibt unverändert) und als zusätzlicher Testbestand aufgenommen. Bereits identische, schon importierte Dateien werden automatisch übersprungen.\n\n" +
+                "Import jetzt starten?",
+                James.TitelEntscheidung);
+
+            if (!bestaetigt)
+            {
+                return;
+            }
+
+            TestimportErgebnis testergebnis = TestimportDurchfuehren(dateien);
+
+            James.Hinweis(
+                testergebnis.Importiert + " neue Erinnerung(en) importiert.\n" +
+                testergebnis.UebersprungenDuplikat + " bereits vorhanden (übersprungen).\n" +
+                testergebnis.UebersprungenTyp + " nicht unterstützte Datei(en) übersprungen.");
+        }
+
+        // A/Opa-FOLGEAUFTRAG (10.08.), Punkt 2A: gezielt einzelne Dateien
+        // wählen, statt zwangsläufig einen ganzen Ordner zu importieren.
+        private void TestimportDateienWaehlenUndAusfuehren()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Einzelne Datei(en) für Testimport wählen",
+                Multiselect = true,
+                Filter = "Unterstützte Dateien|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff;*.heic;*.webp;*.pdf;*.doc;*.docx;*.odt;*.rtf;*.xls;*.xlsx;*.ppt;*.pptx;*.txt;*.md;*.mp4;*.mov;*.avi;*.mkv;*.wmv;*.m4v|Alle Dateien (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            BestaetigeUndFuehreTestimportAus(dialog.FileNames.ToList(), "Einzeln ausgewählte Datei(en).");
+        }
+
+        // A/Opa-FOLGEAUFTRAG (10.08.), Punkt 2B: bisherige Ordner-Funktion
+        // bleibt vollständig erhalten - jetzt über dieselbe zentrale
+        // Bestätigungs-/Ausführungslogik wie der Einzeldatei-Import.
+        private void TestimportOrdnerWaehlenUndAusfuehren()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            Microsoft.Win32.OpenFolderDialog dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Ordner für Testimport wählen"
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            string ordner = dialog.FolderName;
+
+            List<string> dateien = Directory.Exists(ordner)
+                ? Directory.GetFiles(ordner, "*", SearchOption.AllDirectories).ToList()
+                : new List<string>();
+
+            BestaetigeUndFuehreTestimportAus(dateien, "Ordner: " + ordner);
+        }
+
+        // A/Opa-FOLGEAUFTRAG (10.08.), Punkt 3: dieselben Import-Methoden,
+        // jetzt auch direkt aus der AM erreichbar - klar getrennt von der
+        // Suche nach bereits vorhandenen Erinnerungen (siehe MainWindow.xaml,
+        // eigener Abschnitt "Neue Bilder/Ordner importieren"). Nach dem
+        // Import wird die Direktsuche aktualisiert, damit neu importierte
+        // Erinnerungen sofort auffindbar sind.
+        private void AmTestimportDatei_Click(object sender, RoutedEventArgs e)
+        {
+            TestimportDateienWaehlenUndAusfuehren();
+            AktualisiereAmDirekteAuswahlListe();
+        }
+
+        private void AmTestimportOrdner_Click(object sender, RoutedEventArgs e)
+        {
+            TestimportOrdnerWaehlenUndAusfuehren();
+            AktualisiereAmDirekteAuswahlListe();
+        }
+
+        // ============================================================
+        // BETRACHTER + ARBEITSMOTOR ÖFFNEN
         // ============================================================
         private void ErinnerungsmodellBetrachterOeffnen_Click(object sender, RoutedEventArgs e)
         {
@@ -296,12 +525,21 @@ namespace DAS_LEBENSARCHIV
             ErinnerungsmodellBetrachterFenster fenster = new ErinnerungsmodellBetrachterFenster(
                 erinnerungsmodellErinnerungen,
                 erinnerungsmodellZuordnungen,
+                erinnerungsmodellZuordnungenPapierkorb,
                 allePersonen,
                 ArchivListe.Items.OfType<Person>().ToList(),
                 freieEreignisse,
                 freieEreignisseArchiv,
                 sammlungen,
                 sammlungenArchiv,
+                LiesVisuelleMerkmale,
+                TestimportDateienWaehlenUndAusfuehren,
+                TestimportOrdnerWaehlenUndAusfuehren,
+                PruefeSehzentrumBestand,
+                EntferneZuordnungenInPapierkorb,
+                WiederherstelleZuordnung,
+                LoescheZuordnungEndgueltig,
+                ids => SendeErinnerungsIdsZurArbeitsmappe(ids, "Suche"),
                 ids => SendeErinnerungsIdsZurArbeitsmappe(ids, "Ziel"));
 
             fenster.Owner = this;
@@ -335,6 +573,15 @@ namespace DAS_LEBENSARCHIV
             bool istAusgewaehlt = ausgewaehlt.Count > 0;
 
             AmArbeitsauswahlLeerenButton.IsEnabled = istAusgewaehlt;
+
+            // Nach jeder Aktualisierung ist nichts markiert - Buttons, die
+            // eine Markierung erfordern, starten deaktiviert (Sicherheitsfix,
+            // siehe AmArbeitsauswahlListe_SelectionChanged).
+            AmZuordnenBestaetigenButton.IsEnabled = false;
+            AmAusgewaehlteEntfernenButton.IsEnabled = false;
+            AmMarkierungsHinweisText.Text = istAusgewaehlt
+                ? "Bitte oben markieren, welche Erinnerung(en) diese Aktion betreffen soll (Strg-/Umschalt-Klick für mehrere)."
+                : "";
 
             AktualisiereAmDirekteAuswahlListe();
             AktualisiereAmZielAuswahl();
@@ -376,10 +623,16 @@ namespace DAS_LEBENSARCHIV
                     .ToList();
             }
 
-            bool arbeitsauswahlVorhanden = amArbeitsauswahl.Count > 0;
             bool zielVorhanden = AmZielObjektComboBox.Items.Count > 0;
 
-            AmZuordnenBestaetigenButton.IsEnabled = arbeitsauswahlVorhanden && zielVorhanden;
+            // Der "Neue Zuordnung anlegen"-Button hängt jetzt von der
+            // MARKIERUNG in AmArbeitsauswahlListe ab (Sicherheitsfix, siehe
+            // AmArbeitsauswahlListe_SelectionChanged) - hier nur zusätzlich
+            // deaktivieren, wenn gar kein Ziel wählbar ist.
+            if (!zielVorhanden)
+            {
+                AmZuordnenBestaetigenButton.IsEnabled = false;
+            }
 
             if (zielVorhanden)
             {
@@ -387,10 +640,43 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // A/Opa-INTEGRATIONSAUFTRAG (10.08.), Punkt 7 "wichtigster Bugfix":
+        // Der Großtest zeigte, dass "Neue Zuordnung anlegen" bisher auf
+        // die GESAMTE Arbeitsauswahl wirkte, unabhängig davon, was
+        // markiert war. Das ist behoben: die Methode wirkt jetzt
+        // AUSSCHLIESSLICH auf die in AmArbeitsauswahlListe markierten
+        // Einträge. Ist nichts markiert, wird KEINE Aktion durchgeführt,
+        // stattdessen eine klare, verständliche Meldung gezeigt.
+        private List<ArbeitsauswahlEintrag> ErmittleMarkierteArbeitsauswahl()
+        {
+            return AmArbeitsauswahlListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Erinnerung)
+                .Where(er => er != null)
+                .Select(er => amArbeitsauswahl.FirstOrDefault(a => a.ErinnerungId == er.Id))
+                .Where(a => a != null)
+                .ToList();
+        }
+
+        private void AmArbeitsauswahlListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int markiert = AmArbeitsauswahlListe.SelectedItems.Count;
+
+            AmZuordnenBestaetigenButton.IsEnabled = markiert > 0 && AmZielObjektComboBox.Items.Count > 0;
+            AmAusgewaehlteEntfernenButton.IsEnabled = markiert > 0;
+
+            AmMarkierungsHinweisText.Text = markiert == 0
+                ? "Bitte oben markieren, welche Erinnerung(en) diese Aktion betreffen soll (Strg-/Umschalt-Klick für mehrere)."
+                : markiert + " von " + amArbeitsauswahl.Count + " markiert - nur diese werden bei \"Neue Zuordnung anlegen\" oder \"Entfernen\" betroffen.";
+        }
+
         private void AmZuordnenBestaetigen_Click(object sender, RoutedEventArgs e)
         {
-            if (amArbeitsauswahl.Count == 0)
+            List<ArbeitsauswahlEintrag> markiert = ErmittleMarkierteArbeitsauswahl();
+
+            if (markiert.Count == 0)
             {
+                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) neu zugeordnet werden sollen (in der Liste oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
                 return;
             }
 
@@ -427,8 +713,8 @@ namespace DAS_LEBENSARCHIV
             }
 
             bool ergebnis = James.FrageJaNein(
-                amArbeitsauswahl.Count + " Erinnerung(en) neu zuordnen zu \"" + zielBezeichnung + "\"?\n\n" +
-                "Bisherige Zuordnungen dieser Erinnerungen bleiben dabei zusätzlich bestehen (Testphase).",
+                "Genau " + markiert.Count + " markierte Erinnerung(en) neu zuordnen zu \"" + zielBezeichnung + "\"?\n\n" +
+                "Nicht markierte Erinnerungen in der Arbeitsauswahl bleiben unverändert. Bisherige Zuordnungen der markierten Erinnerungen bleiben zusätzlich bestehen.",
                 James.TitelEntscheidung);
 
             if (!ergebnis)
@@ -436,7 +722,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            foreach (ArbeitsauswahlEintrag eintrag in amArbeitsauswahl)
+            foreach (ArbeitsauswahlEintrag eintrag in markiert)
             {
                 erinnerungsmodellZuordnungen.Add(new Zuordnung
                 {
@@ -445,18 +731,43 @@ namespace DAS_LEBENSARCHIV
                     ZielId = zielId,
                     ZielBezeichnung = zielBezeichnung
                 });
+
+                // Nur die markierten Einträge verlassen die Arbeitsauswahl -
+                // unmarkierte bleiben unangetastet stehen.
+                amArbeitsauswahl.Remove(eintrag);
             }
 
-            int anzahlNeu = amArbeitsauswahl.Count;
+            int anzahlNeu = markiert.Count;
 
             bool gespeichertVerifiziert = SpeichereErinnerungsmodell();
 
-            amArbeitsauswahl.Clear();
             AktualisiereAmArbeitsauswahlAnzeige();
 
             AmStatusText.Text = gespeichertVerifiziert
-                ? "✓ " + anzahlNeu + " neue Zuordnung(en) zu \"" + zielBezeichnung + "\" angelegt und gespeichert."
+                ? "✓ " + anzahlNeu + " markierte Erinnerung(en) zu \"" + zielBezeichnung + "\" neu zugeordnet und gespeichert."
                 : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
+        }
+
+        // Entfernt NUR die markierten Erinnerungen aus der aktuellen
+        // Arbeitsauswahl (nicht aus irgendeiner Zuordnung!) - für den
+        // Fall, dass sich eine alte, nicht mehr gewünschte Erinnerung
+        // in die Auswahl "verirrt" hat.
+        private void AmAusgewaehlteEntfernen_Click(object sender, RoutedEventArgs e)
+        {
+            List<ArbeitsauswahlEintrag> markiert = ErmittleMarkierteArbeitsauswahl();
+
+            if (markiert.Count == 0)
+            {
+                return;
+            }
+
+            foreach (ArbeitsauswahlEintrag eintrag in markiert)
+            {
+                amArbeitsauswahl.Remove(eintrag);
+            }
+
+            AktualisiereAmArbeitsauswahlAnzeige();
+            AmStatusText.Text = markiert.Count + " Erinnerung(en) aus der Arbeitsauswahl entfernt (nicht zugeordnet, nichts gelöscht).";
         }
 
         private void AmArbeitsauswahlLeeren_Click(object sender, RoutedEventArgs e)
@@ -466,7 +777,86 @@ namespace DAS_LEBENSARCHIV
             AmStatusText.Text = "Arbeitsauswahl geleert - es wurde nichts zugeordnet.";
         }
 
-        // Schreibt AUSSCHLIESSLICH erinnerungsmodell.json (niemals
+        // ============================================================
+        // ZUORDNUNGS-PAPIERKORB (10.08., A/Opa-Integrationsauftrag Punkt 12+13)
+        // ============================================================
+        // Verschiebt Zuordnungen statt sie zu löschen - betrifft NIE die
+        // Erinnerung selbst oder ihre Fundorte, nur den Zuordnungs-
+        // Datensatz. Physische Originaldateien werden hier nie berührt.
+        private void EntferneZuordnungenInPapierkorb(List<Guid> erinnerungIds, ZuordnungsZielTyp zielTyp, Guid zielId)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            List<Zuordnung> betroffene = erinnerungsmodellZuordnungen
+                .Where(z => z.ZielTyp == zielTyp && z.ZielId == zielId && erinnerungIds.Contains(z.ErinnerungId))
+                .ToList();
+
+            foreach (Zuordnung zuordnung in betroffene)
+            {
+                erinnerungsmodellZuordnungen.Remove(zuordnung);
+                erinnerungsmodellZuordnungenPapierkorb.Add(zuordnung);
+            }
+
+            SpeichereErinnerungsmodell();
+        }
+
+        private void WiederherstelleZuordnung(Zuordnung zuordnung)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            if (!erinnerungsmodellZuordnungenPapierkorb.Remove(zuordnung))
+            {
+                return;
+            }
+
+            erinnerungsmodellZuordnungen.Add(zuordnung);
+            SpeichereErinnerungsmodell();
+        }
+
+        private void LoescheZuordnungEndgueltig(Zuordnung zuordnung)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            erinnerungsmodellZuordnungenPapierkorb.Remove(zuordnung);
+            SpeichereErinnerungsmodell();
+        }
+
+        // ============================================================
+        // SEHZENTRUM-DATENBESTAND-DIAGNOSE (10.08., Sanierungsplan Punkt 4)
+        // ============================================================
+        // Rein lesend: zählt, für wie viele der migrierten/importierten
+        // Erinnerungen tatsächlich ein Sehzentrum-Eintrag existiert -
+        // klärt, ob "Suche Hund" mangels Daten nichts findet, oder ob
+        // trotz vorhandener Daten kein Treffer entsteht.
+        private string PruefeSehzentrumBestand()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            int mitWissen = 0;
+            int gesamtMerkmale = 0;
+
+            foreach (Erinnerung erinnerung in erinnerungsmodellErinnerungen)
+            {
+                if (erinnerung.Fundorte == null || erinnerung.Fundorte.Count == 0)
+                {
+                    continue;
+                }
+
+                string dateiname = Path.GetFileName(erinnerung.Fundorte[0].Pfad);
+                List<VisuellesMerkmal> merkmale = LiesVisuelleMerkmale(dateiname);
+
+                if (merkmale != null && merkmale.Count > 0)
+                {
+                    mitWissen++;
+                    gesamtMerkmale += merkmale.Count;
+                }
+            }
+
+            return mitWissen + " von " + erinnerungsmodellErinnerungen.Count + " Erinnerung(en) haben bereits Sehzentrum-Wissen (" + gesamtMerkmale + " Merkmal(e) insgesamt).\n\n" +
+                (mitWissen == 0
+                    ? "Das erklärt vermutlich, warum eine Suche wie \"Hund\" noch nichts findet - James hat für den aktuellen Bestand einfach noch nichts gelernt, nicht weil die Suche fehlerhaft wäre."
+                    : "Eine Suche nach einem tatsächlich gelernten Merkmal sollte jetzt Treffer liefern.");
+        }
         // personen.json), danach Rückeinlese-Verifikation wie bereits in
         // Bauphase 3 - gleiches Sicherheitsprinzip.
         private bool SpeichereErinnerungsmodell()

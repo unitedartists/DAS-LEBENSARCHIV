@@ -59,6 +59,15 @@ namespace DAS_LEBENSARCHIV
         // die Erinnerung selbst, nie ihre anderen Zuordnungen, nie die
         // Originaldatei. Gibt zurück, ob die Erinnerung dort gefunden und
         // entfernt wurde.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3: Der Callback selbst
+        // (siehe MainWindow.Erinnerungskarte.cs/Sammlungen.cs/
+        // BesondereEreignisse.cs) versucht seit dem Reparaturauftrag bei
+        // einem Fehlschlag der alten Logik zusätzlich das neue
+        // Zuordnungsmodell - dieses Fenster hier muss deshalb nur noch
+        // dafür sorgen, dass ein echtes "false" (in KEINEM der beiden
+        // Modelle gefunden) nicht mehr stillschweigend nichts tut,
+        // sondern eine verständliche Meldung zeigt.
         private readonly Func<string, bool> entferneAusKontext;
 
         // SANIERUNG BAUPHASE 4 (08.08.): schickt die Pfade der markierten
@@ -411,6 +420,13 @@ namespace DAS_LEBENSARCHIV
         // diesem Kontext (Papierkorb-Kontext-Regel) - vorhandene
         // Bestätigungslogik aus james.cs wiederverwendet (namentliche
         // Auflistung bei Mehrfachauswahl), keine zweite Löschtechnik.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3, Punkt 7: wenn
+        // entferneAusKontext für eine markierte Erinnerung "false"
+        // liefert (weder im alten noch im neuen Modell gefunden), darf
+        // das nicht mehr stillschweigend ignoriert werden - eine
+        // verständliche Meldung zeigt, wie viele nicht entfernt werden
+        // konnten.
         private void MarkierteInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             if (entferneAusKontext == null || markierteErinnerungen.Count == 0)
@@ -441,6 +457,7 @@ namespace DAS_LEBENSARCHIV
             }
 
             int entfernt = 0;
+            List<string> nichtEntfernteNamen = new List<string>();
 
             foreach (ErinnerungsInfo info in ausgewaehlt)
             {
@@ -449,6 +466,10 @@ namespace DAS_LEBENSARCHIV
                     erinnerungen.Remove(info);
                     markierteErinnerungen.Remove(info.Pfad);
                     entfernt++;
+                }
+                else
+                {
+                    nichtEntfernteNamen.Add(AnzeigeName(info));
                 }
             }
 
@@ -460,12 +481,23 @@ namespace DAS_LEBENSARCHIV
                     ? "1 Erinnerung wurde aus diesem Zusammenhang in den Papierkorb gelegt."
                     : entfernt + " Erinnerungen wurden aus diesem Zusammenhang in den Papierkorb gelegt.");
             }
+
+            if (nichtEntfernteNamen.Count > 0)
+            {
+                James.Problem(nichtEntfernteNamen.Count == 1
+                    ? "„" + nichtEntfernteNamen[0] + "\u201c konnte aus diesem Zusammenhang nicht entfernt werden."
+                    : nichtEntfernteNamen.Count + " Erinnerungen konnten aus diesem Zusammenhang nicht entfernt werden:\n" + string.Join("\n", nichtEntfernteNamen));
+            }
         }
 
         // TÜV-Reparatur (07.08.), freigegebene Erweiterung (Problem 3):
         // betrifft ausschließlich die gerade in der Großansicht gezeigte
         // Einzelerinnerung, aus genau diesem Kontext (Papierkorb-Kontext-
         // Regel) - vorhandene zentrale Papierkorb-Logik wiederverwendet.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3, Punkt 7: auch hier
+        // jetzt eine verständliche Meldung statt stillem Nichtstun, falls
+        // entferneAusKontext in keinem der beiden Modelle etwas findet.
         private void EinzelnInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             if (entferneAusKontext == null || aktuellerIndex < 0 || aktuellerIndex >= gueltigeErinnerungen.Count)
@@ -498,6 +530,10 @@ namespace DAS_LEBENSARCHIV
                 ZeigeUebersicht();
 
                 James.Hinweis("„" + AnzeigeName(info) + "\u201c wurde aus diesem Zusammenhang in den Papierkorb gelegt.");
+            }
+            else
+            {
+                James.Problem("„" + AnzeigeName(info) + "\u201c konnte aus diesem Zusammenhang nicht entfernt werden.");
             }
         }
 

@@ -42,6 +42,20 @@ namespace DAS_LEBENSARCHIV
         // von selbst zu einer gemeinsamen Suche ueber Person, Ereignis
         // und Zeitpunkt - ganz ohne KI, nur durch die bereits bestehende
         // UND-Verknuepfung ueber einen erweiterten Suchtext.
+        //
+        // ============================================================
+        // A/OPA-OPTIMIERUNGSAUFTRAG (11.08.): EINE ZENTRALE JAMES-SUCHE
+        // ============================================================
+        // Diese Suchleiste kannte bisher NUR das alte Modell (Person +
+        // Ereignis). Sie ruft jetzt zusaetzlich dieselbe zentrale
+        // Suchfunktion auf, die AM und Arbeitsmotor bereits teilen
+        // (ZentraleErinnerungsSuche in MainWindow.ErinnerungsmodellZustand.cs -
+        // gleiche Partial Class, deshalb ohne Delegate direkt aufrufbar).
+        // Die beiden Trefferwelten bleiben bewusst getrennt dargestellt:
+        // Alt-Modell-Treffer wie bisher in JamesTrefferListe, Neu-Modell-
+        // Treffer als einfacher Hinweis, der den bereits vollstaendigen
+        // Arbeitsmotor oeffnet - keine zweite Kachel-/Auswahloberflaeche
+        // hier duplizieren.
 
         private void JamesSucheTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -87,6 +101,7 @@ namespace DAS_LEBENSARCHIV
                 JamesSucheStatusText.Text = "";
                 ErinnerungskartePanel.Visibility = Visibility.Collapsed;
                 ErinnerungskartePlatzhalterText.Visibility = Visibility.Collapsed;
+                JamesNeuesModellHinweisText.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -138,6 +153,35 @@ namespace DAS_LEBENSARCHIV
                 ErinnerungskartePanel.Visibility = Visibility.Collapsed;
                 ErinnerungskartePlatzhalterText.Visibility = Visibility.Collapsed;
             }
+
+            // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): zusaetzlich im neuen Modell
+            // suchen (dieselbe zentrale Funktion wie AM/Arbeitsmotor). Bewusst
+            // NICHT in JamesTrefferListe gemischt - andere Treffer-Art, andere
+            // Darstellung (Kachel statt Erinnerungskarte). Nur ein Hinweis mit
+            // Weiterleitung, solange das Vorausfuellen des Suchbegriffs noch
+            // nicht angebunden ist.
+            List<Erinnerung> neueModellTreffer = ZentraleErinnerungsSuche(eingabe, false);
+
+            if (neueModellTreffer.Count > 0)
+            {
+                JamesNeuesModellHinweisText.Text = neueModellTreffer.Count == 1
+                    ? "Außerdem 1 Erinnerung im Arbeitsmotor gefunden ▶"
+                    : "Außerdem " + neueModellTreffer.Count + " Erinnerungen im Arbeitsmotor gefunden ▶";
+                JamesNeuesModellHinweisText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                JamesNeuesModellHinweisText.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): oeffnet den Arbeitsmotor ohne
+        // konkretes Ziel - der Suchbegriff wird hier noch NICHT vorausgefuellt
+        // (folgt als eigener, kleiner Schritt, sobald MainWindow.
+        // ErinnerungsmodellZustand.cs dafuer erweitert ist).
+        private void JamesNeuesModellHinweisText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            OeffneArbeitsmotor(null, null);
         }
 
         private void SammleTrefferFuerPerson(Person person, bool istArchiviert, string[] woerter, List<Suchtreffer> treffer)

@@ -17,6 +17,15 @@ namespace DAS_LEBENSARCHIV
         // (person == null) - wiederverwendet EntferneErinnerungAusEreignis
         // aus MainWindow.Erinnerungskarte.cs, kennt per Closure genau
         // dieses eine Ereignis, aus dem heraus das Fenster geöffnet wurde.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3: Findet die alte,
+        // dateiname-basierte Logik nichts (z.B. weil die Erinnerung nur
+        // ueber die neue Lese-Bruecke/Zuordnung sichtbar ist), wird
+        // zusaetzlich im neuen Zuordnungsmodell nachgesehen, bevor die
+        // Aktion als "nichts gefunden" gilt (siehe
+        // VersucheAusNeuemModellEntfernen in MainWindow.
+        // ErinnerungsmodellZustand.cs) - dasselbe Muster wie beim
+        // Personen-/Sammlungs-Pendant.
         private Func<string, bool> ErstelleEntferneAusEreignisCallback(Ereignis ereignis)
         {
             return pfad =>
@@ -27,9 +36,17 @@ namespace DAS_LEBENSARCHIV
                 {
                     SpeichereDaten();
                     AktualisiereFreieEreignisseAnzeige();
+                    return true;
                 }
 
-                return entfernt;
+                bool imNeuenModellEntfernt = VersucheAusNeuemModellEntfernen(ZuordnungsZielTyp.Ereignis, ereignis.Id, pfad);
+
+                if (imNeuenModellEntfernt)
+                {
+                    AktualisiereFreieEreignisseAnzeige();
+                }
+
+                return imNeuenModellEntfernt;
             };
         }
 
@@ -503,8 +520,9 @@ namespace DAS_LEBENSARCHIV
             fenster.Show();
         }
 
-        // TÜV-Reparatur Teil B (08.08.), Punkt 3: "Zuordnen" verweist jetzt
-        // auch für Ereignisse auf die Arbeitsmappe, analog zu Person.
+        // A/Opa-INTEGRATIONSAUFTRAG (11.08.), Punkt 3+4: öffnet jetzt den
+        // Arbeitsmotor mit diesem Ereignis vorausgewählt (Weg C) - keine
+        // physische Kopie mehr, ersetzt den bisherigen Redirect-Hinweis.
         private void ArchivEreignisZuordnen_Click(object sender, RoutedEventArgs e)
         {
             Ereignis ereignis = ArchivEreignisseListe.SelectedItem as Ereignis;
@@ -514,8 +532,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
-            James.Hinweis(James.ArbeitsmappeUmleitungEreignis(ereignis.Titel));
+            OeffneArbeitsmotorFuerZiel(ZuordnungsZielTyp.Ereignis, ereignis.Id);
         }
 
         // TÜV-Reparatur Teil B (08.08.): jetzt mehrfachauswahlfähig, analog

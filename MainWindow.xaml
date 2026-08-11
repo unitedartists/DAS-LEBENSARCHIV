@@ -134,6 +134,18 @@
                             Margin="0,8,0,0"
                             TextWrapping="Wrap"
                             Foreground="#555555"/>
+                        <TextBlock
+                            Name="JamesNeuesModellHinweisText"
+                            Margin="0,8,0,0"
+                            TextWrapping="Wrap"
+                            Foreground="#2E7D32"
+                            FontWeight="Bold"
+                            TextDecorations="Underline"
+                            Cursor="Hand"
+                            Visibility="Collapsed"
+                            MouseLeftButtonUp="JamesNeuesModellHinweisText_MouseLeftButtonUp"/>
+
+                    
 
                     </StackPanel>
 
@@ -1575,6 +1587,20 @@
                             HorizontalAlignment="Left"
                             Margin="0,0,0,10"
                             Click="MigrationDurchfuehrenOeffnen_Click"/>
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Hashwert-Reparaturlauf (A/Opa-Reparaturauftrag 11.08.) - berechnet den Hashwert bestehender Erinnerungen mit der jetzt einheitlichen Methode neu, damit auch ältere, bereits importierte Erinnerungen vom Sehzentrum wiedergefunden werden. Erstellt vorher automatisch eine Sicherung, verändert keine Originaldateien."/>
+
+                            <Button
+                            Name="HashwertReparaturlaufButton"
+                            Content="🧪 Hashwert-Reparaturlauf durchführen"
+                            Width="280"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,10"
+                            Click="HashwertReparaturlauf_Click"/>
 
                             <TextBlock
                             TextWrapping="Wrap"
@@ -2064,13 +2090,21 @@
                              getrennt von der bisherigen Kachel-Ansicht unten,
                              die unverändert bleibt. Rein additiv, verändert
                              an keiner Stelle personen.json. -->
+                        <!-- BUGFIX (11.08., Großtest-Befund): der gesamte AM-Bereich
+                             sitzt im nicht scrollenden Kopfbereich der Arbeitsmappe.
+                             Durch Suche/Import-Listen kann der Inhalt inzwischen sehr
+                             lang werden - ohne eigenen ScrollViewer wären die unteren
+                             Bedienelemente (insbesondere "Neue Zuordnung anlegen")
+                             dann schlicht außerhalb des sichtbaren Fensters und nicht
+                             erreichbar. Höhenbegrenzung + eigener Scrollbalken stellen
+                             sicher, dass wirklich immer alles erreichbar bleibt. -->
+                        <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
                         <Border
                             Name="AmArbeitsauswahlBorder"
                             Background="#F0F7EE"
                             BorderBrush="#CFE3C8"
                             BorderThickness="1"
-                            Padding="14"
-                            Margin="0,0,0,14">
+                            Padding="14">
 
                             <StackPanel>
                                 <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Neues Modell (Testphase): Arbeitsauswahl aus dem Archiv"/>
@@ -2097,7 +2131,14 @@
                                      ihn nicht. Sucht/filtert im bereits geladenen, migrierten
                                      Erinnerungsbestand (kein zweiter Bestand, keine neue Kopie). -->
                                 <TextBlock FontWeight="Bold" Margin="0,4,0,4" Text="[ Vorhandene Erinnerungen suchen ]"/>
-                                <TextBox Name="AmDirekteSucheTextBox" Padding="4" Margin="0,0,0,6" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBox Name="AmDirekteSucheTextBox" Width="380" Padding="4" Margin="0,0,10,0" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
+                                    <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox Name="AmSortierungComboBox" Width="150" SelectedIndex="0" SelectionChanged="AmDirekteSucheTextBox_TextChanged">
+                                        <ComboBoxItem Content="Datum (neueste zuerst)"/>
+                                        <ComboBoxItem Content="Alphabetisch"/>
+                                    </ComboBox>
+                                </StackPanel>
                                 <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,-4,0,6" Text="Nach Dateiname suchen (z.B. Teil des Namens oder Ordners)"/>
                                 <ListBox Name="AmDirekteAuswahlListe" Height="220" Margin="0,0,0,8" SelectionMode="Extended" SelectionChanged="AmDirekteAuswahlListe_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemsPanel>
@@ -2138,6 +2179,7 @@
                             </StackPanel>
 
                         </Border>
+                        </ScrollViewer>
 
                         <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
                              James erkennt automatisch exakte Duplikate und

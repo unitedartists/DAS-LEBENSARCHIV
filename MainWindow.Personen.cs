@@ -197,6 +197,12 @@ namespace DAS_LEBENSARCHIV
             fenster.Show();
         }
 
+        // A/Opa-INTEGRATIONSAUFTRAG (11.08.), Punkt 3+4: "Zuordnen" öffnet
+        // jetzt direkt den Arbeitsmotor mit dieser Person vorausgewählt
+        // (Weg C) - dort sieht Opa sofort die bereits zugeordneten
+        // Erinnerungen (inkl. Entfernen in den Zuordnungs-Papierkorb) und
+        // kann über Suche weitere zuordnen, alles ohne physische Kopie.
+        // Ersetzt den bisherigen Redirect-Hinweis zur alten Arbeitsmappe.
         private void ArchivFotoHinzufuegen_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArchivListe.SelectedItem as Person;
@@ -206,8 +212,7 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
-            James.Hinweis(James.ArbeitsmappeUmleitungPerson(person.ToString()));
+            OeffneArbeitsmotorFuerZiel(ZuordnungsZielTyp.Person, person.Id);
         }
 
         // ============================================================

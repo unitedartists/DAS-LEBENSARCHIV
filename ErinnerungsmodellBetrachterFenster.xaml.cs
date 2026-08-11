@@ -30,6 +30,7 @@ namespace DAS_LEBENSARCHIV
         private readonly List<Sammlung> sammlungen;
         private readonly List<Sammlung> sammlungenArchiv;
         private readonly Func<string, List<VisuellesMerkmal>> liesMerkmale;
+        private readonly Func<string, bool, List<Erinnerung>> zentraleSuche;
         private readonly Action testimportDateiStarten;
         private readonly Action testimportOrdnerStarten;
         private readonly Func<string> sehzentrumBestandPruefen;
@@ -38,6 +39,7 @@ namespace DAS_LEBENSARCHIV
         private readonly Action<Zuordnung> loescheZuordnungEndgueltig;
         private readonly Action<List<Guid>> sendeSucheZurArbeitsmappe;
         private readonly Action<List<Guid>> sendeZielZurArbeitsmappe;
+        private Guid? vorausgewaehlteZielId;
 
         public ErinnerungsmodellBetrachterFenster(
             List<Erinnerung> erinnerungen,
@@ -50,6 +52,7 @@ namespace DAS_LEBENSARCHIV
             List<Sammlung> sammlungen,
             List<Sammlung> sammlungenArchiv,
             Func<string, List<VisuellesMerkmal>> liesMerkmale,
+            Func<string, bool, List<Erinnerung>> zentraleSuche,
             Action testimportDateiStarten,
             Action testimportOrdnerStarten,
             Func<string> sehzentrumBestandPruefen,
@@ -57,7 +60,9 @@ namespace DAS_LEBENSARCHIV
             Action<Zuordnung> stelleZuordnungWieder,
             Action<Zuordnung> loescheZuordnungEndgueltig,
             Action<List<Guid>> sendeSucheZurArbeitsmappe,
-            Action<List<Guid>> sendeZielZurArbeitsmappe)
+            Action<List<Guid>> sendeZielZurArbeitsmappe,
+            ZuordnungsZielTyp? vorausgewaehlterZielTyp = null,
+            Guid? vorausgewaehlteZielId = null)
         {
             InitializeComponent();
 
@@ -71,6 +76,7 @@ namespace DAS_LEBENSARCHIV
             this.sammlungen = sammlungen ?? new List<Sammlung>();
             this.sammlungenArchiv = sammlungenArchiv ?? new List<Sammlung>();
             this.liesMerkmale = liesMerkmale;
+            this.zentraleSuche = zentraleSuche;
             this.testimportDateiStarten = testimportDateiStarten;
             this.testimportOrdnerStarten = testimportOrdnerStarten;
             this.sehzentrumBestandPruefen = sehzentrumBestandPruefen;
@@ -79,6 +85,7 @@ namespace DAS_LEBENSARCHIV
             this.loescheZuordnungEndgueltig = loescheZuordnungEndgueltig;
             this.sendeSucheZurArbeitsmappe = sendeSucheZurArbeitsmappe;
             this.sendeZielZurArbeitsmappe = sendeZielZurArbeitsmappe;
+            this.vorausgewaehlteZielId = vorausgewaehlteZielId;
 
             ZeigePapierkorb();
 
@@ -89,7 +96,12 @@ namespace DAS_LEBENSARCHIV
             // SelectionChanged-Handler aus (AktualisiereErgebnisListe bzw.
             // AktualisiereZielAuswahl+ZeigeZielErinnerungen).
             SortierungComboBox.SelectedIndex = 0;
-            ZielTypComboBox.SelectedIndex = 0;
+
+            // A/Opa-INTEGRATIONSAUFTRAG (11.08.), Punkt 3: wird dieses
+            // Fenster mit einem konkreten Ziel geöffnet (z.B. Klick auf
+            // "Zuordnen" im Archiv), startet Weg C direkt bei genau diesem
+            // Ziel, statt immer beim ersten Eintrag zu beginnen.
+            ZielTypComboBox.SelectedIndex = vorausgewaehlterZielTyp.HasValue ? (int)vorausgewaehlterZielTyp.Value : 0;
         }
 
         // ============================================================
@@ -100,56 +112,15 @@ namespace DAS_LEBENSARCHIV
             AktualisiereErgebnisListe();
         }
 
-        private bool ErinnerungPasstZurSuche(Erinnerung erinnerung, string suchtext)
-        {
-            if (erinnerung.Fundorte != null && erinnerung.Fundorte.Any(f => (f.Pfad ?? "").ToLowerInvariant().Contains(suchtext)))
-            {
-                return true;
-            }
-
-            List<Zuordnung> eigeneZuordnungen = zuordnungen.Where(z => z.ErinnerungId == erinnerung.Id).ToList();
-
-            if (eigeneZuordnungen.Any(z => !string.IsNullOrEmpty(z.ZielBezeichnung) && z.ZielBezeichnung.ToLowerInvariant().Contains(suchtext)))
-            {
-                return true;
-            }
-
-            // Sehzentrum-Merkmale (A's Punkt 8): eine Erinnerung, deren
-            // Fundort-Dateiname James bereits bekannt ist, wird auch über
-            // ihre gelernten Bildmerkmale gefunden (z.B. "Hund").
-            if (liesMerkmale != null && erinnerung.Fundorte != null && erinnerung.Fundorte.Count > 0)
-            {
-                string dateiname = Path.GetFileName(erinnerung.Fundorte[0].Pfad);
-                List<VisuellesMerkmal> merkmale = liesMerkmale(dateiname);
-
-                if (merkmale != null && merkmale.Any(m => !string.IsNullOrEmpty(m.Bezeichnung) && m.Bezeichnung.ToLowerInvariant().Contains(suchtext)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
+        // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): keine eigene Suchlogik mehr -
+        // ruft dieselbe zentrale Funktion wie die AM auf (per Delegate aus
+        // MainWindow.ErinnerungsmodellZustand.cs übergeben).
         private List<Erinnerung> SucheUndSortiere()
         {
-            string suchtext = (SucheTextBox.Text ?? "").Trim().ToLowerInvariant();
-
-            IEnumerable<Erinnerung> treffer = erinnerungen;
-
-            if (suchtext != "")
-            {
-                treffer = treffer.Where(er => ErinnerungPasstZurSuche(er, suchtext));
-            }
-
             ComboBoxItem sortItem = SortierungComboBox.SelectedItem as ComboBoxItem;
-            string sortText = sortItem != null ? sortItem.Content.ToString() : "Datum (neueste zuerst)";
+            bool alphabetisch = sortItem != null && sortItem.Content.ToString().StartsWith("Alphabetisch");
 
-            treffer = sortText.StartsWith("Alphabetisch")
-                ? treffer.OrderBy(er => er.Fundorte.Count > 0 ? Path.GetFileName(er.Fundorte[0].Pfad) : "", StringComparer.OrdinalIgnoreCase)
-                : treffer.OrderByDescending(er => er.Erstellungsdatum ?? er.CreatedAt);
-
-            return treffer.ToList();
+            return zentraleSuche(SucheTextBox.Text ?? "", alphabetisch);
         }
 
         private void AktualisiereErgebnisListe()
@@ -331,8 +302,26 @@ namespace DAS_LEBENSARCHIV
 
             if (ZielObjektComboBox.Items.Count > 0)
             {
-                ZielObjektComboBox.SelectedIndex = 0;
+                // A/Opa-INTEGRATIONSAUFTRAG (11.08.), Punkt 3: falls dieses
+                // Fenster mit einer konkreten Ziel-Id geöffnet wurde, genau
+                // dieses Objekt auswählen statt immer des ersten Eintrags -
+                // wird nur EINMAL angewendet, damit spätere manuelle
+                // Auswahl durch den Nutzer normal funktioniert.
+                object treffer = vorausgewaehlteZielId.HasValue
+                    ? ZielObjektComboBox.Items.Cast<object>().FirstOrDefault(o => ErmittleObjektId(o) == vorausgewaehlteZielId.Value)
+                    : null;
+
+                ZielObjektComboBox.SelectedItem = treffer ?? ZielObjektComboBox.Items[0];
+                vorausgewaehlteZielId = null;
             }
+        }
+
+        private static Guid? ErmittleObjektId(object objekt)
+        {
+            if (objekt is Person person) { return person.Id; }
+            if (objekt is Ereignis ereignis) { return ereignis.Id; }
+            if (objekt is Sammlung sammlung) { return sammlung.Id; }
+            return null;
         }
 
         private void ZielAuswahl_Changed(object sender, SelectionChangedEventArgs e)

@@ -279,7 +279,13 @@ namespace DAS_LEBENSARCHIV
 
             return zentraleAlphabetisch
                 ? treffer.OrderBy(er => er.Fundorte.Count > 0 ? Path.GetFileName(er.Fundorte[0].Pfad) : "", StringComparer.OrdinalIgnoreCase).ToList()
-                : treffer.OrderByDescending(er => er.Erstellungsdatum ?? er.CreatedAt).ToList();
+                // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 1: "neueste
+                // zuerst" verwendet jetzt vorrangig den echten Import-
+                // zeitpunkt statt (wie zuvor) das Erstellungsdatum der
+                // Originaldatei - bestehende Erinnerungen ohne
+                // ImportiertAm funktionieren unveraendert weiter ueber
+                // den bisherigen Fallback.
+                : treffer.OrderByDescending(er => er.ImportiertAm ?? er.Erstellungsdatum ?? er.CreatedAt).ToList();
         }
 
         private void AktualisiereAmDirekteAuswahlListe()
@@ -296,18 +302,29 @@ namespace DAS_LEBENSARCHIV
             ComboBoxItem sortItem = AmSortierungComboBox?.SelectedItem as ComboBoxItem;
             bool alphabetisch = sortItem != null && sortItem.Content.ToString().StartsWith("Alphabetisch");
 
+            // Nutzer-Feedback (11.08.): neu importierte Dateien sollen IMMER
+            // sichtbar sein, ohne erst gezielt danach suchen zu muessen.
+            // Vorher wurden bereits in der Arbeitsauswahl befindliche
+            // Erinnerungen hier komplett ausgeblendet - unnoetig streng,
+            // da FuegeZurArbeitsauswahlHinzu ein erneutes Hinzufuegen
+            // ohnehin folgenlos abfaengt (kein Duplikat moeglich). Solche
+            // Eintraege bleiben jetzt sichtbar, nur mit einem Hinweis
+            // markiert.
             HashSet<Guid> bereitsAusgewaehlt = amArbeitsauswahl.Select(a => a.ErinnerungId).ToHashSet();
 
-            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, alphabetisch)
-                .Where(er => !bereitsAusgewaehlt.Contains(er.Id))
-                .ToList();
+            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, alphabetisch).ToList();
 
             AmDirekteAuswahlListe.Items.Clear();
 
             foreach (Erinnerung erinnerung in treffer)
             {
                 string dateiname = erinnerung.Fundorte.Count > 0 ? Path.GetFileName(erinnerung.Fundorte[0].Pfad) : erinnerung.Id.ToString();
-                AmDirekteAuswahlListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, dateiname));
+
+                string beschriftung = bereitsAusgewaehlt.Contains(erinnerung.Id)
+                    ? dateiname + "\n(bereits ausgewählt)"
+                    : dateiname;
+
+                AmDirekteAuswahlListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, beschriftung));
             }
         }
 
@@ -441,7 +458,12 @@ namespace DAS_LEBENSARCHIV
                 {
                     Hashwert = hash,
                     MedienTyp = typ.Value,
-                    Erstellungsdatum = SicheresDateiDatum(quellDatei)
+                    Erstellungsdatum = SicheresDateiDatum(quellDatei),
+                    // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 1: echter
+                    // Importzeitpunkt, getrennt vom (moeglicherweise sehr
+                    // alten) Erstellungsdatum der Originaldatei - macht
+                    // "neueste zuerst" endlich zuverlaessig.
+                    ImportiertAm = DateTime.Now
                 };
                 erinnerung.Fundorte.Add(new Fundort { Pfad = zielPfad, FundortRolle = "Testimport-Kopie" });
 
@@ -791,6 +813,46 @@ namespace DAS_LEBENSARCHIV
             AmStatusText.Text = "Arbeitsauswahl geleert - es wurde nichts zugeordnet.";
         }
 
+        // ============================================================
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3
+        // ============================================================
+        // Wird von den alten Papierkorb-Kontext-Callbacks (MainWindow.
+        // Erinnerungskarte.cs, MainWindow.Sammlungen.cs, MainWindow.
+        // BesondereEreignisse.cs) NUR dann aufgerufen, wenn die jeweilige
+        // alte Entfernen-Logik nichts gefunden hat (keine stillschweigend
+        // wirkungslose Aktion mehr). Sucht die Erinnerung ueber den
+        // Dateipfad, prueft ob dafuer tatsaechlich eine aktive Zuordnung
+        // zu genau diesem Ziel existiert, und verschiebt in diesem Fall
+        // NUR diese eine Zuordnung in den Zuordnungs-Papierkorb (bereits
+        // bestehende, getestete EntferneZuordnungenInPapierkorb wird
+        // wiederverwendet - keine zweite Papierkorb-Logik). Erinnerung
+        // selbst, andere Zuordnungen und die Originaldatei bleiben
+        // unangetastet. Gibt zurueck, ob wirklich etwas entfernt wurde.
+        private bool VersucheAusNeuemModellEntfernen(ZuordnungsZielTyp zielTyp, Guid zielId, string pfad)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            Erinnerung erinnerung = erinnerungsmodellErinnerungen.FirstOrDefault(er =>
+                er.Fundorte != null && er.Fundorte.Any(f => string.Equals(f.Pfad, pfad, StringComparison.OrdinalIgnoreCase)));
+
+            if (erinnerung == null)
+            {
+                return false;
+            }
+
+            bool vorhanden = erinnerungsmodellZuordnungen.Any(z =>
+                z.ErinnerungId == erinnerung.Id && z.ZielTyp == zielTyp && z.ZielId == zielId);
+
+            if (!vorhanden)
+            {
+                return false;
+            }
+
+            EntferneZuordnungenInPapierkorb(new List<Guid> { erinnerung.Id }, zielTyp, zielId);
+
+            return true;
+        }
+
         private void EntferneZuordnungenInPapierkorb(List<Guid> erinnerungIds, ZuordnungsZielTyp zielTyp, Guid zielId)
         {
             LadeErinnerungsmodellFallsNoetig();
@@ -860,6 +922,106 @@ namespace DAS_LEBENSARCHIV
                 (mitWissen == 0
                     ? "Das erklärt vermutlich, warum eine Suche wie \"Hund\" noch nichts findet - James hat für den aktuellen Bestand einfach noch nichts gelernt, nicht weil die Suche fehlerhaft wäre."
                     : "Eine Suche nach einem tatsächlich gelernten Begriff sollte jetzt Treffer liefern.");
+        }
+
+        // ============================================================
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 2: HASHWERT-REPARATURLAUF
+        // ============================================================
+        // Berechnet den Hashwert JEDER bestehenden Erinnerung mit der
+        // einheitlichen BerechneHashwert-Methode (Werkzeuge.cs) neu -
+        // behebt den fruehren Base64/Hex-Formatunterschied fuer bereits
+        // vor dem Fix importierte Erinnerungen. Liest dafuer nur die
+        // vorhandene Originaldatei ein (kein Schreiben, kein Verschieben,
+        // kein Loeschen) und ueberschreibt ausschliesslich das Hashwert-
+        // Feld im Verwaltungsbestand (erinnerungsmodell.json). Das
+        // Sehzentrum-Wissen (sehgedaechtnis.json) wird hier nirgends
+        // angefasst - es wird nur ueber den jetzt korrekten Hashwert
+        // wieder auffindbar. Vor dem eigentlichen Lauf wird zur
+        // Sicherheit eine zeitgestempelte Kopie der aktuellen
+        // erinnerungsmodell.json angelegt.
+        private string HashwertReparaturlaufDurchfuehren()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            string sicherungsPfad = Path.Combine(
+                OrdnerPfad,
+                "erinnerungsmodell_sicherung_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json");
+
+            try
+            {
+                if (File.Exists(ErinnerungsmodellDateiPfad))
+                {
+                    File.Copy(ErinnerungsmodellDateiPfad, sicherungsPfad, overwrite: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                return "⚠ Sicherung konnte nicht erstellt werden, Reparaturlauf wurde deshalb NICHT gestartet: " + ex.Message;
+            }
+
+            int geprueft = 0;
+            int geaendert = 0;
+            int nichtLesbar = 0;
+
+            foreach (Erinnerung erinnerung in erinnerungsmodellErinnerungen)
+            {
+                string pfad = erinnerung.Fundorte?
+                    .Select(f => f.Pfad)
+                    .FirstOrDefault(p => !string.IsNullOrEmpty(p) && File.Exists(p));
+
+                if (pfad == null)
+                {
+                    continue;
+                }
+
+                geprueft++;
+
+                try
+                {
+                    string neuerHashwert = BerechneHashwert(pfad);
+
+                    if (neuerHashwert != erinnerung.Hashwert)
+                    {
+                        erinnerung.Hashwert = neuerHashwert;
+                        geaendert++;
+                    }
+                }
+                catch
+                {
+                    nichtLesbar++;
+                }
+            }
+
+            bool gespeichertVerifiziert = SpeichereErinnerungsmodell();
+
+            // A's Punkt 6: nach dem Lauf pruefen, ob Erinnerung->Hash->
+            // Sehgedaechtnis->Suchbegriff jetzt tatsaechlich zusammenpasst -
+            // nutzt die bereits bestehende, bewaehrte Diagnose-Methode.
+            string sehzentrumPruefung = PruefeSehzentrumBestand();
+
+            return "Hashwert-Reparaturlauf abgeschlossen.\n\n" +
+                "Sicherung vor dem Lauf erstellt unter:\n" + sicherungsPfad + "\n\n" +
+                geprueft + " Erinnerung(en) mit vorhandener Datei geprüft, " + geaendert + " Hashwert(e) korrigiert" +
+                (nichtLesbar > 0 ? ", " + nichtLesbar + " Datei(en) nicht lesbar (übersprungen, nichts verändert)" : "") + ".\n\n" +
+                (gespeichertVerifiziert ? "✓ Ergebnis gespeichert und verifiziert.\n\n" : "⚠ Speichern konnte nicht verifiziert werden - bitte prüfen.\n\n") +
+                sehzentrumPruefung;
+        }
+
+        private void HashwertReparaturlauf_Click(object sender, RoutedEventArgs e)
+        {
+            bool bestaetigt = James.FrageJaNein(
+                "Der Hashwert-Reparaturlauf berechnet den Hashwert aller bestehenden Erinnerungen mit der jetzt einheitlichen Methode neu (behebt den fruehren Formatunterschied zum Sehzentrum).\n\n" +
+                "Es wird vorher automatisch eine Sicherung erstellt. Originaldateien werden dabei nicht gelesen zum Verändern, nur zum Berechnen des Fingerabdrucks - nichts wird gelöscht oder verschoben.\n\n" +
+                "Jetzt starten?",
+                James.TitelEntscheidung);
+
+            if (!bestaetigt)
+            {
+                return;
+            }
+
+            string ergebnis = HashwertReparaturlaufDurchfuehren();
+            James.Hinweis(ergebnis, "Hashwert-Reparaturlauf");
         }
 
         private bool SpeichereErinnerungsmodell()

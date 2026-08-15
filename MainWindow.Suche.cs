@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Collections.Generic;
-using System.Windows;
+using System.Linq;
 using System.Windows.Controls;
 
 namespace DAS_LEBENSARCHIV
@@ -21,41 +21,28 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // BUILD 1.5: JAMES KOMBINIERT ERINNERUNGEN
         // ============================================================
-        // Architekturbeschluss 008: Die UND-Verknuepfung mehrerer Woerter
-        // gab es technisch schon seit Build 0.8 - was fehlte, war, dass
-        // der durchsuchte Text nur Ereignis-Felder umfasste. Eine Eingabe
-        // wie "Bruder Garten 1998" konnte deshalb nichts finden, selbst
-        // wenn genau das gemeint war: die Beziehung "Bruder" stand nur
-        // an der Person, nicht am Ereignis, und das Jahr stand nur im
-        // freien Datumsfeld, das bisher gar nicht durchsucht wurde.
-        //
-        // Der durchsuchte Text pro Ereignis umfasst deshalb jetzt
-        // zusaetzlich:
-        // - Vorname/Nachname der zugehoerigen Person
-        // - Beziehung der Person (z.B. "Bruder", oder die eigene
-        //   Bezeichnung bei "Sonstige")
-        // - Das Datum des Ereignisses (als freier Text - ein Suchwort
-        //   wie "1998" findet damit jedes Ereignis, dessen Datumsfeld
-        //   diese Ziffernfolge enthaelt)
-        //
-        // Dadurch kombiniert sich eine Eingabe wie "Bruder Garten 1998"
-        // von selbst zu einer gemeinsamen Suche ueber Person, Ereignis
-        // und Zeitpunkt - ganz ohne KI, nur durch die bereits bestehende
-        // UND-Verknuepfung ueber einen erweiterten Suchtext.
+        // Der durchsuchte Text pro Ereignis umfasst zusaetzlich Person/
+        // Beziehung/Datum - eine Eingabe wie "Bruder Garten 1998"
+        // kombiniert sich dadurch von selbst zu einer gemeinsamen Suche.
         //
         // ============================================================
-        // A/OPA-OPTIMIERUNGSAUFTRAG (11.08.): EINE ZENTRALE JAMES-SUCHE
+        // A/OPA-BAUAUFTRAG "JAMES-EINZUG" (12.08.)
         // ============================================================
-        // Diese Suchleiste kannte bisher NUR das alte Modell (Person +
-        // Ereignis). Sie ruft jetzt zusaetzlich dieselbe zentrale
-        // Suchfunktion auf, die AM und Arbeitsmotor bereits teilen
-        // (ZentraleErinnerungsSuche in MainWindow.ErinnerungsmodellZustand.cs -
-        // gleiche Partial Class, deshalb ohne Delegate direkt aufrufbar).
-        // Die beiden Trefferwelten bleiben bewusst getrennt dargestellt:
-        // Alt-Modell-Treffer wie bisher in JamesTrefferListe, Neu-Modell-
-        // Treffer als einfacher Hinweis, der den bereits vollstaendigen
-        // Arbeitsmotor oeffnet - keine zweite Kachel-/Auswahloberflaeche
-        // hier duplizieren.
+        // Bisher zeigte diese Suchleiste bei Treffern im neuen Modell nur
+        // einen Hinweislink zum Arbeitsmotor. Jetzt zeigt sie die Treffer
+        // DIREKT an - mit Bildvorschau, Markieren (Mehrfachauswahl wie in
+        // AM/Arbeitsmotor bereits bewaehrt), Sortieren, Zuordnen und
+        // Entfernen aus einem gewaehlten Ziel, sowie Import direkt hier.
+        // Verwendet ausschliesslich bereits bestehende, zentrale Methoden
+        // aus MainWindow.ErinnerungsmodellZustand.cs (ZentraleErinnerungsSuche,
+        // FuehreZuordnungDurch, VersucheAusNeuemModellEntfernen,
+        // TestimportDateienWaehlenUndAusfuehren/TestimportOrdnerWaehlenUndAusfuehren) -
+        // keine zweite Suchlogik, keine zweite Zuordnungs-/Entfernungslogik.
+        //
+        // Die bisherige Alt-Modell-Suche (JamesTrefferListe/Erinnerungskarte,
+        // unten unveraendert) bleibt bewusst bestehen und wird NICHT ersetzt -
+        // beide Bereiche stehen nebeneinander, bis eine spaetere, eigene
+        // Entscheidung sie ggf. zusammenfuehrt.
 
         private void JamesSucheTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -101,87 +88,60 @@ namespace DAS_LEBENSARCHIV
                 JamesSucheStatusText.Text = "";
                 ErinnerungskartePanel.Visibility = Visibility.Collapsed;
                 ErinnerungskartePlatzhalterText.Visibility = Visibility.Collapsed;
-                JamesNeuesModellHinweisText.Visibility = Visibility.Collapsed;
-                return;
             }
-
-            string[] woerter = eingabe.ToLower().Split(
-                new char[] { ' ' },
-                StringSplitOptions.RemoveEmptyEntries);
-
-            List<Suchtreffer> treffer = new List<Suchtreffer>();
-
-            foreach (Person person in allePersonen)
+            else
             {
-                SammleTrefferFuerPerson(person, false, woerter, treffer);
-            }
+                string[] woerter = eingabe.ToLower().Split(
+                    new char[] { ' ' },
+                    StringSplitOptions.RemoveEmptyEntries);
 
-            foreach (object element in ArchivListe.Items)
-            {
-                Person person = element as Person;
+                List<Suchtreffer> treffer = new List<Suchtreffer>();
 
-                if (person != null)
+                foreach (Person person in allePersonen)
                 {
-                    SammleTrefferFuerPerson(person, true, woerter, treffer);
+                    SammleTrefferFuerPerson(person, false, woerter, treffer);
                 }
-            }
 
-            foreach (Suchtreffer einzelnerTreffer in treffer)
-            {
-                JamesTrefferListe.Items.Add(einzelnerTreffer);
-            }
-
-            if (treffer.Count > 0)
-            {
-                JamesTrefferListe.Visibility = Visibility.Visible;
-                ErinnerungskartePanel.Visibility = Visibility.Collapsed;
-                ErinnerungskartePlatzhalterText.Visibility = Visibility.Visible;
-
-                if (treffer.Count == 1)
+                foreach (object element in ArchivListe.Items)
                 {
-                    JamesSucheStatusText.Text = James.SucheEinTreffer;
+                    Person person = element as Person;
+
+                    if (person != null)
+                    {
+                        SammleTrefferFuerPerson(person, true, woerter, treffer);
+                    }
+                }
+
+                foreach (Suchtreffer einzelnerTreffer in treffer)
+                {
+                    JamesTrefferListe.Items.Add(einzelnerTreffer);
+                }
+
+                if (treffer.Count > 0)
+                {
+                    JamesTrefferListe.Visibility = Visibility.Visible;
+                    ErinnerungskartePanel.Visibility = Visibility.Collapsed;
+                    ErinnerungskartePlatzhalterText.Visibility = Visibility.Visible;
+
+                    JamesSucheStatusText.Text = treffer.Count == 1
+                        ? James.SucheEinTreffer
+                        : James.SucheMehrereTreffer(treffer.Count);
                 }
                 else
                 {
-                    JamesSucheStatusText.Text = James.SucheMehrereTreffer(treffer.Count);
+                    JamesTrefferListe.Visibility = Visibility.Collapsed;
+                    JamesSucheStatusText.Text = James.SucheNichtsGefunden;
+                    ErinnerungskartePanel.Visibility = Visibility.Collapsed;
+                    ErinnerungskartePlatzhalterText.Visibility = Visibility.Collapsed;
                 }
             }
-            else
-            {
-                JamesTrefferListe.Visibility = Visibility.Collapsed;
-                JamesSucheStatusText.Text = James.SucheNichtsGefunden;
-                ErinnerungskartePanel.Visibility = Visibility.Collapsed;
-                ErinnerungskartePlatzhalterText.Visibility = Visibility.Collapsed;
-            }
 
-            // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): zusaetzlich im neuen Modell
-            // suchen (dieselbe zentrale Funktion wie AM/Arbeitsmotor). Bewusst
-            // NICHT in JamesTrefferListe gemischt - andere Treffer-Art, andere
-            // Darstellung (Kachel statt Erinnerungskarte). Nur ein Hinweis mit
-            // Weiterleitung, solange das Vorausfuellen des Suchbegriffs noch
-            // nicht angebunden ist.
-            List<Erinnerung> neueModellTreffer = ZentraleErinnerungsSuche(eingabe, false);
-
-            if (neueModellTreffer.Count > 0)
-            {
-                JamesNeuesModellHinweisText.Text = neueModellTreffer.Count == 1
-                    ? "Außerdem 1 Erinnerung im Arbeitsmotor gefunden ▶"
-                    : "Außerdem " + neueModellTreffer.Count + " Erinnerungen im Arbeitsmotor gefunden ▶";
-                JamesNeuesModellHinweisText.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                JamesNeuesModellHinweisText.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): oeffnet den Arbeitsmotor ohne
-        // konkretes Ziel - der Suchbegriff wird hier noch NICHT vorausgefuellt
-        // (folgt als eigener, kleiner Schritt, sobald MainWindow.
-        // ErinnerungsmodellZustand.cs dafuer erweitert ist).
-        private void JamesNeuesModellHinweisText_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            OeffneArbeitsmotor(null, null);
+            // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.): das neue Modell wird
+            // JETZT UNABHAENGIG von der Alt-Modell-Suche aktualisiert - auch
+            // bei leerem Suchfeld (zeigt dann alle Erinnerungen, sortiert),
+            // damit "zeige neueste Importe" ohne Sucheingabe funktioniert
+            // (A's Punkt 8).
+            AktualisiereJamesNeuesModellAnzeige();
         }
 
         private void SammleTrefferFuerPerson(Person person, bool istArchiviert, string[] woerter, List<Suchtreffer> treffer)
@@ -274,6 +234,349 @@ namespace DAS_LEBENSARCHIV
                 PersonenListe.SelectedItem = treffer.Person;
                 EreignisseListe.SelectedItem = treffer.Ereignis;
             }
+        }
+
+        // ============================================================
+        // A/OPA-BAUAUFTRAG "JAMES-EINZUG" (12.08.): NEUES-MODELL-BEREICH
+        // ============================================================
+
+        // Aktualisiert die Trefferliste des neuen Modells - unabhaengig
+        // vom Suchtext (leer = alles, sortiert). Ruft ausschliesslich die
+        // bereits bestehende zentrale Suche/Sortierung auf.
+        private void AktualisiereJamesNeuesModellAnzeige()
+        {
+            if (JamesNeuesModellTrefferListe == null)
+            {
+                return;
+            }
+
+            string eingabe = JamesSucheTextBox.Text ?? "";
+
+            SortierModus sortierung = ErmittleJamesSortierModus();
+
+            List<Erinnerung> treffer = ZentraleErinnerungsSuche(eingabe, sortierung);
+
+            List<SehgedaechtnisEintrag> sehgedaechtnis = LadeSehgedaechtnis();
+
+            JamesNeuesModellTrefferListe.Items.Clear();
+
+            foreach (Erinnerung erinnerung in treffer)
+            {
+                JamesNeuesModellTrefferListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, ErstelleJamesTrefferBeschriftung(erinnerung, sehgedaechtnis)));
+            }
+
+            JamesNeuesModellAnzahlText.Text = treffer.Count == 0
+                ? "Keine Erinnerungen im neuen Modell gefunden."
+                : treffer.Count + " Erinnerung(en) im neuen Modell:";
+
+            JamesNeuesModellErgebnisPanel.Visibility = treffer.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            AktualisiereJamesZielAuswahl();
+            AktualisiereJamesMarkierungsleiste();
+        }
+
+        // Baut eine fuer Opa verstaendliche Beschriftung (A's Punkt 3):
+        // Dateiname, vorhandene Zuordnungen (Person/Ereignis/Sammlung),
+        // vorhandene Sehzentrum-Begriffe - keine reinen technischen
+        // Dateinamen als einzige Information.
+        private string ErstelleJamesTrefferBeschriftung(Erinnerung erinnerung, List<SehgedaechtnisEintrag> sehgedaechtnis)
+        {
+            string dateiname = erinnerung.Fundorte.Count > 0 ? System.IO.Path.GetFileName(erinnerung.Fundorte[0].Pfad) : erinnerung.Id.ToString();
+
+            List<string> zeilen = new List<string> { dateiname };
+
+            List<string> zuordnungen = erinnerungsmodellZuordnungen
+                .Where(z => z.ErinnerungId == erinnerung.Id)
+                .Select(z => z.ZielTyp + ": " + z.ZielBezeichnung)
+                .ToList();
+
+            if (zuordnungen.Count > 0)
+            {
+                zeilen.Add(string.Join(", ", zuordnungen));
+            }
+
+            if (!string.IsNullOrEmpty(erinnerung.Hashwert))
+            {
+                SehgedaechtnisEintrag eintrag = sehgedaechtnis.FirstOrDefault(s => s.Hashwert == erinnerung.Hashwert);
+
+                if (eintrag != null && eintrag.BestaetigteStichwoerter != null && eintrag.BestaetigteStichwoerter.Count > 0)
+                {
+                    zeilen.Add("🏷️ " + string.Join(", ", eintrag.BestaetigteStichwoerter));
+                }
+            }
+
+            return string.Join("\n", zeilen);
+        }
+
+        private SortierModus ErmittleJamesSortierModus()
+        {
+            ComboBoxItem ausgewaehlt = JamesSortierungComboBox?.SelectedItem as ComboBoxItem;
+            string text = ausgewaehlt != null ? ausgewaehlt.Content.ToString() : "";
+
+            if (text.StartsWith("Datum (älteste"))
+            {
+                return SortierModus.DatumAeltesteZuerst;
+            }
+
+            if (text.StartsWith("Alphabetisch (A"))
+            {
+                return SortierModus.AlphabetischAufsteigend;
+            }
+
+            if (text.StartsWith("Alphabetisch (Z"))
+            {
+                return SortierModus.AlphabetischAbsteigend;
+            }
+
+            return SortierModus.DatumNeuesteZuerst;
+        }
+
+        private void JamesSortierungComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            AktualisiereJamesNeuesModellAnzeige();
+        }
+
+        private void JamesNeuesModellTrefferListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            AktualisiereJamesMarkierungsleiste();
+        }
+
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 4: Grundregel -
+        // jede folgende Aktion (Zuordnen/Entfernen) betrifft AUSSCHLIESSLICH
+        // die hier markierten Erinnerungen, nie automatisch die ganze Liste.
+        private void AktualisiereJamesMarkierungsleiste()
+        {
+            if (JamesNeuesModellMarkierungsText == null)
+            {
+                return;
+            }
+
+            int anzahl = JamesNeuesModellTrefferListe.SelectedItems.Count;
+
+            JamesNeuesModellMarkierungsText.Text = anzahl == 0
+                ? "Bitte oben markieren, welche Erinnerung(en) betroffen sein sollen (Strg-/Umschalt-Klick für mehrere)."
+                : anzahl + " markiert - nur diese werden bei \"Zuordnen\" oder \"Entfernen\" betroffen.";
+
+            bool zielVorhanden = JamesZielObjektComboBox != null && JamesZielObjektComboBox.Items.Count > 0;
+
+            JamesZuordnenButton.IsEnabled = anzahl > 0 && zielVorhanden;
+            JamesAusZielEntfernenButton.IsEnabled = anzahl > 0 && zielVorhanden;
+        }
+
+        // Fuellt die Ziel-Auswahl (Person/Ereignis/Sammlung) - dasselbe
+        // Muster wie AktualisiereAmZielAuswahl in MainWindow.
+        // ErinnerungsmodellZustand.cs, hier fuer die James-Suchleiste.
+        private void AktualisiereJamesZielAuswahl()
+        {
+            if (JamesZielTypComboBox == null || JamesZielObjektComboBox == null)
+            {
+                return;
+            }
+
+            ComboBoxItem ausgewaehlterTyp = JamesZielTypComboBox.SelectedItem as ComboBoxItem;
+            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
+
+            object vorherAusgewaehlt = JamesZielObjektComboBox.SelectedItem;
+
+            JamesZielObjektComboBox.ItemsSource = null;
+
+            if (typText == "Ereignis")
+            {
+                JamesZielObjektComboBox.ItemsSource = freieEreignisse.Concat(freieEreignisseArchiv).ToList();
+            }
+            else if (typText == "Sammlung")
+            {
+                JamesZielObjektComboBox.ItemsSource = sammlungen.Concat(sammlungenArchiv).ToList();
+            }
+            else
+            {
+                JamesZielObjektComboBox.ItemsSource = allePersonen.Concat(ArchivListe.Items.OfType<Person>()).ToList();
+            }
+
+            if (JamesZielObjektComboBox.Items.Count > 0)
+            {
+                JamesZielObjektComboBox.SelectedItem = vorherAusgewaehlt != null && JamesZielObjektComboBox.Items.Contains(vorherAusgewaehlt)
+                    ? vorherAusgewaehlt
+                    : JamesZielObjektComboBox.Items[0];
+            }
+
+            AktualisiereJamesMarkierungsleiste();
+        }
+
+        private void JamesZielTypComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            AktualisiereJamesZielAuswahl();
+        }
+
+        private List<Guid> ErmittleMarkierteJamesErinnerungIds()
+        {
+            return JamesNeuesModellTrefferListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Erinnerung)
+                .Where(er => er != null)
+                .Select(er => er.Id)
+                .ToList();
+        }
+
+        private bool ErmittleJamesZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung)
+        {
+            zielTyp = ZuordnungsZielTyp.Person;
+            zielId = Guid.Empty;
+            zielBezeichnung = null;
+
+            ComboBoxItem ausgewaehlterTyp = JamesZielTypComboBox.SelectedItem as ComboBoxItem;
+            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
+
+            if (typText == "Ereignis")
+            {
+                Ereignis ereignis = JamesZielObjektComboBox.SelectedItem as Ereignis;
+                if (ereignis == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Ereignis;
+                zielId = ereignis.Id;
+                zielBezeichnung = ereignis.Titel;
+            }
+            else if (typText == "Sammlung")
+            {
+                Sammlung sammlung = JamesZielObjektComboBox.SelectedItem as Sammlung;
+                if (sammlung == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Sammlung;
+                zielId = sammlung.Id;
+                zielBezeichnung = sammlung.Titel;
+            }
+            else
+            {
+                Person person = JamesZielObjektComboBox.SelectedItem as Person;
+                if (person == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Person;
+                zielId = person.Id;
+                zielBezeichnung = person.ToString();
+            }
+
+            return true;
+        }
+
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 5: MARKIEREN ->
+        // ZUORDNEN -> Ziel waehlen -> bestaetigen, wiederverwendet die
+        // zentrale FuehreZuordnungDurch-Methode - kein Kopieren des
+        // AM-Button-Handlers, keine physische Dateikopie.
+        private void JamesZuordnen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Guid> markiert = ErmittleMarkierteJamesErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                return;
+            }
+
+            if (!ErmittleJamesZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung))
+            {
+                return;
+            }
+
+            bool ergebnis = James.FrageJaNein(
+                "Genau " + markiert.Count + " markierte Erinnerung(en) zuordnen zu \"" + zielBezeichnung + "\"?\n\n" +
+                "Bestehende Zuordnungen der markierten Erinnerungen bleiben zusätzlich bestehen.",
+                James.TitelEntscheidung);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, zielTyp, zielId, zielBezeichnung, out int anzahlBereitsVorhanden);
+
+            AktualisiereJamesNeuesModellAnzeige();
+
+            // A/Opa-SCHUTZAUFTRAG (13.08.): Rueckmeldung, wenn Erinnerungen
+            // uebersprungen wurden, weil sie diesem Ziel bereits zugeordnet
+            // waren - statt stillschweigend nichts zu tun.
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
+
+            string hinweisBereitsVorhanden = anzahlBereitsVorhanden > 0
+                ? " (" + anzahlBereitsVorhanden + " war(en) \"" + zielBezeichnung + "\" bereits zugeordnet und wurde(n) übersprungen.)"
+                : "";
+
+            JamesNeuesModellStatusText.Text = gespeichertVerifiziert
+                ? "✓ " + anzahlNeu + " Erinnerung(en) zu \"" + zielBezeichnung + "\" zugeordnet und gespeichert." + hinweisBereitsVorhanden
+                : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
+        }
+
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 6: entfernt die
+        // markierten Erinnerungen NUR aus dem gewaehlten Ziel - wieder-
+        // verwendet VersucheAusNeuemModellEntfernen (dieselbe Methode wie
+        // bei den alten Kontext-Callbacks), landet im Zuordnungs-Papierkorb.
+        // Erinnerung selbst, andere Zuordnungen und die Originaldatei
+        // bleiben unangetastet.
+        private void JamesAusZielEntfernen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Erinnerung> markiert = JamesNeuesModellTrefferListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Erinnerung)
+                .Where(er => er != null)
+                .ToList();
+
+            if (markiert.Count == 0)
+            {
+                return;
+            }
+
+            if (!ErmittleJamesZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung))
+            {
+                return;
+            }
+
+            bool ergebnis = James.FrageJaNein(
+                markiert.Count + " markierte Erinnerung(en) aus \"" + zielBezeichnung + "\" entfernen?\n\n" +
+                "Die Erinnerung(en) selbst und alle anderen Zuordnungen bleiben bestehen - die Zuordnung(en) landen im Zuordnungs-Papierkorb (im Papierkorb-Tab wiederherstellbar).",
+                James.TitelEntscheidung, MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            int entfernt = 0;
+
+            foreach (Erinnerung erinnerung in markiert)
+            {
+                string pfad = erinnerung.Fundorte.Count > 0 ? erinnerung.Fundorte[0].Pfad : null;
+
+                if (pfad != null && VersucheAusNeuemModellEntfernen(zielTyp, zielId, pfad))
+                {
+                    entfernt++;
+                }
+            }
+
+            AktualisiereJamesNeuesModellAnzeige();
+            AktualisiereZuordnungsPapierkorbAnzeige();
+
+            if (entfernt == markiert.Count)
+            {
+                JamesNeuesModellStatusText.Text = "✓ " + entfernt + " Zuordnung(en) zu \"" + zielBezeichnung + "\" entfernt und in den Zuordnungs-Papierkorb gelegt.";
+            }
+            else if (entfernt > 0)
+            {
+                JamesNeuesModellStatusText.Text = entfernt + " von " + markiert.Count + " entfernt - der Rest hatte keine Zuordnung zu \"" + zielBezeichnung + "\".";
+            }
+            else
+            {
+                James.Problem("Keine der markierten Erinnerungen war \"" + zielBezeichnung + "\" zugeordnet - nichts wurde entfernt.");
+            }
+        }
+
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 8: Import direkt
+        // an der James-Suchleiste - wiederverwendet dieselbe Importlogik
+        // wie AM/Werkzeuge, kein zweiter Importweg.
+        private void JamesImportDatei_Click(object sender, RoutedEventArgs e)
+        {
+            TestimportDateienWaehlenUndAusfuehren();
+            AktualisiereJamesNeuesModellAnzeige();
+        }
+
+        private void JamesImportOrdner_Click(object sender, RoutedEventArgs e)
+        {
+            TestimportOrdnerWaehlenUndAusfuehren();
+            AktualisiereJamesNeuesModellAnzeige();
         }
     }
 }

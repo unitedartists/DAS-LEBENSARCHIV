@@ -18,6 +18,15 @@ namespace DAS_LEBENSARCHIV
     // ErinnerungsmodellZustand.cs leben. Dieses Fenster kennt weder
     // AM-Interna noch Datei-I/O-Details des Testimports - reine
     // Anzeige-/Auswahl-Logik.
+    //
+    // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.): Dieses Fenster bleibt
+    // bewusst als interner technischer Pruefstand bestehen (A's
+    // ausdruecklicher Wunsch) - wird NICHT geloescht. Einzige Aenderung
+    // hier: die zentrale Suche wurde von einem einfachen Ja/Nein-
+    // Sortierflag auf das neue, zentrale SortierModus-Enum umgestellt
+    // (siehe MainWindow.ErinnerungsmodellZustand.cs) - dieses Fenster
+    // uebersetzt seine bestehende 2-Optionen-ComboBox einfach in dieses
+    // Enum, keine Verhaltensaenderung fuer den Nutzer.
     public partial class ErinnerungsmodellBetrachterFenster : Window
     {
         private readonly List<Erinnerung> erinnerungen;
@@ -30,7 +39,7 @@ namespace DAS_LEBENSARCHIV
         private readonly List<Sammlung> sammlungen;
         private readonly List<Sammlung> sammlungenArchiv;
         private readonly Func<string, List<VisuellesMerkmal>> liesMerkmale;
-        private readonly Func<string, bool, List<Erinnerung>> zentraleSuche;
+        private readonly Func<string, SortierModus, List<Erinnerung>> zentraleSuche;
         private readonly Action testimportDateiStarten;
         private readonly Action testimportOrdnerStarten;
         private readonly Func<string> sehzentrumBestandPruefen;
@@ -52,7 +61,7 @@ namespace DAS_LEBENSARCHIV
             List<Sammlung> sammlungen,
             List<Sammlung> sammlungenArchiv,
             Func<string, List<VisuellesMerkmal>> liesMerkmale,
-            Func<string, bool, List<Erinnerung>> zentraleSuche,
+            Func<string, SortierModus, List<Erinnerung>> zentraleSuche,
             Action testimportDateiStarten,
             Action testimportOrdnerStarten,
             Func<string> sehzentrumBestandPruefen,
@@ -115,12 +124,17 @@ namespace DAS_LEBENSARCHIV
         // A/Opa-OPTIMIERUNGSAUFTRAG (11.08.): keine eigene Suchlogik mehr -
         // ruft dieselbe zentrale Funktion wie die AM auf (per Delegate aus
         // MainWindow.ErinnerungsmodellZustand.cs übergeben).
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.): uebersetzt die eigene,
+        // unveraenderte 2-Optionen-ComboBox in das jetzt zentrale
+        // SortierModus-Enum - keine zweite Sortierlogik, nur eine
+        // Uebersetzung der eigenen Bedienoberflaeche.
         private List<Erinnerung> SucheUndSortiere()
         {
             ComboBoxItem sortItem = SortierungComboBox.SelectedItem as ComboBoxItem;
             bool alphabetisch = sortItem != null && sortItem.Content.ToString().StartsWith("Alphabetisch");
+            SortierModus sortierung = alphabetisch ? SortierModus.AlphabetischAufsteigend : SortierModus.DatumNeuesteZuerst;
 
-            return zentraleSuche(SucheTextBox.Text ?? "", alphabetisch);
+            return zentraleSuche(SucheTextBox.Text ?? "", sortierung);
         }
 
         private void AktualisiereErgebnisListe()
@@ -421,10 +435,6 @@ namespace DAS_LEBENSARCHIV
         // ============================================================
         // ZUORDNUNGS-PAPIERKORB (10.08., A/Opa-Integrationsauftrag Punkt 12+13)
         // ============================================================
-        // "Aus diesem Ziel entfernen" verschiebt NUR die Zuordnung zum
-        // aktuell angezeigten Ziel in den Papierkorb - die Erinnerung
-        // selbst, ihre Fundorte und alle anderen Zuordnungen bleiben
-        // unangetastet (Papierkorb-Kontext-Regel, wie beim alten Modell).
         private void AusZielEntfernen_Click(object sender, RoutedEventArgs e)
         {
             if (aktuelleZielId == null)
@@ -526,7 +536,7 @@ namespace DAS_LEBENSARCHIV
             bool ergebnis = James.FrageJaNein(
                 ausgewaehlt.Count + " Zuordnung(en) endgültig aus dem Papierkorb entfernen?\n\n" +
                 "Das betrifft ausschließlich diese Zuordnungs-Datensätze - die Erinnerungen selbst und ihre physischen Dateien bleiben davon vollständig unberührt.",
-                James.TitelEndgueltigeEntscheidung);
+                James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);
 
             if (!ergebnis)
             {

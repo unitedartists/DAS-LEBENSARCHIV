@@ -44,6 +44,21 @@ namespace DAS_LEBENSARCHIV
         Sammlung
     }
 
+    // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 9: eine zentrale
+    // Sortierlogik statt der bisherigen einfachen Ja/Nein-Sortierung
+    // (chronologisch/alphabetisch) - deckt jetzt alle 4 von A geforderten
+    // Modi ab, wird von ZentraleErinnerungsSuche (MainWindow.
+    // ErinnerungsmodellZustand.cs) verwendet, dort auch die einzige Stelle,
+    // die tatsaechlich sortiert (AM/Arbeitsmotor/James-Suche geben nur noch
+    // an, WELCHER Modus gewuenscht ist).
+    public enum SortierModus
+    {
+        DatumNeuesteZuerst,
+        DatumAeltesteZuerst,
+        AlphabetischAufsteigend,
+        AlphabetischAbsteigend
+    }
+
     // Die Erinnerung selbst - ihre Identität ist ausschließlich die
     // Id (geerbt von ArchivObjekt). Der Hashwert ist bewusst NUR ein
     // technisches Duplikat-Erkennungsmerkmal, keine Identität (A's
@@ -67,6 +82,17 @@ namespace DAS_LEBENSARCHIV
         // zu verändern.
         public MedienTyp MedienTyp { get; set; } = MedienTyp.Bild;
         public DateTime? Erstellungsdatum { get; set; }
+
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 1: echter Import-
+        // Zeitstempel, getrennt vom Erstellungsdatum der Originaldatei
+        // (das beim Import aus deren Aenderungsdatum uebernommen wird und
+        // deshalb NICHT den tatsaechlichen Importzeitpunkt widerspiegelt -
+        // ein altes Foto blieb dadurch bei "neueste zuerst" faelschlich
+        // unten). Nullable, damit bereits bestehende Erinnerungen ohne
+        // dieses Feld weiterhin klaglos funktionieren (Fallback auf
+        // Erstellungsdatum/CreatedAt, siehe ZentraleErinnerungsSuche in
+        // MainWindow.ErinnerungsmodellZustand.cs).
+        public DateTime? ImportiertAm { get; set; }
 
         public override string ToString()
         {

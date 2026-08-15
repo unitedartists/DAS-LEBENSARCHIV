@@ -263,7 +263,13 @@ namespace DAS_LEBENSARCHIV
             return false;
         }
 
-        private List<Erinnerung> ZentraleErinnerungsSuche(string suchtext, bool zentraleAlphabetisch)
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 9: Signatur auf
+        // das zentrale SortierModus-Enum umgestellt statt eines einfachen
+        // Ja/Nein - deckt jetzt alle 4 geforderten Sortierungen ab, in
+        // genau dieser einen Methode, keine zweite Sortierlogik irgendwo
+        // sonst. AM, Arbeitsmotor und die neue James-Suche rufen alle
+        // dieselbe Methode auf.
+        private List<Erinnerung> ZentraleErinnerungsSuche(string suchtext, SortierModus sortierung)
         {
             LadeErinnerungsmodellFallsNoetig();
 
@@ -277,15 +283,23 @@ namespace DAS_LEBENSARCHIV
                 treffer = treffer.Where(er => ErinnerungPasstZurZentralenSuche(er, normalisiert, sehgedaechtnis));
             }
 
-            return zentraleAlphabetisch
-                ? treffer.OrderBy(er => er.Fundorte.Count > 0 ? Path.GetFileName(er.Fundorte[0].Pfad) : "", StringComparer.OrdinalIgnoreCase).ToList()
-                // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 1: "neueste
-                // zuerst" verwendet jetzt vorrangig den echten Import-
-                // zeitpunkt statt (wie zuvor) das Erstellungsdatum der
-                // Originaldatei - bestehende Erinnerungen ohne
-                // ImportiertAm funktionieren unveraendert weiter ueber
-                // den bisherigen Fallback.
-                : treffer.OrderByDescending(er => er.ImportiertAm ?? er.Erstellungsdatum ?? er.CreatedAt).ToList();
+            switch (sortierung)
+            {
+                case SortierModus.AlphabetischAufsteigend:
+                    return treffer.OrderBy(er => er.Fundorte.Count > 0 ? Path.GetFileName(er.Fundorte[0].Pfad) : "", StringComparer.OrdinalIgnoreCase).ToList();
+
+                case SortierModus.AlphabetischAbsteigend:
+                    return treffer.OrderByDescending(er => er.Fundorte.Count > 0 ? Path.GetFileName(er.Fundorte[0].Pfad) : "", StringComparer.OrdinalIgnoreCase).ToList();
+
+                case SortierModus.DatumAeltesteZuerst:
+                    // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 1: echter
+                    // Importzeitpunkt vorrangig, Fallback fuer Altbestand
+                    // ohne ImportiertAm bleibt bestehen.
+                    return treffer.OrderBy(er => er.ImportiertAm ?? er.Erstellungsdatum ?? er.CreatedAt).ToList();
+
+                default:
+                    return treffer.OrderByDescending(er => er.ImportiertAm ?? er.Erstellungsdatum ?? er.CreatedAt).ToList();
+            }
         }
 
         private void AktualisiereAmDirekteAuswahlListe()
@@ -301,6 +315,7 @@ namespace DAS_LEBENSARCHIV
 
             ComboBoxItem sortItem = AmSortierungComboBox?.SelectedItem as ComboBoxItem;
             bool alphabetisch = sortItem != null && sortItem.Content.ToString().StartsWith("Alphabetisch");
+            SortierModus sortierung = alphabetisch ? SortierModus.AlphabetischAufsteigend : SortierModus.DatumNeuesteZuerst;
 
             // Nutzer-Feedback (11.08.): neu importierte Dateien sollen IMMER
             // sichtbar sein, ohne erst gezielt danach suchen zu muessen.
@@ -312,7 +327,7 @@ namespace DAS_LEBENSARCHIV
             // markiert.
             HashSet<Guid> bereitsAusgewaehlt = amArbeitsauswahl.Select(a => a.ErinnerungId).ToHashSet();
 
-            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, alphabetisch).ToList();
+            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, sortierung).ToList();
 
             AmDirekteAuswahlListe.Items.Clear();
 
@@ -327,6 +342,7 @@ namespace DAS_LEBENSARCHIV
                 AmDirekteAuswahlListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, beschriftung));
             }
         }
+
 
         private void AmDirekteAuswahlListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -712,6 +728,53 @@ namespace DAS_LEBENSARCHIV
                 : markiert + " von " + amArbeitsauswahl.Count + " markiert - nur diese werden bei \"Neue Zuordnung anlegen\" oder \"Entfernen\" betroffen.";
         }
 
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 5: Kernlogik des
+        // Zuordnens, bisher nur inline im AM-Button-Handler - jetzt eine
+        // zentrale, wiederverwendbare Methode (kein Kopieren des Handlers
+        // fuer die neue James-Suche noetig). Erzeugt ausschliesslich neue
+        // Zuordnungs-Datensaetze - NIE eine physische Dateikopie.
+        //
+        // A/Opa-DIAGNOSE-PLUS-SCHUTZAUFTRAG (13.08.), code-bestaetigte
+        // Root Cause der 7 gefundenen Abweichungen ("9 gespeichert, nur 6
+        // angezeigt"): diese Methode war die EINZIGE Stelle im gesamten
+        // Bestand, die neue Zuordnung-Objekte erzeugt (per grep bestaetigt),
+        // und pruefte bisher NICHT, ob dieselbe Erinnerung demselben Ziel
+        // bereits zugeordnet war. Jetzt: Schutzregel - die Kombination
+        // Erinnerung+ZielTyp+ZielId darf nur einmal existieren. Bereits
+        // zugeordnete Erinnerungen werden uebersprungen (gezaehlt, aber
+        // kein zweiter Datensatz angelegt). WICHTIG: bestehende, VOR dieser
+        // Aenderung bereits entstandene Doppelzuordnungen werden hier NICHT
+        // angefasst/bereinigt - das ist ausdruecklich ein separater, noch
+        // nicht erteilter Auftrag (A/Opa-Entscheidung 13.08., Punkt 3+4).
+        private bool FuehreZuordnungDurch(List<Guid> erinnerungIds, ZuordnungsZielTyp zielTyp, Guid zielId, string zielBezeichnung, out int anzahlBereitsVorhanden)
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            anzahlBereitsVorhanden = 0;
+
+            foreach (Guid erinnerungId in erinnerungIds)
+            {
+                bool bereitsVorhanden = erinnerungsmodellZuordnungen.Any(z =>
+                    z.ErinnerungId == erinnerungId && z.ZielTyp == zielTyp && z.ZielId == zielId);
+
+                if (bereitsVorhanden)
+                {
+                    anzahlBereitsVorhanden++;
+                    continue;
+                }
+
+                erinnerungsmodellZuordnungen.Add(new Zuordnung
+                {
+                    ErinnerungId = erinnerungId,
+                    ZielTyp = zielTyp,
+                    ZielId = zielId,
+                    ZielBezeichnung = zielBezeichnung
+                });
+            }
+
+            return SpeichereErinnerungsmodell();
+        }
+
         private void AmZuordnenBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<ArbeitsauswahlEintrag> markiert = ErmittleMarkierteArbeitsauswahl();
@@ -764,27 +827,29 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
+            List<Guid> erinnerungIds = markiert.Select(eintrag => eintrag.ErinnerungId).ToList();
+
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(erinnerungIds, zielTyp, zielId, zielBezeichnung, out int anzahlBereitsVorhanden);
+
             foreach (ArbeitsauswahlEintrag eintrag in markiert)
             {
-                erinnerungsmodellZuordnungen.Add(new Zuordnung
-                {
-                    ErinnerungId = eintrag.ErinnerungId,
-                    ZielTyp = zielTyp,
-                    ZielId = zielId,
-                    ZielBezeichnung = zielBezeichnung
-                });
-
                 amArbeitsauswahl.Remove(eintrag);
             }
 
-            int anzahlNeu = markiert.Count;
-
-            bool gespeichertVerifiziert = SpeichereErinnerungsmodell();
+            // A/Opa-SCHUTZAUFTRAG (13.08.): Ruecklmeldung, wenn Erinnerungen
+            // uebersprungen wurden, weil sie diesem Ziel bereits zugeordnet
+            // waren - statt stillschweigend nichts zu tun (A's Vorschlag:
+            // "Diese Erinnerung ist bereits der Sammlung X zugeordnet").
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
 
             AktualisiereAmArbeitsauswahlAnzeige();
 
+            string hinweisBereitsVorhanden = anzahlBereitsVorhanden > 0
+                ? " (" + anzahlBereitsVorhanden + " war(en) \"" + zielBezeichnung + "\" bereits zugeordnet und wurde(n) übersprungen.)"
+                : "";
+
             AmStatusText.Text = gespeichertVerifiziert
-                ? "✓ " + anzahlNeu + " markierte Erinnerung(en) zu \"" + zielBezeichnung + "\" neu zugeordnet und gespeichert."
+                ? "✓ " + anzahlNeu + " markierte Erinnerung(en) zu \"" + zielBezeichnung + "\" neu zugeordnet und gespeichert." + hinweisBereitsVorhanden
                 : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
         }
 
@@ -891,6 +956,117 @@ namespace DAS_LEBENSARCHIV
             SpeichereErinnerungsmodell();
         }
 
+        // ============================================================
+        // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), PUNKT 7
+        // ============================================================
+        // Der Zuordnungs-Papierkorb war bisher nur im Arbeitsmotor-Fenster
+        // sichtbar (siehe Test 3/4 vom 11.08. - keine Bug, aber schlecht
+        // auffindbar). Jetzt zusaetzlich im normalen Papierkorb-Tab als
+        // eigener, klar beschrifteter Bereich "Gelöste Zuordnungen" -
+        // bewusst sprachlich von den drei bestehenden Objekt-Papierkorb-
+        // Listen (ganze Person/Ereignis/Sammlung) unterschieden, damit die
+        // zwei verschiedenen Ebenen (Objekt vs. einzelne Verknuepfung)
+        // fuer den Nutzer nicht verschwimmen. Wiederverwendet ausschliesslich
+        // die bereits bestehenden, getesteten Methoden - keine zweite
+        // Papierkorb-Logik.
+        private void AktualisiereZuordnungsPapierkorbAnzeige()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            if (JamesGeloesteZuordnungenListe == null)
+            {
+                return;
+            }
+
+            JamesGeloesteZuordnungenListe.Items.Clear();
+
+            foreach (Zuordnung zuordnung in erinnerungsmodellZuordnungenPapierkorb)
+            {
+                Erinnerung erinnerung = erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == zuordnung.ErinnerungId);
+
+                string dateiname = erinnerung != null && erinnerung.Fundorte.Count > 0
+                    ? Path.GetFileName(erinnerung.Fundorte[0].Pfad)
+                    : "(Erinnerung nicht mehr auffindbar)";
+
+                Border kachel = erinnerung != null
+                    ? ErstelleErinnerungsKachel(erinnerung, dateiname + "\nwar: " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung)
+                    : new Border { Child = new TextBlock { Text = dateiname + "\nwar: " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung, Margin = new Thickness(6) } };
+
+                kachel.Tag = zuordnung;
+                JamesGeloesteZuordnungenListe.Items.Add(kachel);
+            }
+
+            JamesGeloesteZuordnungenAnzahlText.Text = erinnerungsmodellZuordnungenPapierkorb.Count == 0
+                ? "Keine gelösten Zuordnungen."
+                : erinnerungsmodellZuordnungenPapierkorb.Count + " gelöste Zuordnung(en):";
+
+            JamesZuordnungWiederherstellenButton.IsEnabled = false;
+            JamesZuordnungEndgueltigLoeschenButton.IsEnabled = false;
+        }
+
+        private void JamesGeloesteZuordnungenListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int anzahl = JamesGeloesteZuordnungenListe.SelectedItems.Count;
+            JamesZuordnungWiederherstellenButton.IsEnabled = anzahl > 0;
+            JamesZuordnungEndgueltigLoeschenButton.IsEnabled = anzahl > 0;
+        }
+
+        private void JamesZuordnungWiederherstellen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Zuordnung> ausgewaehlt = JamesGeloesteZuordnungenListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Zuordnung)
+                .Where(z => z != null)
+                .ToList();
+
+            if (ausgewaehlt.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Zuordnung zuordnung in ausgewaehlt)
+            {
+                WiederherstelleZuordnung(zuordnung);
+            }
+
+            AktualisiereZuordnungsPapierkorbAnzeige();
+
+            ZeigeStatusMeldung(ausgewaehlt.Count == 1
+                ? "1 Zuordnung wurde wiederhergestellt."
+                : ausgewaehlt.Count + " Zuordnungen wurden wiederhergestellt.");
+        }
+
+        private void JamesZuordnungEndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Zuordnung> ausgewaehlt = JamesGeloesteZuordnungenListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Zuordnung)
+                .Where(z => z != null)
+                .ToList();
+
+            if (ausgewaehlt.Count == 0)
+            {
+                return;
+            }
+
+            bool ergebnis = James.FrageJaNein(
+                ausgewaehlt.Count + " gelöste Zuordnung(en) endgültig entfernen?\n\n" +
+                "Das betrifft ausschließlich diese Zuordnungs-Datensätze - die Erinnerung(en) selbst und ihre physischen Dateien bleiben davon vollständig unberührt.",
+                James.TitelEndgueltigeEntscheidung, MessageBoxImage.Warning);
+
+            if (!ergebnis)
+            {
+                return;
+            }
+
+            foreach (Zuordnung zuordnung in ausgewaehlt)
+            {
+                LoescheZuordnungEndgueltig(zuordnung);
+            }
+
+            AktualisiereZuordnungsPapierkorbAnzeige();
+        }
+
         // A/Opa-ENTSCHEIDUNG (11.08.): auf Sehzentrum umgestellt, wie die
         // Suche selbst - dieselbe Quelle, dieselbe Logik ueberall.
         private string PruefeSehzentrumBestand()
@@ -922,6 +1098,447 @@ namespace DAS_LEBENSARCHIV
                 (mitWissen == 0
                     ? "Das erklärt vermutlich, warum eine Suche wie \"Hund\" noch nichts findet - James hat für den aktuellen Bestand einfach noch nichts gelernt, nicht weil die Suche fehlerhaft wäre."
                     : "Eine Suche nach einem tatsächlich gelernten Begriff sollte jetzt Treffer liefern.");
+        }
+
+        // ============================================================
+        // A/Opa-DIAGNOSEAUFTRAG "FEHLENDE FUNDORTE" (13.08.)
+        // ============================================================
+        // AUSDRUECKLICH REIN LESEND: prueft nur File.Exists (und einen
+        // kurzen Lesezugriff zur Unterscheidung "fehlt" vs. "vorhanden,
+        // aber nicht lesbar"), veraendert an keiner Stelle Dateien,
+        // Zuordnungen, den Papierkorb oder fuehrt irgendeine Migration
+        // durch. Soll klaeren, ob "20 zugeordnet, nur 3 angezeigt" bzw.
+        // "neu zugeordnet, am Ziel nicht sichtbar" tatsaechlich auf fehlende
+        // Fundorte zurueckzufuehren sind - keine Reparatur, nur Befund.
+
+        // Prueft einen einzelnen Fundort-Pfad und unterscheidet die von
+        // A verlangten drei Faelle. Reiner Lesezugriff - FileStream wird
+        // sofort wieder geschlossen, nichts wird geschrieben.
+        private static string PruefeFundortStatus(string pfad)
+        {
+            if (string.IsNullOrWhiteSpace(pfad))
+            {
+                return "Pfad ungültig (leer)";
+            }
+
+            string vollPfad;
+
+            try
+            {
+                vollPfad = Path.GetFullPath(pfad);
+            }
+            catch
+            {
+                return "Pfad ungültig";
+            }
+
+            if (!File.Exists(vollPfad))
+            {
+                return "Datei nicht vorhanden";
+            }
+
+            try
+            {
+                using (FileStream stream = File.OpenRead(vollPfad))
+                {
+                    // Nur oeffnen+sofort schliessen, um "vorhanden, aber
+                    // nicht lesbar" (z.B. Berechtigung, gesperrt) von
+                    // echtem Fehlen zu unterscheiden. Kein Schreibzugriff.
+                }
+
+                return "Vorhanden";
+            }
+            catch
+            {
+                return "Datei vorhanden, aber nicht lesbar";
+            }
+        }
+
+        private class FundortDiagnoseZeile
+        {
+            public Guid ErinnerungId;
+            public ZuordnungsZielTyp ZielTyp;
+            public string ZielBezeichnung;
+            public string FundortDetails;
+        }
+
+        private string DiagnoseFehlendeFundorte()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            int erinnerungenGesamt = erinnerungsmodellErinnerungen.Count;
+            int erinnerungenMitFundort = 0;
+            int erinnerungenOhneFundort = 0;
+
+            Dictionary<Guid, bool> erinnerungHatVorhandenenFundort = new Dictionary<Guid, bool>();
+            Dictionary<Guid, string> erinnerungFundortDetails = new Dictionary<Guid, string>();
+
+            foreach (Erinnerung erinnerung in erinnerungsmodellErinnerungen)
+            {
+                List<string> details = new List<string>();
+                bool hatVorhandenen = false;
+
+                if (erinnerung.Fundorte != null)
+                {
+                    foreach (Fundort fundort in erinnerung.Fundorte)
+                    {
+                        string status = PruefeFundortStatus(fundort.Pfad);
+                        details.Add((fundort.Pfad ?? "(leer)") + " -> " + status);
+
+                        if (status == "Vorhanden")
+                        {
+                            hatVorhandenen = true;
+                        }
+                    }
+                }
+                else
+                {
+                    details.Add("(keine Fundorte gespeichert)");
+                }
+
+                erinnerungHatVorhandenenFundort[erinnerung.Id] = hatVorhandenen;
+                erinnerungFundortDetails[erinnerung.Id] = string.Join("; ", details);
+
+                if (hatVorhandenen)
+                {
+                    erinnerungenMitFundort++;
+                }
+                else
+                {
+                    erinnerungenOhneFundort++;
+                }
+            }
+
+            int zuordnungenGesamt = erinnerungsmodellZuordnungen.Count;
+            int zuordnungenOhneFundort = 0;
+
+            Dictionary<ZuordnungsZielTyp, int> betroffenProZielTyp = new Dictionary<ZuordnungsZielTyp, int>
+            {
+                { ZuordnungsZielTyp.Person, 0 },
+                { ZuordnungsZielTyp.Ereignis, 0 },
+                { ZuordnungsZielTyp.Sammlung, 0 }
+            };
+
+            List<FundortDiagnoseZeile> problematisch = new List<FundortDiagnoseZeile>();
+
+            foreach (Zuordnung zuordnung in erinnerungsmodellZuordnungen)
+            {
+                bool hatVorhandenen = erinnerungHatVorhandenenFundort.TryGetValue(zuordnung.ErinnerungId, out bool wert) && wert;
+
+                if (hatVorhandenen)
+                {
+                    continue;
+                }
+
+                zuordnungenOhneFundort++;
+                betroffenProZielTyp[zuordnung.ZielTyp]++;
+
+                problematisch.Add(new FundortDiagnoseZeile
+                {
+                    ErinnerungId = zuordnung.ErinnerungId,
+                    ZielTyp = zuordnung.ZielTyp,
+                    ZielBezeichnung = zuordnung.ZielBezeichnung,
+                    FundortDetails = erinnerungFundortDetails.TryGetValue(zuordnung.ErinnerungId, out string d) ? d : "(unbekannt)"
+                });
+            }
+
+            // A's Zusatzfrage: treten dieselben fehlenden Fundorte
+            // gleichzeitig bei mehreren Zieltypen derselben Erinnerung auf?
+            List<Guid> erinnerungenMitMehrerenZieltypenBetroffen = problematisch
+                .GroupBy(z => z.ErinnerungId)
+                .Where(g => g.Select(z => z.ZielTyp).Distinct().Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            // Bericht als eigene, reine Text-Datei schreiben (nur
+            // erzeugt/geschrieben - keine bestehende Datei wird
+            // veraendert), damit die komplette Detailliste einsehbar
+            // ist, auch wenn sie fuer eine einzelne Meldung zu lang waere.
+            string berichtPfad = Path.Combine(OrdnerPfad, "diagnose_fehlende_fundorte_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
+
+            System.Text.StringBuilder bericht = new System.Text.StringBuilder();
+            bericht.AppendLine("DIAGNOSE: Fehlende Fundorte (rein lesend, " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + ")");
+            bericht.AppendLine();
+            bericht.AppendLine("Erinnerungen insgesamt: " + erinnerungenGesamt);
+            bericht.AppendLine("Erinnerungen mit mindestens einem vorhandenen Fundort: " + erinnerungenMitFundort);
+            bericht.AppendLine("Erinnerungen OHNE vorhandenen Fundort: " + erinnerungenOhneFundort);
+            bericht.AppendLine();
+            bericht.AppendLine("Zuordnungen insgesamt: " + zuordnungenGesamt);
+            bericht.AppendLine("Zuordnungen, deren Erinnerung keinen vorhandenen Fundort mehr hat: " + zuordnungenOhneFundort);
+            bericht.AppendLine("  davon Person: " + betroffenProZielTyp[ZuordnungsZielTyp.Person]);
+            bericht.AppendLine("  davon Ereignis: " + betroffenProZielTyp[ZuordnungsZielTyp.Ereignis]);
+            bericht.AppendLine("  davon Sammlung: " + betroffenProZielTyp[ZuordnungsZielTyp.Sammlung]);
+            bericht.AppendLine();
+            bericht.AppendLine("Erinnerungen, die GLEICHZEITIG bei mehreren Zieltypen betroffen sind: " + erinnerungenMitMehrerenZieltypenBetroffen.Count);
+            bericht.AppendLine();
+            bericht.AppendLine("=== EINZELFAELLE ===");
+
+            foreach (FundortDiagnoseZeile zeile in problematisch.OrderBy(z => z.ErinnerungId))
+            {
+                bericht.AppendLine();
+                bericht.AppendLine("ErinnerungId: " + zeile.ErinnerungId);
+                bericht.AppendLine("Zuordnung: " + zeile.ZielTyp + " -> " + zeile.ZielBezeichnung);
+                bericht.AppendLine("Fundort(e): " + zeile.FundortDetails);
+            }
+
+            try
+            {
+                File.WriteAllText(berichtPfad, bericht.ToString());
+            }
+            catch
+            {
+                // Bericht-Datei konnte nicht geschrieben werden - Diagnose
+                // trotzdem als Kurzfassung zurueckgeben, nichts Kritisches.
+            }
+
+            return "Diagnose abgeschlossen (rein lesend, nichts verändert).\n\n" +
+                erinnerungenGesamt + " Erinnerung(en) insgesamt, davon " + erinnerungenOhneFundort + " ohne vorhandenen Fundort.\n" +
+                zuordnungenGesamt + " Zuordnung(en) insgesamt, davon " + zuordnungenOhneFundort + " betroffen " +
+                "(Person: " + betroffenProZielTyp[ZuordnungsZielTyp.Person] + ", Ereignis: " + betroffenProZielTyp[ZuordnungsZielTyp.Ereignis] + ", Sammlung: " + betroffenProZielTyp[ZuordnungsZielTyp.Sammlung] + ").\n\n" +
+                erinnerungenMitMehrerenZieltypenBetroffen.Count + " Erinnerung(en) sind gleichzeitig bei mehreren Zieltypen betroffen.\n\n" +
+                "Vollständige Einzelfall-Liste gespeichert unter:\n" + berichtPfad;
+        }
+
+        private void DiagnoseFehlendeFundorte_Click(object sender, RoutedEventArgs e)
+        {
+            string ergebnis = DiagnoseFehlendeFundorte();
+            James.Hinweis(ergebnis, "Diagnose: Fehlende Fundorte");
+        }
+
+        // ============================================================
+        // A/Opa-DIAGNOSEAUFTRAG "ZUORDNUNGS-KETTE" (13.08.)
+        // ============================================================
+        // AUSDRUECKLICH REIN LESEND, KEIN FIX. Verfolgt fuer JEDES Ziel
+        // (Person/Ereignis/Sammlung), zu dem mindestens eine Zuordnung
+        // existiert, genau die von A vorgegebene Kette:
+        //   1) im Datenbestand gespeicherte Zuordnungen (roh)
+        //   2) davon eindeutige ErinnerungIds (Duplikate in den
+        //      Zuordnungen selbst wuerden hier auffallen)
+        //   3) davon tatsaechlich noch existierende Erinnerung-Objekte
+        //      (verwaiste Zuordnungen auf geloeschte Erinnerungen wuerden
+        //      hier auffallen)
+        //   4) davon nach der Pfad-Deduplizierung von ErgaenzeUmNeuesModell
+        //      uebrig bleibende (mehrere Erinnerungen mit demselben Fundort-
+        //      Pfad wuerden sich hier gegenseitig verdraengen)
+        //   5) davon tatsaechlich als Bild ladbar (ErinnerungenFenster.
+        //      ZeigeUebersicht versucht JEDE Datei als Bild zu laden,
+        //      unabhaengig vom MedienTyp - ein PDF/Dokument/Video wuerde
+        //      hier durchfallen und in der Anzeige fehlen)
+        // Meldet nur die Ziele, bei denen Schritt 1 != Schritt 5 ist -
+        // genau dort verschwindet etwas zwischen Speicherung und Anzeige.
+        private class ZuordnungsKettenBefund
+        {
+            public ZuordnungsZielTyp ZielTyp;
+            public string ZielBezeichnung;
+            public int SchrittGespeichert;
+            public int SchrittEindeutigeIds;
+            public int SchrittExistierendeErinnerungen;
+            public int SchrittNachPfadDeduplizierung;
+            public int SchrittTatsaechlichAlsBildLadbar;
+            public List<string> Details = new List<string>();
+        }
+
+        private string DiagnoseZuordnungsKette()
+        {
+            LadeErinnerungsmodellFallsNoetig();
+
+            // Alle Ziele ermitteln, zu denen mindestens eine Zuordnung
+            // existiert - kein Raten, welche Sammlung/Person betroffen ist.
+            List<(ZuordnungsZielTyp ZielTyp, Guid ZielId, string ZielBezeichnung)> alleZiele = erinnerungsmodellZuordnungen
+                .Select(z => (z.ZielTyp, z.ZielId, z.ZielBezeichnung))
+                .Distinct()
+                .ToList();
+
+            List<ZuordnungsKettenBefund> befunde = new List<ZuordnungsKettenBefund>();
+
+            foreach ((ZuordnungsZielTyp zielTyp, Guid zielId, string zielBezeichnung) in alleZiele)
+            {
+                ZuordnungsKettenBefund befund = new ZuordnungsKettenBefund
+                {
+                    ZielTyp = zielTyp,
+                    ZielBezeichnung = zielBezeichnung
+                };
+
+                // Schritt 1: roh gespeicherte Zuordnungen fuer dieses Ziel
+                List<Zuordnung> zuordnungenFuerZiel = erinnerungsmodellZuordnungen
+                    .Where(z => z.ZielTyp == zielTyp && z.ZielId == zielId)
+                    .ToList();
+                befund.SchrittGespeichert = zuordnungenFuerZiel.Count;
+
+                // Schritt 2: eindeutige ErinnerungIds darunter
+                List<Guid> eindeutigeIds = zuordnungenFuerZiel.Select(z => z.ErinnerungId).Distinct().ToList();
+                befund.SchrittEindeutigeIds = eindeutigeIds.Count;
+
+                if (eindeutigeIds.Count != zuordnungenFuerZiel.Count)
+                {
+                    befund.Details.Add("Es gibt mehrfache Zuordnungs-Datensätze zur selben Erinnerung (" + zuordnungenFuerZiel.Count + " Zuordnungen, aber nur " + eindeutigeIds.Count + " verschiedene Erinnerungen).");
+                }
+
+                // Schritt 3: davon tatsaechlich noch existierende Erinnerungen
+                List<Erinnerung> existierendeErinnerungen = erinnerungsmodellErinnerungen
+                    .Where(er => eindeutigeIds.Contains(er.Id))
+                    .ToList();
+                befund.SchrittExistierendeErinnerungen = existierendeErinnerungen.Count;
+
+                if (existierendeErinnerungen.Count != eindeutigeIds.Count)
+                {
+                    int verwaist = eindeutigeIds.Count - existierendeErinnerungen.Count;
+                    befund.Details.Add(verwaist + " Zuordnung(en) verweisen auf eine ErinnerungId, die im Erinnerungsbestand nicht mehr existiert (verwaiste Zuordnung).");
+                }
+
+                // Schritt 4: Pfad-Deduplizierung wie in ErgaenzeUmNeuesModell -
+                // simuliert exakt dieselbe Logik (bekanntePfade-HashSet,
+                // case-insensitive), aber rein lesend, nichts wird der
+                // echten Anzeige hinzugefuegt.
+                HashSet<string> bekanntePfadeSimuliert = new HashSet<string>();
+                List<Erinnerung> nachPfadDeduplizierung = new List<Erinnerung>();
+                Dictionary<string, List<Guid>> pfadKollisionen = new Dictionary<string, List<Guid>>();
+
+                foreach (Erinnerung erinnerung in existierendeErinnerungen)
+                {
+                    string pfad = erinnerung.Fundorte?
+                        .Select(f => f.Pfad)
+                        .FirstOrDefault(p => !string.IsNullOrEmpty(p) && File.Exists(p));
+
+                    if (pfad == null)
+                    {
+                        befund.Details.Add("Erinnerung " + erinnerung.Id + " hat keinen gueltigen, existierenden Fundort-Pfad (widerspricht der vorigen Fundort-Diagnose - bitte melden).");
+                        continue;
+                    }
+
+                    string pfadKlein = pfad.ToLowerInvariant();
+
+                    if (!pfadKollisionen.ContainsKey(pfadKlein))
+                    {
+                        pfadKollisionen[pfadKlein] = new List<Guid>();
+                    }
+                    pfadKollisionen[pfadKlein].Add(erinnerung.Id);
+
+                    if (bekanntePfadeSimuliert.Contains(pfadKlein))
+                    {
+                        continue;
+                    }
+
+                    bekanntePfadeSimuliert.Add(pfadKlein);
+                    nachPfadDeduplizierung.Add(erinnerung);
+                }
+
+                befund.SchrittNachPfadDeduplizierung = nachPfadDeduplizierung.Count;
+
+                foreach (KeyValuePair<string, List<Guid>> kollision in pfadKollisionen.Where(k => k.Value.Count > 1))
+                {
+                    befund.Details.Add("Mehrere Erinnerungen zeigen auf denselben Fundort-Pfad (" + kollision.Key + "): " + string.Join(", ", kollision.Value) + " - nur die erste zaehlt in der Anzeige, der Rest wird durch die Pfad-Deduplizierung verdraengt.");
+                }
+
+                // Schritt 5: tatsaechliche Bild-Ladbarkeit wie in
+                // ErinnerungenFenster.ZeigeUebersicht (versucht jede Datei
+                // als Bild zu laden, unabhaengig vom MedienTyp).
+                int alsBildLadbar = 0;
+
+                foreach (Erinnerung erinnerung in nachPfadDeduplizierung)
+                {
+                    string pfad = erinnerung.Fundorte
+                        .Select(f => f.Pfad)
+                        .FirstOrDefault(p => !string.IsNullOrEmpty(p) && File.Exists(p));
+
+                    try
+                    {
+                        BitmapImage testbild = new BitmapImage();
+                        testbild.BeginInit();
+                        testbild.CacheOption = BitmapCacheOption.OnLoad;
+                        testbild.DecodePixelWidth = 200;
+                        testbild.UriSource = new Uri(pfad);
+                        testbild.EndInit();
+
+                        alsBildLadbar++;
+                    }
+                    catch
+                    {
+                        befund.Details.Add("Erinnerung " + erinnerung.Id + " (MedienTyp: " + erinnerung.MedienTyp + ", Pfad: " + pfad + ") lässt sich NICHT als Bild laden - würde in \"Erinnerungen ansehen\" unsichtbar bleiben, egal was sonst stimmt.");
+                    }
+                }
+
+                befund.SchrittTatsaechlichAlsBildLadbar = alsBildLadbar;
+
+                befunde.Add(befund);
+            }
+
+            // Bericht schreiben - volle Liste aller Ziele, damit auch
+            // unauffaellige Ziele zur Kontrolle einsehbar sind.
+            string berichtPfad = Path.Combine(OrdnerPfad, "diagnose_zuordnungskette_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
+
+            System.Text.StringBuilder bericht = new System.Text.StringBuilder();
+            bericht.AppendLine("DIAGNOSE: Zuordnungs-Kette (rein lesend, " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss") + ")");
+            bericht.AppendLine("Kette je Ziel: 1) gespeichert -> 2) eindeutige Erinnerungen -> 3) davon existierend -> 4) davon nach Pfad-Deduplizierung -> 5) davon tatsächlich als Bild ladbar (= das, was am Ende in \"Erinnerungen ansehen\" erscheinen würde)");
+            bericht.AppendLine();
+
+            List<ZuordnungsKettenBefund> mitAbweichung = befunde.Where(b => b.SchrittGespeichert != b.SchrittTatsaechlichAlsBildLadbar).ToList();
+
+            // A/Opa-SCHUTZAUFTRAG (13.08.), Punkt 3: Gesamtzahl der BEREITS
+            // BESTEHENDEN Doppelzuordnungen (nur zaehlen und berichten -
+            // ausdruecklich KEINE automatische Bereinigung, siehe
+            // Schutzregel in FuehreZuordnungDurch, die nur kuenftige neue
+            // Duplikate verhindert, nicht rueckwirkend aufraeumt).
+            int gesamtDoppelzuordnungen = befunde.Sum(b => b.SchrittGespeichert - b.SchrittEindeutigeIds);
+
+            bericht.AppendLine(alleZiele.Count + " Ziel(e) insgesamt geprüft, " + mitAbweichung.Count + " mit Abweichung zwischen gespeichert und tatsächlich anzeigbar.");
+            bericht.AppendLine("Insgesamt " + gesamtDoppelzuordnungen + " bestehende Doppelzuordnung(en) über alle Ziele hinweg (nur gezählt, NICHT bereinigt).");
+            bericht.AppendLine();
+            bericht.AppendLine("=== ZIELE MIT ABWEICHUNG ===");
+
+            foreach (ZuordnungsKettenBefund b in mitAbweichung.OrderByDescending(x => x.SchrittGespeichert - x.SchrittTatsaechlichAlsBildLadbar))
+            {
+                bericht.AppendLine();
+                bericht.AppendLine(b.ZielTyp + ": " + b.ZielBezeichnung);
+                bericht.AppendLine("  1) gespeichert: " + b.SchrittGespeichert);
+                bericht.AppendLine("  2) eindeutige Erinnerungen: " + b.SchrittEindeutigeIds);
+                bericht.AppendLine("  3) davon existierend: " + b.SchrittExistierendeErinnerungen);
+                bericht.AppendLine("  4) davon nach Pfad-Deduplizierung: " + b.SchrittNachPfadDeduplizierung);
+                bericht.AppendLine("  5) davon tatsächlich als Bild ladbar: " + b.SchrittTatsaechlichAlsBildLadbar);
+
+                foreach (string detail in b.Details)
+                {
+                    bericht.AppendLine("  - " + detail);
+                }
+            }
+
+            bericht.AppendLine();
+            bericht.AppendLine("=== ALLE ZIELE (zur Kontrolle) ===");
+
+            foreach (ZuordnungsKettenBefund b in befunde.OrderBy(x => x.ZielTyp).ThenBy(x => x.ZielBezeichnung))
+            {
+                bericht.AppendLine(b.ZielTyp + ": " + b.ZielBezeichnung + " - gespeichert " + b.SchrittGespeichert + ", angezeigt " + b.SchrittTatsaechlichAlsBildLadbar);
+            }
+
+            try
+            {
+                File.WriteAllText(berichtPfad, bericht.ToString());
+            }
+            catch
+            {
+            }
+
+            if (mitAbweichung.Count == 0)
+            {
+                return "Diagnose abgeschlossen (rein lesend, nichts verändert).\n\n" +
+                    alleZiele.Count + " Ziel(e) geprüft - bei KEINEM gibt es eine Abweichung zwischen gespeicherten und tatsächlich anzeigbaren Zuordnungen.\n\n" +
+                    "Vollständiger Bericht gespeichert unter:\n" + berichtPfad;
+            }
+
+            ZuordnungsKettenBefund groesste = mitAbweichung.OrderByDescending(b => b.SchrittGespeichert - b.SchrittTatsaechlichAlsBildLadbar).First();
+
+            return "Diagnose abgeschlossen (rein lesend, nichts verändert).\n\n" +
+                alleZiele.Count + " Ziel(e) geprüft, " + mitAbweichung.Count + " mit Abweichung.\n" +
+                "Insgesamt " + gesamtDoppelzuordnungen + " bestehende Doppelzuordnung(en) über alle Ziele hinweg (nur gezählt, nicht bereinigt).\n\n" +
+                "Größte Abweichung: " + groesste.ZielTyp + " \"" + groesste.ZielBezeichnung + "\" - " +
+                groesste.SchrittGespeichert + " gespeichert, aber nur " + groesste.SchrittTatsaechlichAlsBildLadbar + " tatsächlich anzeigbar.\n\n" +
+                "Vollständiger Bericht (alle betroffenen Ziele mit genauer Kette + Einzelfall-Details) gespeichert unter:\n" + berichtPfad;
+        }
+
+        private void DiagnoseZuordnungsKette_Click(object sender, RoutedEventArgs e)
+        {
+            string ergebnis = DiagnoseZuordnungsKette();
+            James.Hinweis(ergebnis, "Diagnose: Zuordnungs-Kette");
         }
 
         // ============================================================

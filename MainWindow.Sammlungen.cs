@@ -66,6 +66,15 @@ namespace DAS_LEBENSARCHIV
         // Baut den Papierkorb-Kontext-Callback für eine bestimmte Sammlung -
         // wird an ErinnerungenFenster übergeben und kennt per Closure genau
         // diese eine Sammlung, aus der heraus das Fenster geöffnet wurde.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3: Findet die alte,
+        // dateiname-basierte Logik nichts (z.B. weil die Erinnerung nur
+        // ueber die neue Lese-Bruecke/Zuordnung sichtbar ist), wird
+        // zusaetzlich im neuen Zuordnungsmodell nachgesehen, bevor die
+        // Aktion als "nichts gefunden" gilt (siehe
+        // VersucheAusNeuemModellEntfernen in MainWindow.
+        // ErinnerungsmodellZustand.cs) - dasselbe Muster wie beim
+        // Personen-/Ereignis-Pendant in MainWindow.Erinnerungskarte.cs.
         private Func<string, bool> ErstelleEntferneAusSammlungCallback(Sammlung sammlung)
         {
             return pfad =>
@@ -76,9 +85,17 @@ namespace DAS_LEBENSARCHIV
                 {
                     SpeichereDaten();
                     AktualisiereSammlungenAnzeige();
+                    return true;
                 }
 
-                return entfernt;
+                bool imNeuenModellEntfernt = VersucheAusNeuemModellEntfernen(ZuordnungsZielTyp.Sammlung, sammlung.Id, pfad);
+
+                if (imNeuenModellEntfernt)
+                {
+                    AktualisiereSammlungenAnzeige();
+                }
+
+                return imNeuenModellEntfernt;
             };
         }
 

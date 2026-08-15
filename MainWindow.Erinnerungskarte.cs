@@ -333,6 +333,14 @@ namespace DAS_LEBENSARCHIV
         // Baut den Papierkorb-Kontext-Callback für eine bestimmte Person -
         // wird an ErinnerungenFenster übergeben und kennt per Closure genau
         // diese eine Person, aus der heraus das Fenster geöffnet wurde.
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3: Findet die alte,
+        // dateiname-basierte Logik nichts (z.B. weil die Erinnerung nur
+        // ueber die neue Lese-Bruecke/Zuordnung sichtbar ist), wird
+        // zusaetzlich im neuen Zuordnungsmodell nachgesehen, bevor die
+        // Aktion als "nichts gefunden" gilt - keine stillschweigend
+        // wirkungslose Aktion mehr (siehe VersucheAusNeuemModellEntfernen
+        // in MainWindow.ErinnerungsmodellZustand.cs).
         private Func<string, bool> ErstelleEntferneAusPersonCallback(Person person)
         {
             return pfad =>
@@ -343,9 +351,17 @@ namespace DAS_LEBENSARCHIV
                 {
                     SpeichereDaten();
                     AktualisiereSchreibtischFallsBetroffen(person);
+                    return true;
                 }
 
-                return entfernt;
+                bool imNeuenModellEntfernt = VersucheAusNeuemModellEntfernen(ZuordnungsZielTyp.Person, person.Id, pfad);
+
+                if (imNeuenModellEntfernt)
+                {
+                    AktualisiereSchreibtischFallsBetroffen(person);
+                }
+
+                return imNeuenModellEntfernt;
             };
         }
 
@@ -353,6 +369,10 @@ namespace DAS_LEBENSARCHIV
         // einer Person (nicht für ein freies Ereignis, siehe
         // ErstelleEntferneAusFreiemEreignisCallback in
         // MainWindow.BesondereEreignisse.cs für den Fall ohne Person).
+        //
+        // A/Opa-REPARATURAUFTRAG (11.08.), PROBLEM 3: gleiche Erweiterung
+        // wie beim Personen-Callback oben - alte Logik zuerst, bei Fehlschlag
+        // zusaetzlich das neue Zuordnungsmodell versuchen.
         private Func<string, bool> ErstelleEntferneAusPersonEreignisCallback(Person person, Ereignis ereignis)
         {
             return pfad =>
@@ -364,9 +384,18 @@ namespace DAS_LEBENSARCHIV
                     SpeichereDaten();
                     AktualisiereErinnerungskarteFallsBetroffen(person, ereignis);
                     ZeigeEreignisErinnerungenLink(ereignis, person);
+                    return true;
                 }
 
-                return entfernt;
+                bool imNeuenModellEntfernt = VersucheAusNeuemModellEntfernen(ZuordnungsZielTyp.Ereignis, ereignis.Id, pfad);
+
+                if (imNeuenModellEntfernt)
+                {
+                    AktualisiereErinnerungskarteFallsBetroffen(person, ereignis);
+                    ZeigeEreignisErinnerungenLink(ereignis, person);
+                }
+
+                return imNeuenModellEntfernt;
             };
         }
 

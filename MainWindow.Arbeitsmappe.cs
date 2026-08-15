@@ -31,20 +31,44 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
+            // A/Opa-REPARATURAUFTRAG (13.08.), Punkt 1: Der Zuordnungs-
+            // Papierkorb wird beim Entfernen einer Erinnerung bereits korrekt
+            // beschrieben und gespeichert (EntferneZuordnungenInPapierkorb) -
+            // nur die Anzeige im Original-James fehlte, weil dieser Tab-
+            // Wechsel bisher nicht behandelt wurde. Wiederverwendet die
+            // bereits bestehende, getestete Methode - keine neue Papierkorb-
+            // Logik. Ueber den Tab-Header erkannt statt ueber eine Index-
+            // Konstante, da hier keine eigene Konstante fuer den Papierkorb-
+            // Tab existiert.
+            if ((HauptTabControl.SelectedItem as TabItem)?.Header?.ToString() == "Papierkorb")
+            {
+                AktualisiereZuordnungsPapierkorbAnzeige();
+                return;
+            }
+
             if (HauptTabControl.SelectedIndex == 0)
             {
-                bool keinBereichSichtbar =
-                    StartseiteBereich.Visibility != Visibility.Visible &&
-                    PersonenListeBereich.Visibility != Visibility.Visible &&
-                    EreignisBereich.Visibility != Visibility.Visible &&
-                    EreignismappeBereich.Visibility != Visibility.Visible &&
-                    SammlungBereich.Visibility != Visibility.Visible;
+                // A/Opa-REPARATURAUFTRAG (13.08.), Punkt 2: Dieses Ereignis
+                // feuert ausschliesslich bei einem ECHTEN Tab-Wechsel - die
+                // interne Navigation innerhalb des Schreibtisch-Tabs (die
+                // Start-Buttons, ZurStartseite_Click) loest kein
+                // SelectionChanged des TabControl aus und bleibt davon
+                // vollstaendig unberuehrt. Landet man hier, wurde also
+                // bewusst von einem ANDEREN Tab zurueck zum Schreibtisch
+                // gewechselt - genau dann soll zuverlaessig die Startseite
+                // erscheinen. Vorher blieb z.B. PersonenListeBereich
+                // faelschlich weiterhin sichtbar, weil kein Unterbereich
+                // seine Sichtbarkeit beim Verlassen des Tabs zuruecksetzte -
+                // "keinBereichSichtbar" war dann faelschlich false. Betrifft
+                // nur genau dieselben Bereiche, die vorher schon geprueft
+                // wurden - keine zusaetzlichen, unbeteiligten Bereiche.
+                StartseiteBereich.Visibility = Visibility.Visible;
+                PersonenListeBereich.Visibility = Visibility.Collapsed;
+                EreignisBereich.Visibility = Visibility.Collapsed;
+                EreignismappeBereich.Visibility = Visibility.Collapsed;
+                SammlungBereich.Visibility = Visibility.Collapsed;
 
-                if (keinBereichSichtbar)
-                {
-                    StartseiteBereich.Visibility = Visibility.Visible;
-                    ZeigeStartseiteVorschlag();
-                }
+                ZeigeStartseiteVorschlag();
             }
         }
 

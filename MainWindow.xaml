@@ -134,18 +134,74 @@
                             Margin="0,8,0,0"
                             TextWrapping="Wrap"
                             Foreground="#555555"/>
-                        <TextBlock
-                            Name="JamesNeuesModellHinweisText"
-                            Margin="0,8,0,0"
-                            TextWrapping="Wrap"
-                            Foreground="#2E7D32"
-                            FontWeight="Bold"
-                            TextDecorations="Underline"
-                            Cursor="Hand"
-                            Visibility="Collapsed"
-                            MouseLeftButtonUp="JamesNeuesModellHinweisText_MouseLeftButtonUp"/>
+                        <!-- A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.): direkte
+                             Ergebnisanzeige des neuen Erinnerungsmodells,
+                             ersetzt den bisherigen reinen Hinweislink -->
+                        <Border
+                            Name="JamesNeuesModellErgebnisPanel"
+                            Background="#F0F7EE"
+                            BorderBrush="#CFE3C8"
+                            BorderThickness="1"
+                            Padding="14"
+                            Margin="0,10,0,0"
+                            Visibility="Collapsed">
 
-                    
+                            <StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox Name="JamesSortierungComboBox" Width="180" SelectedIndex="0" SelectionChanged="JamesSortierungComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Datum (neueste zuerst)"/>
+                                        <ComboBoxItem Content="Datum (älteste zuerst)"/>
+                                        <ComboBoxItem Content="Alphabetisch (A-Z)"/>
+                                        <ComboBoxItem Content="Alphabetisch (Z-A)"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <TextBlock Name="JamesNeuesModellAnzahlText" Margin="0,0,0,6" Foreground="#555555"/>
+
+                                <ListBox
+                                    Name="JamesNeuesModellTrefferListe"
+                                    Height="220"
+                                    Margin="0,0,0,6"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="JamesNeuesModellTrefferListe_SelectionChanged"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                </ListBox>
+
+                                <TextBlock Name="JamesNeuesModellMarkierungsText" FontStyle="Italic" Foreground="#555555" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Ziel:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox Name="JamesZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="JamesZielTypComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Person"/>
+                                        <ComboBoxItem Content="Ereignis"/>
+                                        <ComboBoxItem Content="Sammlung"/>
+                                    </ComboBox>
+                                    <ComboBox Name="JamesZielObjektComboBox" Width="220"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Name="JamesZuordnenButton" Content="Markierte zuordnen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="JamesZuordnen_Click"/>
+                                    <Button Name="JamesAusZielEntfernenButton" Content="Markierte aus diesem Ziel entfernen" Padding="10,4" IsEnabled="False" Click="JamesAusZielEntfernen_Click"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Name="JamesImportDateiButton" Content="📄 Datei(en) importieren..." Padding="10,4" Margin="0,0,10,0" Click="JamesImportDatei_Click"/>
+                                    <Button Name="JamesImportOrdnerButton" Content="📁 Ordner importieren..." Padding="10,4" Click="JamesImportOrdner_Click"/>
+                                </StackPanel>
+
+                                <TextBlock Name="JamesNeuesModellStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap"/>
+
+                            </StackPanel>
+
+                        </Border>
 
                     </StackPanel>
 
@@ -1241,6 +1297,8 @@
 
             <TabItem Header="Papierkorb">
 
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+
                 <Grid Margin="40">
 
                     <Grid.RowDefinitions>
@@ -1250,7 +1308,9 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock
@@ -1391,7 +1451,69 @@
 
                     </Grid>
 
+                    <!-- A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 7: der
+                         Zuordnungs-Papierkorb (einzelne geloeste Verknuepfungen
+                         zwischen einer Erinnerung und Person/Ereignis/Sammlung)
+                         war bisher nur im Arbeitsmotor-Fenster sichtbar. Bewusst
+                         "Gelöste Zuordnungen" statt "Papierkorb" genannt, damit
+                         die zwei verschiedenen Ebenen (ganzes Objekt oben vs.
+                         einzelne Verknuepfung hier) nicht verschwimmen. -->
+                    <TextBlock
+                        Grid.Row="7"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Margin="0,20,0,4"
+                        Text="Gelöste Zuordnungen"/>
+
+                    <Grid Grid.Row="8" Height="220">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Name="JamesGeloesteZuordnungenAnzahlText" Foreground="#555555" Margin="0,0,0,8"/>
+                            <ListBox
+                                Name="JamesGeloesteZuordnungenListe"
+                                Height="180"
+                                SelectionMode="Extended"
+                                SelectionChanged="JamesGeloesteZuordnungenListe_SelectionChanged"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                            </ListBox>
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Margin="16,0,0,0">
+
+                            <Button
+                                Name="JamesZuordnungWiederherstellenButton"
+                                Content="Wiederherstellen"
+                                Height="40"
+                                Margin="0,0,0,10"
+                                IsEnabled="False"
+                                Click="JamesZuordnungWiederherstellen_Click"/>
+
+                            <Button
+                                Name="JamesZuordnungEndgueltigLoeschenButton"
+                                Content="Endgültig löschen"
+                                Height="40"
+                                IsEnabled="False"
+                                Click="JamesZuordnungEndgueltigLoeschen_Click"/>
+
+                        </StackPanel>
+
+                    </Grid>
+
                 </Grid>
+
+                </ScrollViewer>
 
             </TabItem>
 
@@ -1601,6 +1723,36 @@
                             HorizontalAlignment="Left"
                             Margin="0,0,0,10"
                             Click="HashwertReparaturlauf_Click"/>
+
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Diagnose: Fehlende Fundorte (A/Opa-Diagnoseauftrag 13.08.) - rein lesend, prüft für jede Erinnerung/Zuordnung, ob die zugehörige Datei tatsächlich noch auffindbar ist. Verändert nichts, keine Datei, keine Zuordnung, kein Papierkorb - schreibt nur einen Diagnose-Bericht als eigene, neue Textdatei."/>
+
+                            <Button
+                            Name="DiagnoseFehlendeFundorteButton"
+                            Content="🧪 Fehlende Fundorte prüfen"
+                            Width="280"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,10"
+                            Click="DiagnoseFehlendeFundorte_Click"/>
+
+                            <TextBlock
+                            TextWrapping="Wrap"
+                            Foreground="#555555"
+                            Margin="0,0,0,12"
+                            Text="Diagnose: Zuordnungs-Kette (A/Opa-Diagnoseauftrag 13.08.) - rein lesend, verfolgt für jedes Ziel (Person/Ereignis/Sammlung) die Kette von gespeicherten Zuordnungen bis zur tatsächlichen Anzeigbarkeit, um zu klären wo z.B. aus 20 zugeordneten nur 3 angezeigte werden. Verändert nichts, schreibt nur einen Diagnose-Bericht."/>
+
+                            <Button
+                            Name="DiagnoseZuordnungsKetteButton"
+                            Content="🧪 Zuordnungs-Kette prüfen"
+                            Width="280"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,10"
+                            Click="DiagnoseZuordnungsKette_Click"/>
 
                             <TextBlock
                             TextWrapping="Wrap"

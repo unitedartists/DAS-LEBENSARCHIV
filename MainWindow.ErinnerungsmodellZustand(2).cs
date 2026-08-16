@@ -17,13 +17,36 @@ namespace DAS_LEBENSARCHIV
         private List<Zuordnung> erinnerungsmodellZuordnungenPapierkorb;
         private bool erinnerungsmodellGeladen;
 
-        private class ArbeitsauswahlEintrag
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // ersetzt die bisherige Zweiteilung "Direktsuchergebnis" (AmDirekte-
+        // AuswahlListe) vs. "Arbeitsauswahl" (vormals amArbeitsauswahl, eine
+        // eigene zweite Liste). Es gibt jetzt nur noch EIN gruenes Fenster
+        // (AmDirekteAuswahlListe) und EIN Markierungs-Set. amMarkierteErinnerungIds
+        // ist die alleinige Quelle der Wahrheit dafuer, was gerade "markiert"
+        // ist - unabhaengig davon, ob die betroffene Erinnerung gerade sichtbar
+        // ist (z.B. durch einen Suchbegriff herausgefiltert). Dadurch uebersteht
+        // eine Markierung auch eine zwischenzeitliche Sucheingabe. Wird sowohl
+        // von der AM-eigenen Ziel-Auswahl ("Neue Zuordnung anlegen"/"Markierte
+        // in den Papierkorb") als auch von der rechten Aktionsleiste (Person/
+        // Ereignis/Sammlung/Asservatenkammer) als "markiert" gelesen.
+        private readonly HashSet<Guid> amMarkierteErinnerungIds = new HashSet<Guid>();
+
+        // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER UND OPA-FREUNDLICHER" (16.08.):
+        // Vertrauens-Reihenfolge A-D, wie von A/Opa vorgegeben - A ist am
+        // vertrauenswuerdigsten ("James hat es wirklich erkannt"), D am
+        // schwaechsten (reiner Text-Zufallstreffer im Pfad).
+        private enum SuchTrefferQuelle
         {
-            public Guid ErinnerungId;
-            public string Herkunft;
+            SehzentrumBegriff,
+            BestaetigtesStichwort,
+            Zuordnungsname,
+            Dateipfad
         }
 
-        private readonly List<ArbeitsauswahlEintrag> amArbeitsauswahl = new List<ArbeitsauswahlEintrag>();
+        // Verhindert, dass das programmatische Wiederherstellen der Auswahl
+        // (nach einem Listen-Neuaufbau) selbst wieder ein SelectionChanged
+        // ausloest, das amMarkierteErinnerungIds faelschlich veraendern wuerde.
+        private bool amUnterdrueckeAmSelectionEvent = false;
 
         private string ErinnerungsmodellDateiPfad => Path.Combine(OrdnerPfad, "erinnerungsmodell.json");
 
@@ -71,16 +94,6 @@ namespace DAS_LEBENSARCHIV
             erinnerungsmodellGeladen = true;
         }
 
-        private void FuegeZurArbeitsauswahlHinzu(Guid erinnerungId, string herkunft)
-        {
-            if (amArbeitsauswahl.Any(a => a.ErinnerungId == erinnerungId))
-            {
-                return;
-            }
-
-            amArbeitsauswahl.Add(new ArbeitsauswahlEintrag { ErinnerungId = erinnerungId, Herkunft = herkunft });
-        }
-
         private List<Erinnerung> ErmittleErinnerungenFuerZiel(ZuordnungsZielTyp zielTyp, Guid zielId)
         {
             LadeErinnerungsmodellFallsNoetig();
@@ -122,27 +135,66 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): TEST-3-BEFUND-URSACHE.
+        // Die Kachel (ErstelleErinnerungsKachel) ist ein OPAKER Border mit
+        // fester Groesse, der den gesamten ListBoxItem-Bereich ausfuellt.
+        // WPFs eingebaute Markierungs-Hervorhebung wird dabei standardmaessig
+        // HINTER dem Kachel-Inhalt gezeichnet - der opake Border deckt sie
+        // vollstaendig zu, zusaetzlich verblasst WPF sie weiter sobald die
+        // Liste den Fokus verliert (z.B. Klick in die Personen-Auswahlliste
+        // rechts). Die Markierung ging dabei nie technisch verloren (die
+        // Zuordnung erfolgte ja auch korrekt) - sie war schlicht nie sichtbar.
+        // Fix: eigenes, deutliches optisches Markierungs-Zeichen direkt auf
+        // der Kachel selbst (dicker gruener Rahmen + helle gruene Faerbung),
+        // unabhaengig von WPFs eingebauter (hier unsichtbarer) Selektions-
+        // Hervorhebung.
+        private static void SetzeAmKachelMarkierungsOptik(Border kachel, bool istMarkiert)
+        {
+            if (istMarkiert)
+            {
+                kachel.BorderBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+                kachel.BorderThickness = new Thickness(4);
+                kachel.Background = new SolidColorBrush(Color.FromRgb(0xDC, 0xF0, 0xD8));
+            }
+            else
+            {
+                kachel.BorderBrush = Brushes.LightGray;
+                kachel.BorderThickness = new Thickness(1);
+                kachel.Background = Brushes.WhiteSmoke;
+            }
+        }
+
+        // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.), Teil C:
+        // deutlich groessere, bild-dominante Kacheln (Bild oben, gross;
+        // Beschriftung ergaenzend darunter, klein) statt der bisherigen
+        // kleinen 54x54-Vorschau neben dem Text. Bewusst in dieser EINEN
+        // gemeinsamen Methode geaendert statt einer AM-spezifischen zweiten
+        // Kachel-Variante - kommt dadurch einheitlich AM, James-Suche und
+        // dem Zuordnungs-Papierkorb zugute (Teil H: einheitliche Bedienung/
+        // Darstellung). Die vorhandene WrapPanel-/Scroll-Logik bleibt
+        // unveraendert - mehr Spalten/Reihen ergeben sich automatisch aus
+        // der verfuegbaren Breite.
         private static Border ErstelleErinnerungsKachel(Erinnerung erinnerung, string beschriftung)
         {
             string pfad = erinnerung.Fundorte != null && erinnerung.Fundorte.Count > 0 ? erinnerung.Fundorte[0].Pfad : null;
 
             Border rahmen = new Border
             {
-                Width = 155,
-                Height = 70,
-                Margin = new Thickness(3),
+                Width = 210,
+                Height = 210,
+                Margin = new Thickness(5),
                 BorderBrush = Brushes.LightGray,
                 BorderThickness = new Thickness(1),
                 Background = Brushes.WhiteSmoke,
                 Tag = erinnerung
             };
 
-            StackPanel inhalt = new StackPanel { Orientation = Orientation.Horizontal };
+            StackPanel inhalt = new StackPanel { Orientation = Orientation.Vertical };
 
             Border bildRahmen = new Border
             {
-                Width = 54,
-                Height = 54,
+                Width = 190,
+                Height = 160,
                 Margin = new Thickness(3),
                 Background = Brushes.White
             };
@@ -154,7 +206,7 @@ namespace DAS_LEBENSARCHIV
                     BitmapImage bild = new BitmapImage();
                     bild.BeginInit();
                     bild.CacheOption = BitmapCacheOption.OnLoad;
-                    bild.DecodePixelWidth = 100;
+                    bild.DecodePixelWidth = 380;
                     bild.UriSource = new Uri(pfad);
                     bild.EndInit();
 
@@ -162,12 +214,12 @@ namespace DAS_LEBENSARCHIV
                 }
                 catch
                 {
-                    bildRahmen.Child = new TextBlock { Text = "🖼️", FontSize = 24, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    bildRahmen.Child = new TextBlock { Text = "🖼️", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 }
             }
             else
             {
-                bildRahmen.Child = new TextBlock { Text = "⚠️", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Fundort nicht gefunden" };
+                bildRahmen.Child = new TextBlock { Text = "⚠️", FontSize = 32, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Fundort nicht gefunden" };
             }
 
             inhalt.Children.Add(bildRahmen);
@@ -176,8 +228,10 @@ namespace DAS_LEBENSARCHIV
             {
                 Text = beschriftung,
                 TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 90,
-                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 195,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 0),
                 FontSize = 11
             });
 
@@ -186,6 +240,12 @@ namespace DAS_LEBENSARCHIV
             return rahmen;
         }
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): landet nicht mehr in
+        // einer eigenen zweiten Liste, sondern markiert die betroffenen
+        // Erinnerungen direkt im EINEN gruenen Fenster (amMarkierteErinnerungIds)
+        // und wechselt dorthin. Der Suchtext wird geleert, damit die
+        // geschickten Erinnerungen garantiert sichtbar sind (nicht durch
+        // einen stehengebliebenen Suchbegriff herausgefiltert werden).
         private void SendeMarkierteZurArbeitsmappe(List<string> pfade)
         {
             LadeErinnerungsmodellFallsNoetig();
@@ -204,24 +264,118 @@ namespace DAS_LEBENSARCHIV
                     continue;
                 }
 
-                FuegeZurArbeitsauswahlHinzu(erinnerung.Id, "Archiv");
+                amMarkierteErinnerungIds.Add(erinnerung.Id);
                 gefunden++;
             }
 
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
 
-            AktualisiereAmArbeitsauswahlAnzeige();
+            if (AmDirekteSucheTextBox != null)
+            {
+                AmDirekteSucheTextBox.Text = "";
+            }
+
+            AktualisiereAmDirekteAuswahlListe();
 
             if (nichtGefunden > 0)
             {
-                James.Hinweis(gefunden + " Erinnerung(en) wurden in die Arbeitsauswahl übernommen. " + nichtGefunden +
-                    " Erinnerung(en) sind noch nicht Teil des neuen Modells (noch nicht migriert) und konnten deshalb nicht übernommen werden.");
+                James.Hinweis(gefunden + " Erinnerung(en) wurden markiert. " + nichtGefunden +
+                    " Erinnerung(en) sind noch nicht Teil des neuen Modells (noch nicht migriert) und konnten deshalb nicht markiert werden.");
             }
         }
 
         private void AmDirekteSucheTextBox_TextChanged(object sender, RoutedEventArgs e)
         {
             AktualisiereAmDirekteAuswahlListe();
+        }
+
+        // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.), Teil G:
+        // baut eine Nachschlagetabelle Dateiname -> alte Stichwoerter
+        // (Ereignis.Stichwoerter, ALTES Modell) - REIN LESEND, keine
+        // Migration, keine Aenderung am alten Modell. Die Verknuepfung zur
+        // Erinnerung laeuft ueber den Dateinamen (das neue Modell speichert
+        // volle Pfade, das alte nur Dateinamen an Person/Ereignis) - das ist
+        // die einzige verfuegbare Bruecke, aber KEINE eindeutige ID-
+        // Verknuepfung: zwei verschiedene Erinnerungen mit zufaellig
+        // gleichem Dateinamen (z.B. IMG_0001.jpg aus zwei Quellen) wuerden
+        // sich hier ununterscheidbar teilen. Bewusst nicht "verbessert" -
+        // siehe Abschlussbericht, A wollte in diesem Fall lieber eine
+        // Meldung als eine improvisierte Loesung.
+        private Dictionary<string, List<string>> ErmittleAlteStichwoerterProDateiname()
+        {
+            Dictionary<string, List<string>> ergebnis = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            void ErfasseEreignis(Ereignis ereignis)
+            {
+                if (ereignis?.Stichwoerter == null || ereignis.Stichwoerter.Count == 0)
+                {
+                    return;
+                }
+
+                List<string> dateinamen = new List<string>();
+
+                if (!string.IsNullOrEmpty(ereignis.EreignisFotoDateiname))
+                {
+                    dateinamen.Add(ereignis.EreignisFotoDateiname);
+                }
+
+                if (ereignis.WeitereFotoDateinamen != null)
+                {
+                    dateinamen.AddRange(ereignis.WeitereFotoDateinamen);
+                }
+
+                foreach (string dateiname in dateinamen)
+                {
+                    if (string.IsNullOrEmpty(dateiname))
+                    {
+                        continue;
+                    }
+
+                    if (!ergebnis.TryGetValue(dateiname, out List<string> liste))
+                    {
+                        liste = new List<string>();
+                        ergebnis[dateiname] = liste;
+                    }
+
+                    liste.AddRange(ereignis.Stichwoerter);
+                }
+            }
+
+            foreach (Person person in allePersonen)
+            {
+                if (person.Ereignisse != null)
+                {
+                    foreach (Ereignis ereignis in person.Ereignisse)
+                    {
+                        ErfasseEreignis(ereignis);
+                    }
+                }
+            }
+
+            foreach (object element in ArchivListe.Items)
+            {
+                Person person = element as Person;
+
+                if (person?.Ereignisse != null)
+                {
+                    foreach (Ereignis ereignis in person.Ereignisse)
+                    {
+                        ErfasseEreignis(ereignis);
+                    }
+                }
+            }
+
+            foreach (Ereignis ereignis in freieEreignisse)
+            {
+                ErfasseEreignis(ereignis);
+            }
+
+            foreach (Ereignis ereignis in freieEreignisseArchiv)
+            {
+                ErfasseEreignis(ereignis);
+            }
+
+            return ergebnis;
         }
 
         // A/Opa-ENTSCHEIDUNG (11.08.): "Zwei Karteikästen"-Befund - James
@@ -235,20 +389,23 @@ namespace DAS_LEBENSARCHIV
         // keine zwei parallelen Wissenssysteme gleichzeitig zu durchsuchen.
         // Verknuepfung ueber den Hashwert - denselben Schluessel, den auch
         // SehgedaechtnisEintrag selbst verwendet.
-        private bool ErinnerungPasstZurZentralenSuche(Erinnerung erinnerung, string suchtext, List<SehgedaechtnisEintrag> sehgedaechtnis)
+        //
+        // A/Opa-OPTIMIERUNGSAUFTRAG (16.08.), Teil G: zusaetzlich alte
+        // Ereignis.Stichwoerter durchsucht (siehe alteStichwoerter-Parameter,
+        // rein lesend, ueber Dateiname verknuepft).
+        // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER UND OPA-FREUNDLICHER" (16.08.):
+        // ersetzt ErinnerungPasstZurZentralenSuche (reines Ja/Nein). Liefert
+        // jetzt zusaetzlich WARUM eine Erinnerung gefunden wurde, in der von
+        // A/Opa vorgegebenen Vertrauens-Reihenfolge A-D. Prueft in dieser
+        // Reihenfolge und liefert die erste (vertrauenswuerdigste)
+        // zutreffende Quelle - bei einem Treffer ueber mehrere Quellen
+        // gleichzeitig (z.B. Sehzentrum UND Dateipfad) wird bewusst nur die
+        // vertrauenswuerdigste angezeigt, damit James nie den Eindruck
+        // erweckt, ein Bild "erkannt" zu haben, wenn der Treffer eigentlich
+        // nur ueber einen Ordnernamen zustande kam.
+        private SuchTrefferQuelle? ErmittleSuchTrefferQuelle(Erinnerung erinnerung, string suchtext, List<SehgedaechtnisEintrag> sehgedaechtnis, Dictionary<string, List<string>> alteStichwoerter)
         {
-            if (erinnerung.Fundorte != null && erinnerung.Fundorte.Any(f => (f.Pfad ?? "").ToLowerInvariant().Contains(suchtext)))
-            {
-                return true;
-            }
-
-            if (erinnerungsmodellZuordnungen
-                .Where(z => z.ErinnerungId == erinnerung.Id)
-                .Any(z => !string.IsNullOrEmpty(z.ZielBezeichnung) && z.ZielBezeichnung.ToLowerInvariant().Contains(suchtext)))
-            {
-                return true;
-            }
-
+            // A) Sehzentrum-Begriff: "James hat diesen Begriff für das Bild gelernt."
             if (!string.IsNullOrEmpty(erinnerung.Hashwert))
             {
                 SehgedaechtnisEintrag eintrag = sehgedaechtnis.FirstOrDefault(s => s.Hashwert == erinnerung.Hashwert);
@@ -256,11 +413,47 @@ namespace DAS_LEBENSARCHIV
                 if (eintrag != null && eintrag.BestaetigteStichwoerter != null
                     && eintrag.BestaetigteStichwoerter.Any(b => (b ?? "").ToLowerInvariant().Contains(suchtext)))
                 {
-                    return true;
+                    return SuchTrefferQuelle.SehzentrumBegriff;
                 }
             }
 
-            return false;
+            // B) bestätigtes/übernommenes Stichwort (altes Modell): "Begriff wurde ausdrücklich gespeichert."
+            string dateiname = erinnerung.Fundorte != null && erinnerung.Fundorte.Count > 0
+                ? Path.GetFileName(erinnerung.Fundorte[0].Pfad)
+                : null;
+
+            if (!string.IsNullOrEmpty(dateiname) && alteStichwoerter.TryGetValue(dateiname, out List<string> stichwoerterListe)
+                && stichwoerterListe.Any(s => (s ?? "").ToLowerInvariant().Contains(suchtext)))
+            {
+                return SuchTrefferQuelle.BestaetigtesStichwort;
+            }
+
+            // C) Zuordnungsname: Person/Ereignis/Sammlung enthält den Suchbegriff.
+            if (erinnerungsmodellZuordnungen
+                .Where(z => z.ErinnerungId == erinnerung.Id)
+                .Any(z => !string.IsNullOrEmpty(z.ZielBezeichnung) && z.ZielBezeichnung.ToLowerInvariant().Contains(suchtext)))
+            {
+                return SuchTrefferQuelle.Zuordnungsname;
+            }
+
+            // D) Dateipfad/Dateiname: Suchbegriff kommt dort vor.
+            if (erinnerung.Fundorte != null && erinnerung.Fundorte.Any(f => (f.Pfad ?? "").ToLowerInvariant().Contains(suchtext)))
+            {
+                return SuchTrefferQuelle.Dateipfad;
+            }
+
+            return null;
+        }
+
+        private static string BeschriftungFuerTrefferQuelle(SuchTrefferQuelle quelle)
+        {
+            switch (quelle)
+            {
+                case SuchTrefferQuelle.SehzentrumBegriff: return "👁️ von James erkannt";
+                case SuchTrefferQuelle.BestaetigtesStichwort: return "🏷️ gespeichertes Stichwort";
+                case SuchTrefferQuelle.Zuordnungsname: return "🔗 über Zuordnung gefunden";
+                default: return "📁 über Ordner-/Dateiname gefunden";
+            }
         }
 
         // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 9: Signatur auf
@@ -269,18 +462,57 @@ namespace DAS_LEBENSARCHIV
         // genau dieser einen Methode, keine zweite Sortierlogik irgendwo
         // sonst. AM, Arbeitsmotor und die neue James-Suche rufen alle
         // dieselbe Methode auf.
+        //
+        // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER" (16.08.): diese Ueberladung
+        // bleibt UNVERAENDERT in Signatur und Rueckgabewert bestehen - sie
+        // wird als Delegate an den Arbeitsmotor uebergeben (OeffneArbeitsmotor,
+        // Zeile mit "ZentraleErinnerungsSuche," als Methodengruppe), eine
+        // Signaturaenderung dort haette dessen Konstruktoraufruf gebrochen.
+        // Reicht intern einfach an die neue, dritte Ueberladung weiter.
         private List<Erinnerung> ZentraleErinnerungsSuche(string suchtext, SortierModus sortierung)
+        {
+            return ZentraleErinnerungsSuche(suchtext, sortierung, out _);
+        }
+
+        // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER" (16.08.): neue Ueberladung
+        // ausschliesslich fuer die AM - liefert zusaetzlich zur Trefferliste,
+        // WARUM jede gefundene Erinnerung getroffen hat (trefferQuellen).
+        // Jede Erinnerung wird hier genau EINMAL geprueft (eine Schleife
+        // ueber erinnerungsmodellErinnerungen, kein Join/keine
+        // Vervielfachung) - dadurch kann sie unabhaengig davon, ueber wie
+        // viele Quellen sie passt, auch nur genau EINMAL in trefferQuellen/
+        // treffer (und damit in der AM als genau eine Kachel) landen.
+        private List<Erinnerung> ZentraleErinnerungsSuche(string suchtext, SortierModus sortierung, out Dictionary<Guid, SuchTrefferQuelle> trefferQuellen)
         {
             LadeErinnerungsmodellFallsNoetig();
 
             string normalisiert = (suchtext ?? "").Trim().ToLowerInvariant();
 
-            IEnumerable<Erinnerung> treffer = erinnerungsmodellErinnerungen;
+            trefferQuellen = new Dictionary<Guid, SuchTrefferQuelle>();
 
-            if (normalisiert != "")
+            List<Erinnerung> treffer;
+
+            if (normalisiert == "")
+            {
+                treffer = erinnerungsmodellErinnerungen.ToList();
+            }
+            else
             {
                 List<SehgedaechtnisEintrag> sehgedaechtnis = LadeSehgedaechtnis();
-                treffer = treffer.Where(er => ErinnerungPasstZurZentralenSuche(er, normalisiert, sehgedaechtnis));
+                Dictionary<string, List<string>> alteStichwoerter = ErmittleAlteStichwoerterProDateiname();
+
+                treffer = new List<Erinnerung>();
+
+                foreach (Erinnerung erinnerung in erinnerungsmodellErinnerungen)
+                {
+                    SuchTrefferQuelle? quelle = ErmittleSuchTrefferQuelle(erinnerung, normalisiert, sehgedaechtnis, alteStichwoerter);
+
+                    if (quelle.HasValue)
+                    {
+                        treffer.Add(erinnerung);
+                        trefferQuellen[erinnerung.Id] = quelle.Value;
+                    }
+                }
             }
 
             switch (sortierung)
@@ -317,17 +549,7 @@ namespace DAS_LEBENSARCHIV
             bool alphabetisch = sortItem != null && sortItem.Content.ToString().StartsWith("Alphabetisch");
             SortierModus sortierung = alphabetisch ? SortierModus.AlphabetischAufsteigend : SortierModus.DatumNeuesteZuerst;
 
-            // Nutzer-Feedback (11.08.): neu importierte Dateien sollen IMMER
-            // sichtbar sein, ohne erst gezielt danach suchen zu muessen.
-            // Vorher wurden bereits in der Arbeitsauswahl befindliche
-            // Erinnerungen hier komplett ausgeblendet - unnoetig streng,
-            // da FuegeZurArbeitsauswahlHinzu ein erneutes Hinzufuegen
-            // ohnehin folgenlos abfaengt (kein Duplikat moeglich). Solche
-            // Eintraege bleiben jetzt sichtbar, nur mit einem Hinweis
-            // markiert.
-            HashSet<Guid> bereitsAusgewaehlt = amArbeitsauswahl.Select(a => a.ErinnerungId).ToHashSet();
-
-            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, sortierung).ToList();
+            List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, sortierung, out Dictionary<Guid, SuchTrefferQuelle> trefferQuellen).ToList();
 
             AmDirekteAuswahlListe.Items.Clear();
 
@@ -335,47 +557,118 @@ namespace DAS_LEBENSARCHIV
             {
                 string dateiname = erinnerung.Fundorte.Count > 0 ? Path.GetFileName(erinnerung.Fundorte[0].Pfad) : erinnerung.Id.ToString();
 
-                string beschriftung = bereitsAusgewaehlt.Contains(erinnerung.Id)
-                    ? dateiname + "\n(bereits ausgewählt)"
+                // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER" (16.08.), Punkt 2:
+                // zeigt fuer jeden Suchtreffer sichtbar, WARUM er gefunden
+                // wurde - nur wenn tatsaechlich eine Suche laeuft (leerer
+                // Suchtext = gesamter Bestand, da hat "gefunden wegen" keine
+                // Bedeutung).
+                string beschriftung = trefferQuellen.TryGetValue(erinnerung.Id, out SuchTrefferQuelle quelle)
+                    ? dateiname + "\n" + BeschriftungFuerTrefferQuelle(quelle)
                     : dateiname;
 
                 AmDirekteAuswahlListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, beschriftung));
             }
+
+            // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): die Markierung
+            // (amMarkierteErinnerungIds) ist unabhaengig vom aktuellen
+            // Suchtext und uebersteht damit Sucheingaben. Nach jedem
+            // Neuaufbau der Liste wird sie hier als ListBox-Auswahl wieder
+            // sichtbar gemacht. amUnterdrueckeAmSelectionEvent verhindert,
+            // dass das dabei ausgeloeste SelectionChanged die Markierung
+            // faelschlich veraendert.
+            amUnterdrueckeAmSelectionEvent = true;
+
+            foreach (Border kachel in AmDirekteAuswahlListe.Items.Cast<Border>())
+            {
+                if (kachel.Tag is Erinnerung erinnerungFuerAuswahl && amMarkierteErinnerungIds.Contains(erinnerungFuerAuswahl.Id))
+                {
+                    AmDirekteAuswahlListe.SelectedItems.Add(kachel);
+                    SetzeAmKachelMarkierungsOptik(kachel, true);
+                }
+            }
+
+            amUnterdrueckeAmSelectionEvent = false;
+
+            // A/Opa-ARCHITEKTURAUFTRAG "JAMES-SUCHE -> AM ALS EINZIGER
+            // ARBEITSBEREICH" (16.08.), Punkt 6: Trefferzahl UND Suchbegriff
+            // sichtbar machen - gilt gleichermassen, ob die Suche hier direkt
+            // in der AM eingegeben wurde oder von der James-Suchleiste oben
+            // uebergeben wurde (UebergibSucheAnArbeitsmappe in MainWindow.
+            // Suche.cs setzt nur AmDirekteSucheTextBox.Text, dieser Text
+            // wird hier ohnehin bereits ausgelesen).
+            if (AmDirekteTrefferAnzahlText != null)
+            {
+                AmDirekteTrefferAnzahlText.Text = suchtext.Trim() == ""
+                    ? treffer.Count + " Erinnerung(en) im Bestand:"
+                    : "🔍 Suchergebnisse: \"" + suchtext.Trim() + "\" – " + treffer.Count + " Erinnerung(en):";
+            }
+
+            AktualisiereAmMarkierungsAbhaengigeAnzeige();
         }
 
-
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): einzige Stelle, die
+        // eine Auswahlaenderung im gruenen Fenster in amMarkierteErinnerungIds
+        // uebertraegt. Betrifft NUR die aktuell sichtbaren (nicht durch
+        // einen Suchbegriff weggefilterten) Kacheln - Erinnerungen, die
+        // gerade nicht in der Liste stehen, bleiben in ihrem bisherigen
+        // Markierungs-Zustand unangetastet. Dadurch uebersteht eine
+        // Markierung eine zwischenzeitliche Sucheingabe.
         private void AmDirekteAuswahlListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            AmDirekteAuswahlHinzufuegenButton.IsEnabled = AmDirekteAuswahlListe.SelectedItems.Count > 0;
-        }
-
-        private void AmDirekteAuswahlHinzufuegen_Click(object sender, RoutedEventArgs e)
-        {
-            if (AmDirekteAuswahlListe.SelectedItems.Count == 0)
+            if (amUnterdrueckeAmSelectionEvent)
             {
                 return;
             }
 
-            foreach (Border kachel in AmDirekteAuswahlListe.SelectedItems.Cast<Border>().ToList())
+            foreach (Border kachel in AmDirekteAuswahlListe.Items.Cast<Border>())
             {
-                if (kachel.Tag is Erinnerung erinnerung)
+                if (!(kachel.Tag is Erinnerung erinnerung))
                 {
-                    FuegeZurArbeitsauswahlHinzu(erinnerung.Id, "AM");
+                    continue;
                 }
+
+                bool ausgewaehlt = AmDirekteAuswahlListe.SelectedItems.Contains(kachel);
+
+                if (ausgewaehlt)
+                {
+                    amMarkierteErinnerungIds.Add(erinnerung.Id);
+                }
+                else
+                {
+                    amMarkierteErinnerungIds.Remove(erinnerung.Id);
+                }
+
+                // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): sofortige
+                // sichtbare Rueckmeldung beim Markieren/Entmarkieren -
+                // unabhaengig davon, ob die Liste danach neu aufgebaut wird.
+                SetzeAmKachelMarkierungsOptik(kachel, ausgewaehlt);
             }
 
-            AktualisiereAmArbeitsauswahlAnzeige();
+            AktualisiereAmMarkierungsAbhaengigeAnzeige();
         }
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): landet nicht mehr in
+        // einer eigenen zweiten Liste, sondern markiert die betroffenen
+        // Erinnerungen direkt im EINEN gruenen Fenster. herkunft wird nicht
+        // mehr separat angezeigt (die bisherige Unterscheidung "woher kam
+        // die Erinnerung" sollte laut Auftrag fuer die Oberflaeche
+        // vollstaendig entfallen), der Parameter bleibt aus Kompatibilitaets-
+        // Gruenden zur bestehenden Aufrufstelle (ErinnerungsmodellBetrachterFenster) erhalten.
         private void SendeErinnerungsIdsZurArbeitsmappe(List<Guid> erinnerungIds, string herkunft)
         {
             foreach (Guid id in erinnerungIds)
             {
-                FuegeZurArbeitsauswahlHinzu(id, herkunft);
+                amMarkierteErinnerungIds.Add(id);
             }
 
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
-            AktualisiereAmArbeitsauswahlAnzeige();
+
+            if (AmDirekteSucheTextBox != null)
+            {
+                AmDirekteSucheTextBox.Text = "";
+            }
+
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private class TestimportErgebnis
@@ -621,41 +914,6 @@ namespace DAS_LEBENSARCHIV
             fenster.ShowDialog();
         }
 
-        private void AktualisiereAmArbeitsauswahlAnzeige()
-        {
-            LadeErinnerungsmodellFallsNoetig();
-
-            List<(ArbeitsauswahlEintrag Eintrag, Erinnerung Erinnerung)> ausgewaehlt = amArbeitsauswahl
-                .Select(a => (a, erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == a.ErinnerungId)))
-                .Where(paar => paar.Item2 != null)
-                .ToList();
-
-            AmArbeitsauswahlText.Text = ausgewaehlt.Count == 0
-                ? "Noch keine Erinnerungen in der Arbeitsauswahl."
-                : ausgewaehlt.Count + " Erinnerung(en) zur Neuzuordnung markiert:";
-
-            AmArbeitsauswahlListe.Items.Clear();
-
-            foreach ((ArbeitsauswahlEintrag Eintrag, Erinnerung Erinnerung) paar in ausgewaehlt)
-            {
-                string dateiname = paar.Erinnerung.Fundorte.Count > 0 ? Path.GetFileName(paar.Erinnerung.Fundorte[0].Pfad) : paar.Erinnerung.Id.ToString();
-                AmArbeitsauswahlListe.Items.Add(ErstelleErinnerungsKachel(paar.Erinnerung, "[" + paar.Eintrag.Herkunft + "]\n" + dateiname));
-            }
-
-            bool istAusgewaehlt = ausgewaehlt.Count > 0;
-
-            AmArbeitsauswahlLeerenButton.IsEnabled = istAusgewaehlt;
-
-            AmZuordnenBestaetigenButton.IsEnabled = false;
-            AmAusgewaehlteEntfernenButton.IsEnabled = false;
-            AmMarkierungsHinweisText.Text = istAusgewaehlt
-                ? "Bitte oben markieren, welche Erinnerung(en) diese Aktion betreffen soll (Strg-/Umschalt-Klick für mehrere)."
-                : "";
-
-            AktualisiereAmDirekteAuswahlListe();
-            AktualisiereAmZielAuswahl();
-        }
-
         private void AmZielTypComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             AktualisiereAmZielAuswahl();
@@ -692,40 +950,60 @@ namespace DAS_LEBENSARCHIV
                     .ToList();
             }
 
-            bool zielVorhanden = AmZielObjektComboBox.Items.Count > 0;
-
-            if (!zielVorhanden)
-            {
-                AmZuordnenBestaetigenButton.IsEnabled = false;
-            }
-
-            if (zielVorhanden)
+            if (AmZielObjektComboBox.Items.Count > 0)
             {
                 AmZielObjektComboBox.SelectedIndex = 0;
             }
+
+            AktualisiereAmMarkierungsAbhaengigeAnzeige();
         }
 
-        private List<ArbeitsauswahlEintrag> ErmittleMarkierteArbeitsauswahl()
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // liest die Markierung jetzt direkt aus amMarkierteErinnerungIds -
+        // der EINEN, einzigen Quelle der Wahrheit. Ersetzt sowohl die
+        // fruehere zweigeteilte Version (AmDirekteAuswahlListe UND
+        // AmArbeitsauswahlListe) als auch die noch aeltere reine
+        // Direktsuche-Version. Wird von der rechten Aktionsleiste
+        // (Person/Ereignis/Sammlung/besonderes Ereignis/Asservatenkammer)
+        // ebenso verwendet wie von der AM-eigenen Ziel-Auswahl.
+        private List<Guid> ErmittleMarkierteGruenBereichErinnerungIds()
         {
-            return AmArbeitsauswahlListe.SelectedItems
-                .Cast<Border>()
-                .Select(b => b.Tag as Erinnerung)
-                .Where(er => er != null)
-                .Select(er => amArbeitsauswahl.FirstOrDefault(a => a.ErinnerungId == er.Id))
-                .Where(a => a != null)
-                .ToList();
+            return amMarkierteErinnerungIds.ToList();
         }
 
-        private void AmArbeitsauswahlListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): EINE zentrale Stelle,
+        // die nach jeder Aenderung der Markierung (Auswahl im gruenen
+        // Fenster, Ziel-Auswahl, Import, Neuaufbau der Liste) sowohl die
+        // beiden AM-eigenen Buttons ("Neue Zuordnung anlegen"/"Markierte in
+        // den Papierkorb", zusaetzlich von der Ziel-Auswahl abhaengig) als
+        // auch die komplette rechte Aktionsleiste (Person/Ereignis/
+        // Sammlung/Asservatenkammer - nur von der Markierung selbst
+        // abhaengig, AktualisiereArbeitsmappenWerkzeuge in MainWindow.
+        // Arbeitsmappe.cs) auf denselben, einzigen Markierungs-Stand
+        // abstimmt.
+        private void AktualisiereAmMarkierungsAbhaengigeAnzeige()
         {
-            int markiert = AmArbeitsauswahlListe.SelectedItems.Count;
+            int anzahl = amMarkierteErinnerungIds.Count;
+            bool zielVorhanden = AmZielObjektComboBox != null && AmZielObjektComboBox.Items.Count > 0;
 
-            AmZuordnenBestaetigenButton.IsEnabled = markiert > 0 && AmZielObjektComboBox.Items.Count > 0;
-            AmAusgewaehlteEntfernenButton.IsEnabled = markiert > 0;
+            if (AmZuordnenBestaetigenButton != null)
+            {
+                AmZuordnenBestaetigenButton.IsEnabled = anzahl > 0 && zielVorhanden;
+            }
 
-            AmMarkierungsHinweisText.Text = markiert == 0
-                ? "Bitte oben markieren, welche Erinnerung(en) diese Aktion betreffen soll (Strg-/Umschalt-Klick für mehrere)."
-                : markiert + " von " + amArbeitsauswahl.Count + " markiert - nur diese werden bei \"Neue Zuordnung anlegen\" oder \"Entfernen\" betroffen.";
+            if (AmMarkierteInPapierkorbButton != null)
+            {
+                AmMarkierteInPapierkorbButton.IsEnabled = anzahl > 0 && zielVorhanden;
+            }
+
+            if (AmMarkierungsHinweisText != null)
+            {
+                AmMarkierungsHinweisText.Text = anzahl == 0
+                    ? "Bitte oben in der Liste markieren, welche Erinnerung(en) betroffen sein sollen (Strg-/Umschalt-Klick für mehrere)."
+                    : anzahl + " Erinnerung(en) markiert - alle Aktionen rechts sowie \"Neue Zuordnung anlegen\"/\"Markierte in den Papierkorb\" betreffen nur diese.";
+            }
+
+            AktualisiereArbeitsmappenWerkzeuge();
         }
 
         // A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.), Punkt 5: Kernlogik des
@@ -777,11 +1055,11 @@ namespace DAS_LEBENSARCHIV
 
         private void AmZuordnenBestaetigen_Click(object sender, RoutedEventArgs e)
         {
-            List<ArbeitsauswahlEintrag> markiert = ErmittleMarkierteArbeitsauswahl();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
 
             if (markiert.Count == 0)
             {
-                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) neu zugeordnet werden sollen (in der Liste oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
+                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) neu zugeordnet werden sollen (in einer der Listen oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
                 return;
             }
 
@@ -819,7 +1097,7 @@ namespace DAS_LEBENSARCHIV
 
             bool ergebnis = James.FrageJaNein(
                 "Genau " + markiert.Count + " markierte Erinnerung(en) neu zuordnen zu \"" + zielBezeichnung + "\"?\n\n" +
-                "Nicht markierte Erinnerungen in der Arbeitsauswahl bleiben unverändert. Bisherige Zuordnungen der markierten Erinnerungen bleiben zusätzlich bestehen.",
+                "Nicht markierte Erinnerungen bleiben unverändert. Bisherige Zuordnungen der markierten Erinnerungen bleiben zusätzlich bestehen.",
                 James.TitelEntscheidung);
 
             if (!ergebnis)
@@ -827,14 +1105,15 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<Guid> erinnerungIds = markiert.Select(eintrag => eintrag.ErinnerungId).ToList();
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, zielTyp, zielId, zielBezeichnung, out int anzahlBereitsVorhanden);
 
-            bool gespeichertVerifiziert = FuehreZuordnungDurch(erinnerungIds, zielTyp, zielId, zielBezeichnung, out int anzahlBereitsVorhanden);
-
-            foreach (ArbeitsauswahlEintrag eintrag in markiert)
-            {
-                amArbeitsauswahl.Remove(eintrag);
-            }
+            // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): die Markierung
+            // bleibt nach dem Zuordnen bewusst bestehen (einheitlich mit
+            // der rechten Aktionsleiste, siehe Punkt 3/Optimierung nach
+            // Test 2) - so koennen dieselben markierten Erinnerungen im
+            // selben Arbeitsgang zusaetzlich einer weiteren Person/einem
+            // Ereignis/einer Sammlung zugeordnet werden. Nur der Button
+            // "Markierung aufheben" loescht die Markierung noch aktiv.
 
             // A/Opa-SCHUTZAUFTRAG (13.08.): Ruecklmeldung, wenn Erinnerungen
             // uebersprungen wurden, weil sie diesem Ziel bereits zugeordnet
@@ -842,7 +1121,7 @@ namespace DAS_LEBENSARCHIV
             // "Diese Erinnerung ist bereits der Sammlung X zugeordnet").
             int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
 
-            AktualisiereAmArbeitsauswahlAnzeige();
+            AktualisiereAmDirekteAuswahlListe();
 
             string hinweisBereitsVorhanden = anzahlBereitsVorhanden > 0
                 ? " (" + anzahlBereitsVorhanden + " war(en) \"" + zielBezeichnung + "\" bereits zugeordnet und wurde(n) übersprungen.)"
@@ -853,29 +1132,111 @@ namespace DAS_LEBENSARCHIV
                 : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
         }
 
-        private void AmAusgewaehlteEntfernen_Click(object sender, RoutedEventArgs e)
+        // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.), Teil D:
+        // "Markierte Erinnerungen in den Papierkorb" - betrifft AUSSCHLIESSLICH
+        // die tatsaechlich markierten Erinnerungen (wiederverwendet
+        // ErmittleMarkierteArbeitsauswahl, dasselbe Schutzprinzip wie bei
+        // "Neue Zuordnung anlegen"), NIEMALS die gesamte Arbeitsauswahl/
+        // Sammlung/Ereignis/Person. Nutzt dieselbe Ziel-Auswahl (AmZielTyp-/
+        // AmZielObjektComboBox), die fuer das Zuordnen bereits existiert -
+        // die markierten Erinnerungen werden aus GENAU diesem Ziel entfernt,
+        // die Zuordnung landet im bereits bestehenden Zuordnungs-Papierkorb
+        // (VersucheAusNeuemModellEntfernen -> EntferneZuordnungenInPapierkorb,
+        // keine neue Papierkorb-Logik). Erinnerung selbst und alle anderen
+        // Zuordnungen bleiben unangetastet.
+        private void AmMarkierteInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
-            List<ArbeitsauswahlEintrag> markiert = ErmittleMarkierteArbeitsauswahl();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
 
             if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) in den Papierkorb sollen (in einer der Listen oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
+                return;
+            }
+
+            if (!ErmittleAmZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung))
             {
                 return;
             }
 
-            foreach (ArbeitsauswahlEintrag eintrag in markiert)
+            bool ergebnis = James.FrageJaNein(
+                markiert.Count + " markierte Erinnerung(en) aus \"" + zielBezeichnung + "\" in den Papierkorb legen?\n\n" +
+                "Die Erinnerung(en) selbst und alle anderen Zuordnungen bleiben bestehen - die Zuordnung(en) landen im Zuordnungs-Papierkorb (im Papierkorb-Tab wiederherstellbar).",
+                James.TitelEntscheidung, MessageBoxImage.Warning);
+
+            if (!ergebnis)
             {
-                amArbeitsauswahl.Remove(eintrag);
+                return;
             }
 
-            AktualisiereAmArbeitsauswahlAnzeige();
-            AmStatusText.Text = markiert.Count + " Erinnerung(en) aus der Arbeitsauswahl entfernt (nicht zugeordnet, nichts gelöscht).";
+            int entfernt = 0;
+
+            foreach (Guid id in markiert)
+            {
+                Erinnerung erinnerung = erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == id);
+                string pfad = erinnerung?.Fundorte != null && erinnerung.Fundorte.Count > 0 ? erinnerung.Fundorte[0].Pfad : null;
+
+                if (pfad != null && VersucheAusNeuemModellEntfernen(zielTyp, zielId, pfad))
+                {
+                    entfernt++;
+                }
+            }
+
+            AktualisiereZuordnungsPapierkorbAnzeige();
+            AktualisiereAmDirekteAuswahlListe();
+
+            if (entfernt == markiert.Count)
+            {
+                AmStatusText.Text = "✓ " + entfernt + " Zuordnung(en) zu \"" + zielBezeichnung + "\" in den Papierkorb gelegt.";
+            }
+            else if (entfernt > 0)
+            {
+                AmStatusText.Text = entfernt + " von " + markiert.Count + " in den Papierkorb gelegt - der Rest hatte keine Zuordnung zu \"" + zielBezeichnung + "\".";
+            }
+            else
+            {
+                James.Problem("Keine der markierten Erinnerungen war \"" + zielBezeichnung + "\" zugeordnet - nichts wurde entfernt.");
+            }
         }
 
-        private void AmArbeitsauswahlLeeren_Click(object sender, RoutedEventArgs e)
+        // Kleine Hilfsmethode, liest dieselbe AM-Ziel-Auswahl aus, die
+        // AmZuordnenBestaetigen_Click bereits verwendet - keine zweite
+        // Ziel-Auswahl-Logik.
+        private bool ErmittleAmZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung)
         {
-            amArbeitsauswahl.Clear();
-            AktualisiereAmArbeitsauswahlAnzeige();
-            AmStatusText.Text = "Arbeitsauswahl geleert - es wurde nichts zugeordnet.";
+            zielTyp = ZuordnungsZielTyp.Person;
+            zielId = Guid.Empty;
+            zielBezeichnung = null;
+
+            ComboBoxItem ausgewaehlterTyp = AmZielTypComboBox.SelectedItem as ComboBoxItem;
+            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
+
+            if (typText == "Ereignis")
+            {
+                Ereignis ereignis = AmZielObjektComboBox.SelectedItem as Ereignis;
+                if (ereignis == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Ereignis;
+                zielId = ereignis.Id;
+                zielBezeichnung = ereignis.Titel;
+            }
+            else if (typText == "Sammlung")
+            {
+                Sammlung sammlung = AmZielObjektComboBox.SelectedItem as Sammlung;
+                if (sammlung == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Sammlung;
+                zielId = sammlung.Id;
+                zielBezeichnung = sammlung.Titel;
+            }
+            else
+            {
+                Person person = AmZielObjektComboBox.SelectedItem as Person;
+                if (person == null) { return false; }
+                zielTyp = ZuordnungsZielTyp.Person;
+                zielId = person.Id;
+                zielBezeichnung = person.ToString();
+            }
+
+            return true;
         }
 
         // ============================================================
@@ -988,17 +1349,19 @@ namespace DAS_LEBENSARCHIV
                     ? Path.GetFileName(erinnerung.Fundorte[0].Pfad)
                     : "(Erinnerung nicht mehr auffindbar)";
 
+                string herkunftText = "war zugeordnet zu " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung;
+
                 Border kachel = erinnerung != null
-                    ? ErstelleErinnerungsKachel(erinnerung, dateiname + "\nwar: " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung)
-                    : new Border { Child = new TextBlock { Text = dateiname + "\nwar: " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung, Margin = new Thickness(6) } };
+                    ? ErstelleErinnerungsKachel(erinnerung, dateiname + "\n" + herkunftText)
+                    : new Border { Child = new TextBlock { Text = dateiname + "\n" + herkunftText, TextWrapping = TextWrapping.Wrap, MaxWidth = 195, Margin = new Thickness(6) } };
 
                 kachel.Tag = zuordnung;
                 JamesGeloesteZuordnungenListe.Items.Add(kachel);
             }
 
             JamesGeloesteZuordnungenAnzahlText.Text = erinnerungsmodellZuordnungenPapierkorb.Count == 0
-                ? "Keine gelösten Zuordnungen."
-                : erinnerungsmodellZuordnungenPapierkorb.Count + " gelöste Zuordnung(en):";
+                ? "Keine einzelnen Erinnerungs-Zuordnungen im Papierkorb."
+                : erinnerungsmodellZuordnungenPapierkorb.Count + " einzelne Erinnerungs-Zuordnung(en):";
 
             JamesZuordnungWiederherstellenButton.IsEnabled = false;
             JamesZuordnungEndgueltigLoeschenButton.IsEnabled = false;
@@ -1671,6 +2034,235 @@ namespace DAS_LEBENSARCHIV
                 James.Problem("Das neue Erinnerungsmodell konnte nicht gespeichert werden: " + ex.Message + "\n\npersonen.json ist davon nicht betroffen.");
                 return false;
             }
+        }
+
+        // ============================================================
+        // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.), TEIL A
+        // ============================================================
+        // EIN gemeinsamer Papierkorb ueber die vier bisherigen, technisch
+        // getrennten Listen (Person/Ereignis/Sammlung/Zuordnung) - "gemeinsame
+        // Oberflaeche statt Datenumbau" (A's ausdrueckliche Vorgabe). Diese
+        // Uebersicht LIEST nur aus den vier bestehenden Listen und ruft bei
+        // Wiederherstellen/Endgueltig-Loeschen die JEWEILS BEREITS
+        // BESTEHENDE, typspezifische Logik auf (Wiederherstellen_Click/
+        // EndgueltigLoeschen_Click fuer Person, FreiesEreignisWiederherstellen_
+        // Click/FreiesEreignisEndgueltigLoeschen_Click fuer Ereignis,
+        // SammlungWiederherstellen_Click/SammlungEndgueltigLoeschen_Click fuer
+        // Sammlung, JamesZuordnungWiederherstellen_Click/
+        // JamesZuordnungEndgueltigLoeschen_Click fuer Zuordnung) - dafuer wird
+        // die Auswahl kurz in die jeweils zustaendige, bestehende ListBox
+        // uebertragen und deren vorhandener Click-Handler direkt aufgerufen.
+        // Keine neue Wiederherstellen-/Loesch-Logik, keine Aenderung an den
+        // vier bestehenden, weiterhin unveraendert sichtbaren Bereichen.
+        private class GemeinsamerPapierkorbEintrag
+        {
+            public string Typ;
+            public string Name;
+            public string Herkunft;
+            public object Referenz;
+        }
+
+        private List<GemeinsamerPapierkorbEintrag> ErmittleGemeinsamePapierkorbEintraege()
+        {
+            List<GemeinsamerPapierkorbEintrag> ergebnis = new List<GemeinsamerPapierkorbEintrag>();
+
+            foreach (Person person in PapierkorbListe.Items.OfType<Person>())
+            {
+                ergebnis.Add(new GemeinsamerPapierkorbEintrag { Typ = "Person", Name = person.ToString(), Herkunft = "", Referenz = person });
+            }
+
+            foreach (Ereignis ereignis in freieEreignissePapierkorb)
+            {
+                ergebnis.Add(new GemeinsamerPapierkorbEintrag { Typ = "Ereignis", Name = ereignis.Titel, Herkunft = "", Referenz = ereignis });
+            }
+
+            foreach (Sammlung sammlung in sammlungenPapierkorb)
+            {
+                ergebnis.Add(new GemeinsamerPapierkorbEintrag { Typ = "Sammlung", Name = sammlung.Titel, Herkunft = "", Referenz = sammlung });
+            }
+
+            foreach (Zuordnung zuordnung in erinnerungsmodellZuordnungenPapierkorb)
+            {
+                Erinnerung erinnerung = erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == zuordnung.ErinnerungId);
+                string name = erinnerung != null && erinnerung.Fundorte.Count > 0
+                    ? Path.GetFileName(erinnerung.Fundorte[0].Pfad)
+                    : "(Erinnerung nicht mehr auffindbar)";
+
+                ergebnis.Add(new GemeinsamerPapierkorbEintrag
+                {
+                    Typ = "Erinnerung",
+                    Name = name,
+                    Herkunft = "war zugeordnet zu " + zuordnung.ZielTyp + ": " + zuordnung.ZielBezeichnung,
+                    Referenz = zuordnung
+                });
+            }
+
+            return ergebnis;
+        }
+
+        private void AktualisiereGemeinsamePapierkorbUebersicht()
+        {
+            if (GemeinsamerPapierkorbListe == null)
+            {
+                return;
+            }
+
+            List<GemeinsamerPapierkorbEintrag> eintraege = ErmittleGemeinsamePapierkorbEintraege();
+
+            GemeinsamerPapierkorbListe.Items.Clear();
+
+            foreach (GemeinsamerPapierkorbEintrag eintrag in eintraege)
+            {
+                string symbol = eintrag.Typ switch
+                {
+                    "Person" => "👤",
+                    "Ereignis" => "📅",
+                    "Sammlung" => "🗂️",
+                    _ => "🖼️"
+                };
+
+                Border kachel = new Border
+                {
+                    Width = 230,
+                    MinHeight = 64,
+                    Margin = new Thickness(4),
+                    Padding = new Thickness(8),
+                    BorderBrush = Brushes.LightGray,
+                    BorderThickness = new Thickness(1),
+                    Background = Brushes.WhiteSmoke,
+                    Tag = eintrag
+                };
+
+                StackPanel inhalt = new StackPanel();
+
+                inhalt.Children.Add(new TextBlock { Text = symbol + " " + eintrag.Typ, FontWeight = FontWeights.Bold, FontSize = 11 });
+                inhalt.Children.Add(new TextBlock { Text = eintrag.Name, TextWrapping = TextWrapping.Wrap, MaxWidth = 210 });
+
+                if (!string.IsNullOrEmpty(eintrag.Herkunft))
+                {
+                    inhalt.Children.Add(new TextBlock { Text = eintrag.Herkunft, TextWrapping = TextWrapping.Wrap, MaxWidth = 210, Foreground = Brushes.Gray, FontSize = 11 });
+                }
+
+                kachel.Child = inhalt;
+                GemeinsamerPapierkorbListe.Items.Add(kachel);
+            }
+
+            GemeinsamerPapierkorbAnzahlText.Text = eintraege.Count == 0
+                ? "Der Papierkorb ist leer."
+                : eintraege.Count + " Eintrag/Einträge im Papierkorb:";
+
+            GemeinsamerPapierkorbWiederherstellenButton.IsEnabled = false;
+            GemeinsamerPapierkorbEndgueltigLoeschenButton.IsEnabled = false;
+        }
+
+        private void GemeinsamerPapierkorbListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int anzahl = GemeinsamerPapierkorbListe.SelectedItems.Count;
+            GemeinsamerPapierkorbWiederherstellenButton.IsEnabled = anzahl > 0;
+            GemeinsamerPapierkorbEndgueltigLoeschenButton.IsEnabled = anzahl > 0;
+        }
+
+        // Ermittelt, welche der ausgewaehlten Kacheln zu welchem Typ gehoeren.
+        private void GruppiereGemeinsamePapierkorbAuswahl(
+            out List<Person> personen, out List<Ereignis> ereignisse,
+            out List<Sammlung> sammlungenListe, out List<Zuordnung> zuordnungenListe)
+        {
+            List<GemeinsamerPapierkorbEintrag> ausgewaehlt = GemeinsamerPapierkorbListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as GemeinsamerPapierkorbEintrag)
+                .Where(x => x != null)
+                .ToList();
+
+            personen = ausgewaehlt.Where(x => x.Typ == "Person").Select(x => (Person)x.Referenz).ToList();
+            ereignisse = ausgewaehlt.Where(x => x.Typ == "Ereignis").Select(x => (Ereignis)x.Referenz).ToList();
+            sammlungenListe = ausgewaehlt.Where(x => x.Typ == "Sammlung").Select(x => (Sammlung)x.Referenz).ToList();
+            zuordnungenListe = ausgewaehlt.Where(x => x.Typ == "Erinnerung").Select(x => (Zuordnung)x.Referenz).ToList();
+        }
+
+        private void GemeinsamerPapierkorbWiederherstellen_Click(object sender, RoutedEventArgs e)
+        {
+            GruppiereGemeinsamePapierkorbAuswahl(out List<Person> personen, out List<Ereignis> ereignisse, out List<Sammlung> sammlungenListe, out List<Zuordnung> zuordnungenListe);
+
+            if (personen.Count > 0)
+            {
+                PapierkorbListe.SelectedItems.Clear();
+                foreach (Person p in personen) { PapierkorbListe.SelectedItems.Add(p); }
+                Wiederherstellen_Click(sender, e);
+            }
+
+            if (ereignisse.Count > 0)
+            {
+                FreieEreignissePapierkorbListe.SelectedItems.Clear();
+                foreach (Ereignis ev in ereignisse) { FreieEreignissePapierkorbListe.SelectedItems.Add(ev); }
+                FreiesEreignisWiederherstellen_Click(sender, e);
+            }
+
+            if (sammlungenListe.Count > 0)
+            {
+                SammlungenPapierkorbListe.SelectedItems.Clear();
+                foreach (Sammlung s in sammlungenListe) { SammlungenPapierkorbListe.SelectedItems.Add(s); }
+                SammlungWiederherstellen_Click(sender, e);
+            }
+
+            if (zuordnungenListe.Count > 0)
+            {
+                JamesGeloesteZuordnungenListe.SelectedItems.Clear();
+
+                foreach (object element in JamesGeloesteZuordnungenListe.Items)
+                {
+                    if (element is Border b && b.Tag is Zuordnung z && zuordnungenListe.Contains(z))
+                    {
+                        JamesGeloesteZuordnungenListe.SelectedItems.Add(b);
+                    }
+                }
+
+                JamesZuordnungWiederherstellen_Click(sender, e);
+            }
+
+            AktualisiereGemeinsamePapierkorbUebersicht();
+        }
+
+        private void GemeinsamerPapierkorbEndgueltigLoeschen_Click(object sender, RoutedEventArgs e)
+        {
+            GruppiereGemeinsamePapierkorbAuswahl(out List<Person> personen, out List<Ereignis> ereignisse, out List<Sammlung> sammlungenListe, out List<Zuordnung> zuordnungenListe);
+
+            if (personen.Count > 0)
+            {
+                PapierkorbListe.SelectedItems.Clear();
+                foreach (Person p in personen) { PapierkorbListe.SelectedItems.Add(p); }
+                EndgueltigLoeschen_Click(sender, e);
+            }
+
+            if (ereignisse.Count > 0)
+            {
+                FreieEreignissePapierkorbListe.SelectedItems.Clear();
+                foreach (Ereignis ev in ereignisse) { FreieEreignissePapierkorbListe.SelectedItems.Add(ev); }
+                FreiesEreignisEndgueltigLoeschen_Click(sender, e);
+            }
+
+            if (sammlungenListe.Count > 0)
+            {
+                SammlungenPapierkorbListe.SelectedItems.Clear();
+                foreach (Sammlung s in sammlungenListe) { SammlungenPapierkorbListe.SelectedItems.Add(s); }
+                SammlungEndgueltigLoeschen_Click(sender, e);
+            }
+
+            if (zuordnungenListe.Count > 0)
+            {
+                JamesGeloesteZuordnungenListe.SelectedItems.Clear();
+
+                foreach (object element in JamesGeloesteZuordnungenListe.Items)
+                {
+                    if (element is Border b && b.Tag is Zuordnung z && zuordnungenListe.Contains(z))
+                    {
+                        JamesGeloesteZuordnungenListe.SelectedItems.Add(b);
+                    }
+                }
+
+                JamesZuordnungEndgueltigLoeschen_Click(sender, e);
+            }
+
+            AktualisiereGemeinsamePapierkorbUebersicht();
         }
     }
 }

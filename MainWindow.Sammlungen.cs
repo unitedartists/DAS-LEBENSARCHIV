@@ -381,8 +381,9 @@ namespace DAS_LEBENSARCHIV
 
         private void ArbeitsmappeNeueSammlungAnlegen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -393,6 +394,11 @@ namespace DAS_LEBENSARCHIV
             SammlungTitelTextBox.Focus();
         }
 
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: Sammlung-Anlegen bleibt (schreibt
+        // weiterhin personen.json - das ist die eigentliche "neue
+        // Sammlung"-Funktion), Zuordnung der markierten Erinnerungen jetzt
+        // ueber FuehreZuordnungDurch statt physischer Kopie.
         private void SammlungSpeichernUndZuordnen_Click(object sender, RoutedEventArgs e)
         {
             string titel = SammlungTitelTextBox.Text.Trim();
@@ -400,6 +406,14 @@ namespace DAS_LEBENSARCHIV
             if (titel == "")
             {
                 James.Hinweis(James.BitteEreignisTitelEingeben);
+                return;
+            }
+
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) dieser neuen Sammlung zugeordnet werden sollen.");
                 return;
             }
 
@@ -422,17 +436,30 @@ namespace DAS_LEBENSARCHIV
             SpeichereDaten();
             AktualisiereSammlungenAnzeige();
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
-            VerknuepfeArbeitsmappenDateienMitSammlung(zielSammlung, pfade);
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Sammlung, zielSammlung.Id, zielSammlung.Titel, out int anzahlBereitsVorhanden);
+
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
+
+            ArbeitsmappeStatusText.Text = gespeichertVerifiziert
+                ? "✓ Sammlung \"" + zielSammlung.Titel + "\" angelegt, " + anzahlNeu + " Erinnerung(en) zugeordnet."
+                : "⚠ Sammlung angelegt, aber Zuordnung konnte nicht verifiziert werden - bitte prüfen.";
+
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe MainWindow.ArbeitsmappeZuordnung.cs, ArbeitsmappeTitelbildBestaetigen_Click.
+            if (gespeichertVerifiziert)
+            {
+                James.Hinweis("Sammlung \"" + zielSammlung.Titel + "\" angelegt. " +
+                    (anzahlNeu == 1 ? "1 Erinnerung wurde " : anzahlNeu + " Erinnerungen wurden ") + "zugeordnet.");
+            }
 
             ArbeitsmappeNeueSammlungPanel.Visibility = Visibility.Collapsed;
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private void ArbeitsmappeSammlungZuordnen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -453,6 +480,10 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeSammlungAuswahlPanel.Visibility = Visibility.Collapsed;
         }
 
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: statt physischer Kopie via
+        // VerknuepfeArbeitsmappenDateienMitSammlung (alt) jetzt
+        // FuehreZuordnungDurch je ausgewaehlter Sammlung (neues Modell).
         private void SammlungBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<Sammlung> ausgewaehlteSammlungen = FreieSammlungenListe.SelectedItems.Cast<Sammlung>().ToList();
@@ -463,17 +494,33 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) zugeordnet werden sollen.");
+                return;
+            }
+
+            int gesamtNeu = 0;
+            int gesamtBereitsVorhanden = 0;
 
             foreach (Sammlung sammlung in ausgewaehlteSammlungen)
             {
-                List<string> pfadeKopie = new List<string>(pfade);
-                VerknuepfeArbeitsmappenDateienMitSammlung(sammlung, pfadeKopie);
+                FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Sammlung, sammlung.Id, sammlung.Titel, out int anzahlBereitsVorhanden);
+                gesamtNeu += markiert.Count - anzahlBereitsVorhanden;
+                gesamtBereitsVorhanden += anzahlBereitsVorhanden;
             }
 
-            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteSammlungen.Count + " Sammlung(en).";
+            ArbeitsmappeStatusText.Text = "✓ " + gesamtNeu + " Zuordnung(en) angelegt zu " + ausgewaehlteSammlungen.Count + " Sammlung(en)." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " bereits vorhanden, übersprungen.)" : "");
 
-            AktualisiereArbeitsmappe();
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe MainWindow.ArbeitsmappeZuordnung.cs, ArbeitsmappeTitelbildBestaetigen_Click.
+            string zielNamen = string.Join(", ", ausgewaehlteSammlungen.Select(s => s.Titel));
+            James.Hinweis((markiert.Count == 1 ? "1 Erinnerung wurde " : markiert.Count + " Erinnerungen wurden ") + "der Sammlung " + zielNamen + " zugeordnet." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " war(en) bereits zugeordnet und wurde(n) übersprungen.)" : ""));
+
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private void FreieSammlungenListe_SelectionChanged(object sender, SelectionChangedEventArgs e)

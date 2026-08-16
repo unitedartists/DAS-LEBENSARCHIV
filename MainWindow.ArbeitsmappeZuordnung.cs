@@ -12,8 +12,9 @@ namespace DAS_LEBENSARCHIV
     {
         private void ArbeitsmappeMitEreignisVerbinden_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -41,6 +42,13 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: statt physischer Kopie via
+        // VerknuepfeArbeitsmappenDateienMitEreignis (alt) jetzt
+        // FuehreZuordnungDurch (neues Modell) - keine Kopie der
+        // Originaldatei, keine Aenderung an alten Ereignis-Foto-Feldern.
+        // Betrifft ausschliesslich die im gruenen Bereich markierten
+        // Erinnerungen (ErmittleMarkierteGruenBereichErinnerungIds).
         private void ArbeitsmappeEreignisBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             Person person = ArbeitsmappePersonComboBox.SelectedItem as Person;
@@ -52,12 +60,31 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
 
-            VerknuepfeArbeitsmappenDateienMitEreignis(person, ereignis, pfade);
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) zugeordnet werden sollen.");
+                return;
+            }
+
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Ereignis, ereignis.Id, ereignis.Titel, out int anzahlBereitsVorhanden);
+
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
+
+            ArbeitsmappeStatusText.Text = gespeichertVerifiziert
+                ? "✓ " + anzahlNeu + " Erinnerung(en) dem Ereignis \"" + ereignis.Titel + "\" zugeordnet." + (anzahlBereitsVorhanden > 0 ? " (" + anzahlBereitsVorhanden + " war(en) bereits zugeordnet.)" : "")
+                : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
+
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe ArbeitsmappeTitelbildBestaetigen_Click.
+            if (gespeichertVerifiziert)
+            {
+                James.Hinweis((markiert.Count == 1 ? "1 Erinnerung wurde " : markiert.Count + " Erinnerungen wurden ") + "dem Ereignis \"" + ereignis.Titel + "\" zugeordnet." +
+                    (anzahlBereitsVorhanden > 0 ? " (" + anzahlBereitsVorhanden + " war(en) bereits zugeordnet und wurde(n) übersprungen.)" : ""));
+            }
 
             ArbeitsmappeEreignisAuswahlPanel.Visibility = Visibility.Collapsed;
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private int VerbindeDateienMitEreignis(Ereignis ereignis, List<string> pfade, string zielOrdner)
@@ -159,8 +186,9 @@ namespace DAS_LEBENSARCHIV
 
         private void ArbeitsmappeNeuesEreignisAnlegen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -221,6 +249,14 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) diesem neuen Ereignis zugeordnet werden sollen.");
+                return;
+            }
+
             string jahreszeit = "";
             ComboBoxItem ausgewaehlteJahreszeit = ArbeitsmappeEreignisJahreszeitComboBox.SelectedItem as ComboBoxItem;
 
@@ -263,17 +299,26 @@ namespace DAS_LEBENSARCHIV
 
             SpeichereDaten();
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
-            int vorherAusgewaehlt = arbeitsmappeAusgewaehlt.Count;
+            // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+            // UMSTELLEN" (16.08.), Weg 2: das ANLEGEN des Ereignisses selbst
+            // bleibt (schreibt weiterhin personen.json - das ist die
+            // eigentliche "neues Ereignis"-Funktion, keine automatische
+            // AM-Zuordnung). Die ZUORDNUNG der markierten Erinnerungen zu
+            // diesem Ereignis laeuft jetzt aber ueber FuehreZuordnungDurch
+            // statt physischer Kopie.
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Ereignis, neuesEreignis.Id, neuesEreignis.Titel, out int anzahlBereitsVorhanden);
 
-            VerknuepfeArbeitsmappenDateienMitEreignis(person, neuesEreignis, pfade);
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
 
-            bool wurdeFotoVerbunden = arbeitsmappeAusgewaehlt.Count < vorherAusgewaehlt;
+            ArbeitsmappeStatusText.Text = gespeichertVerifiziert
+                ? "✓ Ereignis \"" + neuesEreignis.Titel + "\" angelegt, " + anzahlNeu + " Erinnerung(en) zugeordnet."
+                : "⚠ Ereignis angelegt, aber Zuordnung konnte nicht verifiziert werden - bitte prüfen.";
 
-            if (!wurdeFotoVerbunden)
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe ArbeitsmappeTitelbildBestaetigen_Click.
+            if (gespeichertVerifiziert)
             {
-                int gesamtErinnerungen = ZaehleErinnerungenDerPerson(person);
-                ArbeitsmappeStatusText.Text = James.ArbeitsmappeEreignisAngelegtUndVerbunden(neuesEreignis.Titel, person.ToString(), gesamtErinnerungen);
+                James.Hinweis("Ereignis \"" + neuesEreignis.Titel + "\" angelegt. " +
+                    (anzahlNeu == 1 ? "1 Erinnerung wurde " : anzahlNeu + " Erinnerungen wurden ") + "zugeordnet.");
             }
 
             ZeigeArbeitsmappeEreignisOeffnenButton(person, neuesEreignis);
@@ -282,13 +327,14 @@ namespace DAS_LEBENSARCHIV
 
             ArbeitsmappeNeuesEreignisFormularPanel.Visibility = Visibility.Collapsed;
 
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private void ArbeitsmappeNeuePersonAnlegen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -314,6 +360,14 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) dieser neuen Person zugeordnet werden sollen.");
+                return;
+            }
+
             string beziehungstext = ArbeitsmappeNeuePersonBeziehungComboBox.Text != null
                 ? ArbeitsmappeNeuePersonBeziehungComboBox.Text.Trim()
                 : "";
@@ -334,13 +388,30 @@ namespace DAS_LEBENSARCHIV
 
             SpeichereDaten();
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
+            // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+            // UMSTELLEN" (16.08.), Weg 2: das ANLEGEN der Person selbst
+            // bleibt (schreibt weiterhin personen.json - das ist die
+            // eigentliche "neue Person"-Funktion). Die ZUORDNUNG der
+            // markierten Erinnerungen laeuft jetzt ueber FuehreZuordnungDurch
+            // statt physischer Kopie in einen Personen-Ordner.
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Person, neuePerson.Id, neuePerson.ToString(), out int anzahlBereitsVorhanden);
 
-            VerknuepfeArbeitsmappenDateienMitPerson(neuePerson, pfade);
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
+
+            ArbeitsmappeStatusText.Text = gespeichertVerifiziert
+                ? "✓ Person \"" + neuePerson.ToString() + "\" angelegt, " + anzahlNeu + " Erinnerung(en) zugeordnet."
+                : "⚠ Person angelegt, aber Zuordnung konnte nicht verifiziert werden - bitte prüfen.";
+
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe ArbeitsmappeTitelbildBestaetigen_Click.
+            if (gespeichertVerifiziert)
+            {
+                James.Hinweis("Person \"" + neuePerson.ToString() + "\" angelegt. " +
+                    (anzahlNeu == 1 ? "1 Erinnerung wurde " : anzahlNeu + " Erinnerungen wurden ") + "zugeordnet.");
+            }
 
             ArbeitsmappeNeuePersonPanel.Visibility = Visibility.Collapsed;
 
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
         private void VersteckeAlleArbeitsmappenPanels()
         {
@@ -453,8 +524,9 @@ namespace DAS_LEBENSARCHIV
 
         private void ArbeitsmappePersonZuordnen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -479,6 +551,13 @@ namespace DAS_LEBENSARCHIV
         // die ausgewählten Erinnerungen werden in einem Arbeitsgang JEDER
         // markierten Person zugeordnet (z.B. eine Geburtsfotoserie
         // gleichzeitig an Vater, Mutter, Oma, Opa und Geschwister).
+        //
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: statt physischer Kopie via
+        // VerknuepfeArbeitsmappenDateienMitPerson (alt) jetzt
+        // FuehreZuordnungDurch je ausgewaehlter Person (neues Modell) -
+        // keine Kopie der Originaldatei, keine Aenderung an alten
+        // Personen-Foto-Feldern.
         private void ArbeitsmappeTitelbildBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<Person> ausgewaehltePersonen = ArbeitsmappeTitelbildPersonComboBox.SelectedItems.Cast<Person>().ToList();
@@ -489,20 +568,43 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) zugeordnet werden sollen.");
+                return;
+            }
+
+            int gesamtNeu = 0;
+            int gesamtBereitsVorhanden = 0;
 
             foreach (Person person in ausgewaehltePersonen)
             {
-                List<string> pfadeKopie = new List<string>(pfade);
-                VerknuepfeArbeitsmappenDateienMitPerson(person, pfadeKopie);
+                FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Person, person.Id, person.ToString(), out int anzahlBereitsVorhanden);
+                gesamtNeu += markiert.Count - anzahlBereitsVorhanden;
+                gesamtBereitsVorhanden += anzahlBereitsVorhanden;
             }
 
-            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehltePersonen.Count + " Person(en).";
+            ArbeitsmappeStatusText.Text = "✓ " + gesamtNeu + " Zuordnung(en) angelegt zu " + ausgewaehltePersonen.Count + " Person(en)." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " bereits vorhanden, übersprungen.)" : "");
+
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): ArbeitsmappeStatusText
+            // sitzt ganz unten in der langen rechten Aktionsleiste und blieb beim
+            // Zuordnen ueber diesen Weg oft ausserhalb des sichtbaren Bereichs -
+            // Opa sah dadurch keine verstaendliche Erfolgsmeldung. Zusaetzliches
+            // Popup (dasselbe Muster wie ueberall sonst im Programm) stellt sicher,
+            // dass die Meldung tatsaechlich gesehen wird, unabhaengig vom Scroll-
+            // Stand. Format wie von A/Opa gewuenscht: "<N> Erinnerung(en) wurden
+            // <Ziel> zugeordnet."
+            string zielNamen = string.Join(", ", ausgewaehltePersonen.Select(p => p.ToString()));
+            James.Hinweis((markiert.Count == 1 ? "1 Erinnerung wurde " : markiert.Count + " Erinnerungen wurden ") + zielNamen + " zugeordnet." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " war(en) bereits zugeordnet und wurde(n) übersprungen.)" : ""));
 
             // Optimierungswunsch (31.07.): Panel bleibt offen, damit "Ansehen"
             // und "Archivieren" direkt im Anschluss noch nutzbar sind - schließt
             // erst, wenn der Benutzer selbst auf "Abbrechen" klickt.
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         // Neue Funktion (Generaltest 2): "Erinnerungen ansehen" für Personen

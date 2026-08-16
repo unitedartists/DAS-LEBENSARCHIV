@@ -70,12 +70,34 @@
 
         <!-- James-Suche: immer sichtbar, ueber allen Reitern (Build 0.8) -->
         <!-- Build 1.6: Trefferliste links, Erinnerungskarte rechts daneben -->
+        <!-- REPARATURAUFTRAG NAVIGATION+LAYOUT (16.08.): URSACHE des
+             gemeldeten Problems ("Hauptnavigation nicht mehr vollstaendig
+             nutzbar") war hier gefunden: dieser Border ist im aeusseren
+             DockPanel oben angedockt (DockPanel.Dock="Top"), das
+             HauptTabControl weiter unten ist das FUELLENDE Element. Ein
+             DockPanel gibt einem oben angedockten Element IMMER so viel
+             Hoehe, wie sein Inhalt braucht - unabhaengig vom Restplatz.
+             Seit Teil C (16.08.) deutlich groessere Ergebnis-Kacheln
+             erzeugt, wuchs dieser Bereich bei Suchtreffern entsprechend
+             mit und verdraengte das HauptTabControl darunter fast
+             vollstaendig - im schlimmsten Fall bis zur Unbenutzbarkeit
+             (nur ein Neustart half, weil dann noch kein Suchergebnis
+             sichtbar war). Kleinste saubere Loesung (keine Sichtbarkeiten
+             angefasst, dasselbe bewaehrte Prinzip wie schon beim
+             AM-Arbeitsauswahl-Bereich): MaxHeight + eigener ScrollViewer
+             direkt um den gesamten Border-Inhalt - der Suchbereich kann
+             dadurch nie mehr als einen festen Anteil der Fensterhoehe
+             beanspruchen, der Rest bleibt garantiert fuer das
+             HauptTabControl (und damit alle acht Bereiche) erhalten. -->
         <Border
             DockPanel.Dock="Top"
             Background="#F5F5F5"
             BorderBrush="#DDDDDD"
             BorderThickness="0,0,0,1"
-            Padding="20,14,20,14">
+            Padding="20,14,20,14"
+            MaxHeight="380">
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 
             <StackPanel>
 
@@ -134,74 +156,6 @@
                             Margin="0,8,0,0"
                             TextWrapping="Wrap"
                             Foreground="#555555"/>
-                        <!-- A/Opa-BAUAUFTRAG "JAMES-EINZUG" (12.08.): direkte
-                             Ergebnisanzeige des neuen Erinnerungsmodells,
-                             ersetzt den bisherigen reinen Hinweislink -->
-                        <Border
-                            Name="JamesNeuesModellErgebnisPanel"
-                            Background="#F0F7EE"
-                            BorderBrush="#CFE3C8"
-                            BorderThickness="1"
-                            Padding="14"
-                            Margin="0,10,0,0"
-                            Visibility="Collapsed">
-
-                            <StackPanel>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Name="JamesSortierungComboBox" Width="180" SelectedIndex="0" SelectionChanged="JamesSortierungComboBox_SelectionChanged">
-                                        <ComboBoxItem Content="Datum (neueste zuerst)"/>
-                                        <ComboBoxItem Content="Datum (älteste zuerst)"/>
-                                        <ComboBoxItem Content="Alphabetisch (A-Z)"/>
-                                        <ComboBoxItem Content="Alphabetisch (Z-A)"/>
-                                    </ComboBox>
-                                </StackPanel>
-
-                                <TextBlock Name="JamesNeuesModellAnzahlText" Margin="0,0,0,6" Foreground="#555555"/>
-
-                                <ListBox
-                                    Name="JamesNeuesModellTrefferListe"
-                                    Height="220"
-                                    Margin="0,0,0,6"
-                                    SelectionMode="Extended"
-                                    SelectionChanged="JamesNeuesModellTrefferListe_SelectionChanged"
-                                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                    <ListBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel/>
-                                        </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                </ListBox>
-
-                                <TextBlock Name="JamesNeuesModellMarkierungsText" FontStyle="Italic" Foreground="#555555" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Ziel:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Name="JamesZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="JamesZielTypComboBox_SelectionChanged">
-                                        <ComboBoxItem Content="Person"/>
-                                        <ComboBoxItem Content="Ereignis"/>
-                                        <ComboBoxItem Content="Sammlung"/>
-                                    </ComboBox>
-                                    <ComboBox Name="JamesZielObjektComboBox" Width="220"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Name="JamesZuordnenButton" Content="Markierte zuordnen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="JamesZuordnen_Click"/>
-                                    <Button Name="JamesAusZielEntfernenButton" Content="Markierte aus diesem Ziel entfernen" Padding="10,4" IsEnabled="False" Click="JamesAusZielEntfernen_Click"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Name="JamesImportDateiButton" Content="📄 Datei(en) importieren..." Padding="10,4" Margin="0,0,10,0" Click="JamesImportDatei_Click"/>
-                                    <Button Name="JamesImportOrdnerButton" Content="📁 Ordner importieren..." Padding="10,4" Click="JamesImportOrdner_Click"/>
-                                </StackPanel>
-
-                                <TextBlock Name="JamesNeuesModellStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap"/>
-
-                            </StackPanel>
-
-                        </Border>
 
                     </StackPanel>
 
@@ -336,6 +290,8 @@
                 </Grid>
 
             </StackPanel>
+
+            </ScrollViewer>
 
         </Border>
 
@@ -1299,7 +1255,83 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
 
-                <Grid Margin="40">
+                <StackPanel Margin="40,40,40,0">
+
+                    <!-- A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James"
+                         (16.08.), Teil A: EINE gemeinsame Papierkorb-
+                         Uebersicht ueber alle 4 bisherigen Listen (Person/
+                         Ereignis/Sammlung/Zuordnung) - "gemeinsame Oberflaeche
+                         statt Datenumbau" (A's Vorgabe). Die 4 bestehenden,
+                         technisch getrennten Bereiche darunter bleiben
+                         unveraendert bestehen, falls jemand dort direkt
+                         nachsehen will - ihre Wiederherstellen-/Loeschen-
+                         Logik wird hier nur AUFGERUFEN, nicht neu gebaut. -->
+                    <TextBlock
+                        FontSize="18"
+                        FontWeight="Bold"
+                        Margin="0,0,0,4"
+                        Text="📥 Papierkorb"/>
+
+                    <TextBlock
+                        FontStyle="Italic"
+                        Foreground="#777777"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,14"
+                        Text="Hier liegt alles, was Sie zuletzt entfernt haben - egal ob eine ganze Person, ein Ereignis, eine Sammlung oder nur eine einzelne Erinnerungs-Zuordnung. Nichts wird endgültig gelöscht, bis Sie es ausdrücklich bestätigen."/>
+
+                    <Border
+                        Background="#F5F5F5"
+                        BorderBrush="#DDDDDD"
+                        BorderThickness="1"
+                        Padding="14"
+                        Margin="0,0,0,30">
+
+                        <StackPanel>
+
+                            <TextBlock Name="GemeinsamerPapierkorbAnzahlText" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                            <ListBox
+                                Name="GemeinsamerPapierkorbListe"
+                                Height="260"
+                                Margin="0,0,0,10"
+                                SelectionMode="Extended"
+                                SelectionChanged="GemeinsamerPapierkorbListe_SelectionChanged"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                            </ListBox>
+
+                            <StackPanel Orientation="Horizontal">
+                                <Button
+                                    Name="GemeinsamerPapierkorbWiederherstellenButton"
+                                    Content="Wiederherstellen"
+                                    Padding="14,6"
+                                    Margin="0,0,10,0"
+                                    IsEnabled="False"
+                                    Click="GemeinsamerPapierkorbWiederherstellen_Click"/>
+                                <Button
+                                    Name="GemeinsamerPapierkorbEndgueltigLoeschenButton"
+                                    Content="Endgültig löschen"
+                                    Padding="14,6"
+                                    IsEnabled="False"
+                                    Click="GemeinsamerPapierkorbEndgueltigLoeschen_Click"/>
+                            </StackPanel>
+
+                        </StackPanel>
+
+                    </Border>
+
+                    <TextBlock
+                        FontStyle="Italic"
+                        Foreground="#999999"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,10"
+                        Text="Zur Kontrolle: dieselben Einträge, aufgeteilt nach ihrer technischen Herkunft."/>
+
+                <Grid Margin="0,0,0,40">
 
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1458,14 +1490,20 @@
                          "Gelöste Zuordnungen" statt "Papierkorb" genannt, damit
                          die zwei verschiedenen Ebenen (ganzes Objekt oben vs.
                          einzelne Verknuepfung hier) nicht verschwimmen. -->
-                    <TextBlock
-                        Grid.Row="7"
-                        FontSize="16"
-                        FontWeight="Bold"
-                        Margin="0,20,0,4"
-                        Text="Gelöste Zuordnungen"/>
+                    <StackPanel Grid.Row="7" Margin="0,20,0,4">
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Text="Einzelne Erinnerungs-Zuordnungen"/>
+                        <TextBlock
+                            FontStyle="Italic"
+                            Foreground="#999999"
+                            TextWrapping="Wrap"
+                            Margin="0,4,0,0"
+                            Text="Hier landet eine Erinnerung, wenn Sie sie nur aus einer bestimmten Person/einem Ereignis/einer Sammlung entfernt haben - die Erinnerung selbst bleibt dabei erhalten."/>
+                    </StackPanel>
 
-                    <Grid Grid.Row="8" Height="220">
+                    <Grid Grid.Row="8" Height="220" Margin="0,26,0,0">
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -1476,7 +1514,7 @@
                             <TextBlock Name="JamesGeloesteZuordnungenAnzahlText" Foreground="#555555" Margin="0,0,0,8"/>
                             <ListBox
                                 Name="JamesGeloesteZuordnungenListe"
-                                Height="180"
+                                Height="240"
                                 SelectionMode="Extended"
                                 SelectionChanged="JamesGeloesteZuordnungenListe_SelectionChanged"
                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -1512,6 +1550,8 @@
                     </Grid>
 
                 </Grid>
+
+                </StackPanel>
 
                 </ScrollViewer>
 
@@ -2213,12 +2253,16 @@
 
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Kopfbereich: James' Begrüßung + Filter + Suche -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                    <!-- Kopfbereich: nur noch Titel/Zurueck-Link/Duplikat-Hinweis/Debug.
+                         A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+                         die vormals hier zusaetzlich stehende zweite Suchflaeche (Filter-
+                         Buttons/Dateiname-Suche/Vorsammlung-Ordnerwahl) ist entfallen -
+                         das EINE gruene Fenster in Grid.Row="1" ist jetzt der einzige
+                         Suchen/Anzeigen/Markieren-Bereich der Arbeitsmappe. -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,14">
 
                         <TextBlock
     Text="◄ Zur Startseite"
@@ -2234,104 +2278,6 @@
                             FontWeight="Bold"
                             TextWrapping="Wrap"
                             Margin="0,0,0,14"/>
-
-                        <!-- SANIERUNG BAUPHASE 4 (08.08.), TESTPHASE: neue
-                             AM-Arbeitsauswahl aus dem neuen Erinnerungsmodell.
-                             Zeigt AUSSCHLIESSLICH die aus dem Archiv gezielt
-                             hierher geschickten Erinnerungen - komplett
-                             getrennt von der bisherigen Kachel-Ansicht unten,
-                             die unverändert bleibt. Rein additiv, verändert
-                             an keiner Stelle personen.json. -->
-                        <!-- BUGFIX (11.08., Großtest-Befund): der gesamte AM-Bereich
-                             sitzt im nicht scrollenden Kopfbereich der Arbeitsmappe.
-                             Durch Suche/Import-Listen kann der Inhalt inzwischen sehr
-                             lang werden - ohne eigenen ScrollViewer wären die unteren
-                             Bedienelemente (insbesondere "Neue Zuordnung anlegen")
-                             dann schlicht außerhalb des sichtbaren Fensters und nicht
-                             erreichbar. Höhenbegrenzung + eigener Scrollbalken stellen
-                             sicher, dass wirklich immer alles erreichbar bleibt. -->
-                        <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
-                        <Border
-                            Name="AmArbeitsauswahlBorder"
-                            Background="#F0F7EE"
-                            BorderBrush="#CFE3C8"
-                            BorderThickness="1"
-                            Padding="14">
-
-                            <StackPanel>
-                                <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Neues Modell (Testphase): Arbeitsauswahl aus dem Archiv"/>
-                                <TextBlock Name="AmArbeitsauswahlText" TextWrapping="Wrap" Margin="0,0,0,10" Text="Noch keine Erinnerungen aus dem Archiv hierher geschickt."/>
-
-                                <!-- SICHERHEITSFIX (10.08., A/Opa-Integrationsauftrag Punkt 7):
-                                     echte Mehrfachauswahl statt "wirkt auf alles". Nur was hier
-                                     markiert ist, darf von "Neue Zuordnung anlegen" oder
-                                     "Ausgewählte entfernen" betroffen sein. -->
-                                <ListBox Name="AmArbeitsauswahlListe" Height="150" Margin="0,0,0,4" SelectionMode="Extended" SelectionChanged="AmArbeitsauswahlListe_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                    <ListBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel/>
-                                        </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                </ListBox>
-
-                                <TextBlock Name="AmMarkierungsHinweisText" FontStyle="Italic" Foreground="#B00020" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                <Button Name="AmAusgewaehlteEntfernenButton" Content="Ausgewählte aus der Arbeitsauswahl entfernen" Padding="10,4" HorizontalAlignment="Left" Margin="0,0,0,10" IsEnabled="False" Click="AmAusgewaehlteEntfernen_Click"/>
-
-                                <!-- WEG B (09.08.): direkte Auswahl innerhalb der AM, ohne
-                                     zwingend aus einem Archiv zu kommen - ergänzt Weg A, ersetzt
-                                     ihn nicht. Sucht/filtert im bereits geladenen, migrierten
-                                     Erinnerungsbestand (kein zweiter Bestand, keine neue Kopie). -->
-                                <TextBlock FontWeight="Bold" Margin="0,4,0,4" Text="[ Vorhandene Erinnerungen suchen ]"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBox Name="AmDirekteSucheTextBox" Width="380" Padding="4" Margin="0,0,10,0" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
-                                    <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <ComboBox Name="AmSortierungComboBox" Width="150" SelectedIndex="0" SelectionChanged="AmDirekteSucheTextBox_TextChanged">
-                                        <ComboBoxItem Content="Datum (neueste zuerst)"/>
-                                        <ComboBoxItem Content="Alphabetisch"/>
-                                    </ComboBox>
-                                </StackPanel>
-                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,-4,0,6" Text="Nach Dateiname suchen (z.B. Teil des Namens oder Ordners)"/>
-                                <ListBox Name="AmDirekteAuswahlListe" Height="220" Margin="0,0,0,8" SelectionMode="Extended" SelectionChanged="AmDirekteAuswahlListe_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                    <ListBox.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel/>
-                                        </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                </ListBox>
-                                <Button Name="AmDirekteAuswahlHinzufuegenButton" Content="Ausgewählte zur Arbeitsauswahl hinzufügen" Padding="10,4" HorizontalAlignment="Left" Margin="0,0,0,14" IsEnabled="False" Click="AmDirekteAuswahlHinzufuegen_Click"/>
-
-                                <!-- A/Opa-FOLGEAUFTRAG (10.08.), Punkt 3: eigene, klar von der
-                                     Suche getrennte Import-Funktion - keine versteckte Funktion,
-                                     eigener Abschnitt mit eigener Überschrift. Nutzt dieselben
-                                     Testimport-Methoden wie der Arbeitsmotor (kein Doppelbau). -->
-                                <TextBlock FontWeight="Bold" Margin="0,0,0,4" Text="[ Neue Bilder/Ordner importieren ]"/>
-                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,0,0,6" Text="Kopiert zusätzliche, bisher unbekannte Dateien von einem beliebigen Laufwerk/Ordner in den Testbestand. Original bleibt unverändert."/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <Button Name="AmTestimportDateiButton" Content="📄 Einzelne Datei(en)..." Padding="10,4" Margin="0,0,10,0" Click="AmTestimportDatei_Click"/>
-                                    <Button Name="AmTestimportOrdnerButton" Content="📁 Ganzer Ordner..." Padding="10,4" Click="AmTestimportOrdner_Click"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <TextBlock Text="Neu zuordnen zu:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox Name="AmZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="AmZielTypComboBox_SelectionChanged">
-                                        <ComboBoxItem Content="Person"/>
-                                        <ComboBoxItem Content="Ereignis"/>
-                                        <ComboBoxItem Content="Sammlung"/>
-                                    </ComboBox>
-                                    <ComboBox Name="AmZielObjektComboBox" Width="220"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Name="AmZuordnenBestaetigenButton" Content="Neue Zuordnung anlegen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="AmZuordnenBestaetigen_Click"/>
-                                    <Button Name="AmArbeitsauswahlLeerenButton" Content="Arbeitsauswahl leeren" Padding="10,4" IsEnabled="False" Click="AmArbeitsauswahlLeeren_Click"/>
-                                </StackPanel>
-
-                                <TextBlock Name="AmStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                            </StackPanel>
-
-                        </Border>
-                        </ScrollViewer>
 
                         <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
                              James erkennt automatisch exakte Duplikate und
@@ -2376,116 +2322,111 @@
                             FontSize="11"
                             FontStyle="Italic"
                             Foreground="#B00020"
-                            Margin="0,0,0,10"/>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-
-                            <Button Name="ArbeitsmappeFilterAlleButton" Content="Alle" Tag="Alle" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-                            <Button Name="ArbeitsmappeFilterBilderButton" Content="Bilder" Tag="Bilder" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-                            <Button Name="ArbeitsmappeFilterDokumenteButton" Content="Dokumente" Tag="Dokumente" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-                            <Button Name="ArbeitsmappeFilterPdfButton" Content="PDF" Tag="PDF" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-                            <Button Name="ArbeitsmappeFilterVideosButton" Content="Videos" Tag="Videos" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-                            <Button Name="ArbeitsmappeFilterAudioButton" Content="Audio" Tag="Audio" Padding="10,4" Margin="0,0,8,0" Click="ArbeitsmappeFilter_Click"/>
-
-                        </StackPanel>
-
-                        <TextBlock Text="Nach Dateiname suchen" Margin="0,0,0,4"/>
-                        <TextBox
-                            Name="ArbeitsmappeSucheTextBox"
-                            Width="320"
-                            HorizontalAlignment="Left"
-                            Padding="4"
-                            TextChanged="ArbeitsmappeSucheTextBox_TextChanged"/>
-
-                        <!-- Neue Funktion (01.08., Wunsch von A): Vorsammlungen
-                             - gezielt nur die Erinnerungen aus einem bereits
-                             vorsortierten Ordner (z.B. D:\Hochzeit) anzeigen,
-                             als Ausgangsbasis für die Zuordnung. Verändert die
-                             Originaldateien nicht, nur eine Anzeige-Auswahl. -->
-                        <TextBlock Text="Vorsammlung: nur einen bestimmten Ordner anzeigen" Margin="0,14,0,4"/>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-
-                            <Button
-                            Name="ArbeitsmappeOrdnerWaehlenButton"
-                            Content="Ordner wählen..."
-                            Width="160"
-                            Height="32"
-                            Margin="0,0,10,0"
-                            Click="ArbeitsmappeOrdnerWaehlen_Click"/>
-
-                            <Button
-                            Name="ArbeitsmappeOrdnerZuruecksetzenButton"
-                            Content="Zurücksetzen"
-                            Width="120"
-                            Height="32"
-                            Margin="0,0,10,0"
-                            Visibility="Collapsed"
-                            Click="ArbeitsmappeOrdnerZuruecksetzen_Click"/>
-
-                            <CheckBox
-                            Name="ArbeitsmappeOrdnerInklUnterordnerCheckbox"
-                            Content="inkl. Unterordner"
-                            IsChecked="True"
-                            VerticalAlignment="Center"
-                            Checked="ArbeitsmappeOrdnerOption_Changed"
-                            Unchecked="ArbeitsmappeOrdnerOption_Changed"/>
-
-                        </StackPanel>
-
-                        <TextBlock
-                        Name="ArbeitsmappeOrdnerAnzeigeText"
-                        Foreground="#2E7D32"
-                        FontWeight="Bold"
-                        TextWrapping="Wrap"
-                        Margin="0,0,0,10"/>
+                            Margin="0,0,0,0"/>
 
                     </StackPanel>
 
-                    <!-- Seitennavigation + "James erkennt..."-Button
-                         (Optimierungsrunde 06.08.: Button jetzt im freien
-                         Bereich über der Bildanzeige, links vom
-                         Funktionsblock, statt versteckt rechts unten). -->
-                    <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                    <!-- A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+                         DAS EINE gruene Arbeitsfenster - James' einziger Arbeitsbereich.
+                         Suchtreffer, ausgelegte (von anderswo hierher geschickte) und
+                         manuell importierte Erinnerungen erscheinen gemeinsam in EINER
+                         Liste (AmDirekteAuswahlListe). Markierung = ListBox-Auswahl,
+                         uebersteht Sucheingaben (siehe MainWindow.ErinnerungsmodellZustand.cs,
+                         amMarkierteErinnerungIds). Die vormals getrennte "Arbeitsauswahl"
+                         (eigene zweite Liste mit "hinzufuegen"/"entfernen"/"leeren") ist
+                         komplett entfallen - SEHEN -> MARKIEREN -> AKTION in einem Fenster.
+                         Fuellt die gesamte Resthoehe des Reiters (Grid.Row="1", Height="*"),
+                         eigener ScrollViewer statt einer festen Hoehenbegrenzung. -->
+                    <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                        <Border
+                            Name="AmArbeitsauswahlBorder"
+                            Background="#F0F7EE"
+                            BorderBrush="#CFE3C8"
+                            BorderThickness="1"
+                            Padding="14">
 
-                        <Button
-                        Name="ArbeitsmappeJamesErkenntButton"
-                        Width="240"
-                        Height="40"
-                        HorizontalAlignment="Left"
-                        Margin="0,0,0,10"
-                        IsEnabled="False"
-                        Click="ArbeitsmappeJamesErkennt_Click">
-                            <TextBlock
-                            Text="James erkennt auf diesem Bild ..."
-                            TextWrapping="Wrap"
-                            TextAlignment="Center"/>
-                        </Button>
+                            <StackPanel>
+                                <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Erinnerungen: suchen, importieren, markieren"/>
 
-                        <StackPanel Orientation="Horizontal">
-                            <Button Name="ArbeitsmappeVorherigeSeiteButton" Content="◀ Vorherige Seite" Padding="10,4" Margin="0,0,10,0" Click="ArbeitsmappeVorherigeSeite_Click"/>
-                            <TextBlock Name="ArbeitsmappeSeiteText" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <Button Name="ArbeitsmappeNaechsteSeiteButton" Content="Nächste Seite ▶" Padding="10,4" Click="ArbeitsmappeNaechsteSeite_Click"/>
-                            <TextBlock Text="Gehe zu Seite" VerticalAlignment="Center" Margin="20,0,6,0"/>
-                            <TextBox Name="ArbeitsmappeSeiteZahlTextBox" Width="50" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <Button Name="ArbeitsmappeSeiteGehenButton" Content="Los" Padding="10,4" Click="ArbeitsmappeSeiteGehen_Click"/>
-                        </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBox Name="AmDirekteSucheTextBox" Width="380" Padding="4" Margin="0,0,10,0" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
+                                    <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox Name="AmSortierungComboBox" Width="150" SelectedIndex="0" SelectionChanged="AmDirekteSucheTextBox_TextChanged">
+                                        <ComboBoxItem Content="Datum (neueste zuerst)"/>
+                                        <ComboBoxItem Content="Alphabetisch"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,-4,0,6" Text="Nach Dateiname suchen (z.B. Teil des Namens oder Ordners) - leer lassen, um alle zu sehen"/>
+                                <TextBlock Name="AmDirekteTrefferAnzahlText" FontWeight="Bold" Margin="0,0,0,6"/>
 
-                    </StackPanel>
+                                <!-- SICHERHEITSFIX (10.08., A/Opa-Integrationsauftrag Punkt 7),
+                                     seit A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.) das EINZIGE
+                                     Erinnerungsfenster: echte Mehrfachauswahl - nur was hier
+                                     markiert ist, betrifft "Neue Zuordnung anlegen"/"Markierte in
+                                     den Papierkorb" sowie die gesamte rechte Aktionsleiste. -->
+                                <ListBox Name="AmDirekteAuswahlListe" Margin="0,0,0,8" SelectionMode="Extended" SelectionChanged="AmDirekteAuswahlListe_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                </ListBox>
 
-                    <!-- Hauptbereich: Kacheln links, Werkzeuge rechts (Werkzeuge
-                         jetzt im äußeren Grid, siehe weiter unten - dadurch
-                         nutzt der Funktionsblock die volle Höhe des Reiters,
-                         von ganz oben bis unten, ohne unnötiges Scrollen. -->
-                    <Grid Grid.Row="2" Grid.Column="0">
+                                <TextBlock Name="AmMarkierungsHinweisText" FontStyle="Italic" Foreground="#B00020" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-                        <ScrollViewer Name="ArbeitsmappeKachelnScrollViewer" VerticalScrollBarVisibility="Auto">
-                            <WrapPanel Name="ArbeitsmappeKachelnPanel"/>
-                        </ScrollViewer>
+                                <!-- A/Opa-FOLGEAUFTRAG (10.08.), Punkt 3: eigene, klar von der
+                                     Suche getrennte Import-Funktion - keine versteckte Funktion,
+                                     eigener Abschnitt mit eigener Überschrift. Nutzt dieselben
+                                     Testimport-Methoden wie der Arbeitsmotor (kein Doppelbau). -->
+                                <TextBlock FontWeight="Bold" Margin="0,0,0,4" Text="[ Neue Bilder/Ordner importieren ]"/>
+                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,0,0,6" Text="Kopiert zusätzliche, bisher unbekannte Dateien von einem beliebigen Laufwerk/Ordner in den Testbestand. Original bleibt unverändert."/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                    <Button Name="AmTestimportDateiButton" Content="📄 Einzelne Datei(en)..." Padding="10,4" Margin="0,0,10,0" Click="AmTestimportDatei_Click"/>
+                                    <Button Name="AmTestimportOrdnerButton" Content="📁 Ganzer Ordner..." Padding="10,4" Click="AmTestimportOrdner_Click"/>
+                                </StackPanel>
 
-                    </Grid>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Neu zuordnen zu:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox Name="AmZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="AmZielTypComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Person"/>
+                                        <ComboBoxItem Content="Ereignis"/>
+                                        <ComboBoxItem Content="Sammlung"/>
+                                    </ComboBox>
+                                    <ComboBox Name="AmZielObjektComboBox" Width="220"/>
+                                </StackPanel>
 
-                        <ScrollViewer Grid.Column="2" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                    <Button Name="AmZuordnenBestaetigenButton" Content="Neue Zuordnung anlegen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="AmZuordnenBestaetigen_Click"/>
+                                    <Button Name="AmMarkierteInPapierkorbButton" Content="Markierte in den Papierkorb" Padding="10,4" IsEnabled="False" Click="AmMarkierteInPapierkorb_Click"/>
+                                </StackPanel>
+
+                                <TextBlock Name="AmStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                                <!-- Sprint C, Etappe 1b (05.08./06.08.): "James erkennt..." -
+                                     vormals in einer eigenen Zeile ueber dem alten Kachelraster,
+                                     jetzt Teil des EINEN gruenen Arbeitsbereichs (A/Opa-BAUAUFTRAG
+                                     "AM: GESAMTUMBAU", 16.08.). Betrifft dieselbe Markierung wie
+                                     alle anderen Aktionen hier und rechts. -->
+                                <Button
+                                Name="ArbeitsmappeJamesErkenntButton"
+                                Width="240"
+                                Height="40"
+                                HorizontalAlignment="Left"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeJamesErkennt_Click">
+                                    <TextBlock
+                                    Text="James erkennt auf diesem Bild ..."
+                                    TextWrapping="Wrap"
+                                    TextAlignment="Center"/>
+                                </Button>
+
+                            </StackPanel>
+
+                        </Border>
+                    </ScrollViewer>
+
+
+                        <ScrollViewer Grid.Column="2" Grid.RowSpan="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
 
                                 <!-- Komfort-Optimierung (31.07.): jedes
@@ -3043,7 +2984,7 @@
                     <!-- Großansicht (nur für Bilder), deckt den ganzen Reiter ab -->
                     <Border
                         Grid.Row="0"
-                        Grid.RowSpan="3"
+                        Grid.RowSpan="2"
                         Name="ArbeitsmappeGrossansichtPanel"
                         Visibility="Collapsed"
                         Background="#F0000000">

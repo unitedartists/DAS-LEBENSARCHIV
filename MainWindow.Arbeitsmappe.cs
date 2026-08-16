@@ -43,6 +43,7 @@ namespace DAS_LEBENSARCHIV
             if ((HauptTabControl.SelectedItem as TabItem)?.Header?.ToString() == "Papierkorb")
             {
                 AktualisiereZuordnungsPapierkorbAnzeige();
+                AktualisiereGemeinsamePapierkorbUebersicht();
                 return;
             }
 
@@ -62,7 +63,15 @@ namespace DAS_LEBENSARCHIV
                 // "keinBereichSichtbar" war dann faelschlich false. Betrifft
                 // nur genau dieselben Bereiche, die vorher schon geprueft
                 // wurden - keine zusaetzlichen, unbeteiligten Bereiche.
+                // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.),
+                // Teil B: PersonenFormularBereich fehlte hier - wird laut
+                // MainWindow.Personen.cs (z.B. Wiederherstellen_Click,
+                // HoleAusArchivZurueckAufSchreibtisch) IMMER gemeinsam mit
+                // PersonenListeBereich sichtbar geschaltet. Blieb er stehen,
+                // ueberlagerte das Personenformular weiterhin die Startseite -
+                // genau das vom Nutzer beobachtete "ueberlagert"-Symptom.
                 StartseiteBereich.Visibility = Visibility.Visible;
+                PersonenFormularBereich.Visibility = Visibility.Collapsed;
                 PersonenListeBereich.Visibility = Visibility.Collapsed;
                 EreignisBereich.Visibility = Visibility.Collapsed;
                 EreignismappeBereich.Visibility = Visibility.Collapsed;
@@ -86,28 +95,32 @@ namespace DAS_LEBENSARCHIV
 
         private int arbeitsmappeOeffnenZaehler = 0;
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // OeffneArbeitsmappe baute bisher zusaetzlich die alte, komplett
+        // getrennte Kachel-/Filter-/Paging-Anzeige (arbeitsmappeAlleDateien,
+        // arbeitsmappeFilter, arbeitsmappeSeite, arbeitsmappeAusgewaehlt,
+        // AktualisiereArbeitsmappenFilterButtons/AktualisiereArbeitsmappe)
+        // auf - das ist jetzt die "zweite Such-/Ergebnisflaeche", die laut
+        // Auftrag entfallen soll. James' einziger Arbeitsbereich ist jetzt
+        // das gruene Fenster (AmDirekteAuswahlListe). arbeitsmappeAlleDateien
+        // wird trotzdem weiterhin geladen - die (unveraenderte) automatische
+        // Duplikat-Erkennung (PruefeUndZeigeDuplikateInArbeitsmappe) prueft
+        // rein lesend den physischen Datei-Bestand, unabhaengig vom
+        // Erinnerungsmodell, und ist nicht Teil dieses Auftrags.
         private void OeffneArbeitsmappe()
         {
             arbeitsmappeOeffnenZaehler++;
             ArbeitsmappeDebugText.Text = "🐞 OeffneArbeitsmappe() ausgeführt - Aufruf Nr. " + arbeitsmappeOeffnenZaehler + " um " + DateTime.Now.ToString("HH:mm:ss.fff");
 
             arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
-            arbeitsmappeBereitsZugeordnet = LadeArbeitsmappeZugeordnet();
-            arbeitsmappeFilter = "Alle";
-            arbeitsmappeSeite = 1;
-            arbeitsmappeAusgewaehlt.Clear();
             arbeitsmappeNeuesEreignisPerson = null;
             arbeitsmappeLetztesEreignisPerson = null;
             arbeitsmappeLetztesEreignis = null;
             ArbeitsmappeEreignisOeffnenButton.Visibility = Visibility.Collapsed;
 
-            if (ArbeitsmappeSucheTextBox != null)
-            {
-                ArbeitsmappeSucheTextBox.Text = "";
-            }
-
-            AktualisiereArbeitsmappenFilterButtons();
-            AktualisiereArbeitsmappe();
+            VersteckeAlleArbeitsmappenPanels();
+            AktualisiereAmDirekteAuswahlListe();
+            AktualisiereArbeitsmappenWerkzeuge();
             PruefeUndZeigeDuplikateInArbeitsmappe();
         }
 
@@ -173,209 +186,6 @@ namespace DAS_LEBENSARCHIV
             }
 
             return new List<GefundeneDatei>();
-        }
-
-        private List<GefundeneDatei> ArbeitsmappeGefilterteDateien()
-        {
-            IEnumerable<GefundeneDatei> ergebnis = arbeitsmappeAlleDateien;
-
-            if (arbeitsmappeFilter != "Alle")
-            {
-                ergebnis = ergebnis.Where(d => d.Dateityp == arbeitsmappeFilter);
-            }
-
-            string suchtext = ArbeitsmappeSucheTextBox.Text.Trim().ToLower();
-
-            if (suchtext != "")
-            {
-                ergebnis = ergebnis.Where(d =>
-                    (d.Dateiname != null && d.Dateiname.ToLower().Contains(suchtext)) ||
-                    (d.VollstaendigerPfad != null && d.VollstaendigerPfad.ToLower().Contains(suchtext)));
-            }
-
-            // Neue Funktion (01.08.): Vorsammlung - nur Erinnerungen aus
-            // einem gewählten Fundort-Ordner zeigen (Anzeige-Filter, ändert
-            // nichts an den Originaldateien).
-            if (!string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner))
-            {
-                string ordnerMitTrenner = arbeitsmappeVorsammlungOrdner.TrimEnd('\\') + "\\";
-
-                if (arbeitsmappeVorsammlungInklUnterordner)
-                {
-                    ergebnis = ergebnis.Where(d => d.VollstaendigerPfad != null
-                        && d.VollstaendigerPfad.StartsWith(ordnerMitTrenner, StringComparison.OrdinalIgnoreCase));
-                }
-                else
-                {
-                    ergebnis = ergebnis.Where(d => d.VollstaendigerPfad != null
-                        && string.Equals(Path.GetDirectoryName(d.VollstaendigerPfad), arbeitsmappeVorsammlungOrdner.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            // Punkt 3 (Optimierung nach Test 2): bereits zugeordnete
-            // Erinnerungen verschwinden automatisch aus James' Vorlage -
-            // hier bleiben nur noch nicht zugeordnete Erinnerungen übrig.
-            ergebnis = ergebnis.Where(d => !arbeitsmappeBereitsZugeordnet.Contains(d.VollstaendigerPfad));
-
-            // Punkt 3: chronologische Anzeige (nach Aufnahme-/Änderungsdatum).
-            return ergebnis.OrderBy(d => d.Geaendert).ToList();
-        }
-
-        private void ArbeitsmappeFilter_Click(object sender, RoutedEventArgs e)
-        {
-            Button button = sender as Button;
-
-            if (button == null)
-            {
-                return;
-            }
-
-            arbeitsmappeFilter = button.Tag.ToString();
-            arbeitsmappeSeite = 1;
-
-            AktualisiereArbeitsmappenFilterButtons();
-            AktualisiereArbeitsmappe();
-        }
-
-        private void ArbeitsmappeSucheTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            arbeitsmappeSeite = 1;
-            AktualisiereArbeitsmappe();
-        }
-
-        // Neue Funktion (01.08., Wunsch von A): Vorsammlungen. Rein lesend -
-        // wählt nur einen Anzeige-Filter, verändert keine Originaldateien.
-        private void ArbeitsmappeOrdnerWaehlen_Click(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFolderDialog dialog = new Microsoft.Win32.OpenFolderDialog
-            {
-                Title = "Ordner wählen, dessen Erinnerungen angezeigt werden sollen"
-            };
-
-            if (dialog.ShowDialog() != true)
-            {
-                return;
-            }
-
-            arbeitsmappeVorsammlungOrdner = dialog.FolderName;
-            arbeitsmappeSeite = 1;
-
-            ArbeitsmappeOrdnerZuruecksetzenButton.Visibility = Visibility.Visible;
-            AktualisiereArbeitsmappeOrdnerAnzeigeText();
-            AktualisiereArbeitsmappe();
-        }
-
-        private void ArbeitsmappeOrdnerZuruecksetzen_Click(object sender, RoutedEventArgs e)
-        {
-            arbeitsmappeVorsammlungOrdner = null;
-            arbeitsmappeSeite = 1;
-
-            ArbeitsmappeOrdnerZuruecksetzenButton.Visibility = Visibility.Collapsed;
-            AktualisiereArbeitsmappeOrdnerAnzeigeText();
-            AktualisiereArbeitsmappe();
-        }
-
-        private void ArbeitsmappeOrdnerOption_Changed(object sender, RoutedEventArgs e)
-        {
-            arbeitsmappeVorsammlungInklUnterordner = ArbeitsmappeOrdnerInklUnterordnerCheckbox.IsChecked == true;
-
-            if (!string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner))
-            {
-                arbeitsmappeSeite = 1;
-                AktualisiereArbeitsmappe();
-            }
-        }
-
-        private void AktualisiereArbeitsmappeOrdnerAnzeigeText()
-        {
-            ArbeitsmappeOrdnerAnzeigeText.Text = string.IsNullOrEmpty(arbeitsmappeVorsammlungOrdner)
-                ? ""
-                : "Zeige nur: " + arbeitsmappeVorsammlungOrdner;
-        }
-
-        private void AktualisiereArbeitsmappenFilterButtons()
-        {
-            Button[] alleButtons =
-            {
-                ArbeitsmappeFilterAlleButton,
-                ArbeitsmappeFilterBilderButton,
-                ArbeitsmappeFilterDokumenteButton,
-                ArbeitsmappeFilterPdfButton,
-                ArbeitsmappeFilterVideosButton,
-                ArbeitsmappeFilterAudioButton
-            };
-
-            foreach (Button button in alleButtons)
-            {
-                bool istAktiv = button.Tag.ToString() == arbeitsmappeFilter;
-                button.FontWeight = istAktiv ? FontWeights.Bold : FontWeights.Normal;
-                button.Background = istAktiv ? new SolidColorBrush(Color.FromRgb(0xE3, 0xF0, 0xDF)) : Brushes.White;
-            }
-        }
-
-        private void AktualisiereArbeitsmappe()
-        {
-            List<GefundeneDatei> gefiltert = ArbeitsmappeGefilterteDateien();
-
-            int gesamtSeiten = Math.Max(1, (int)Math.Ceiling(gefiltert.Count / (double)ArbeitsmappeProSeite));
-
-            if (arbeitsmappeSeite > gesamtSeiten)
-            {
-                arbeitsmappeSeite = gesamtSeiten;
-            }
-
-            if (arbeitsmappeSeite < 1)
-            {
-                arbeitsmappeSeite = 1;
-            }
-
-            List<GefundeneDatei> seite = gefiltert
-                .Skip((arbeitsmappeSeite - 1) * ArbeitsmappeProSeite)
-                .Take(ArbeitsmappeProSeite)
-                .ToList();
-
-            ArbeitsmappeKachelnPanel.Children.Clear();
-
-            foreach (GefundeneDatei datei in seite)
-            {
-                ArbeitsmappeKachelnPanel.Children.Add(ErstelleArbeitsmappenKachel(datei));
-            }
-
-            ArbeitsmappeUeberschriftText.Text = James.ArbeitsmappeUeberschrift(arbeitsmappeAlleDateien.Count);
-            ArbeitsmappeSeiteText.Text = "Seite " + arbeitsmappeSeite + " von " + gesamtSeiten;
-            ArbeitsmappeVorherigeSeiteButton.IsEnabled = arbeitsmappeSeite > 1;
-            ArbeitsmappeNaechsteSeiteButton.IsEnabled = arbeitsmappeSeite < gesamtSeiten;
-
-            // Punkt 2 (Optimierung nach Test 2): garantiert, dass die erste
-            // Zeile sofort sichtbar ist, ohne dass erst manuell gescrollt
-            // werden muss.
-            ArbeitsmappeKachelnScrollViewer.ScrollToTop();
-
-            AktualisiereArbeitsmappenWerkzeuge();
-        }
-
-        private void ArbeitsmappeVorherigeSeite_Click(object sender, RoutedEventArgs e)
-        {
-            arbeitsmappeSeite--;
-            AktualisiereArbeitsmappe();
-        }
-
-        private void ArbeitsmappeNaechsteSeite_Click(object sender, RoutedEventArgs e)
-        {
-            arbeitsmappeSeite++;
-            AktualisiereArbeitsmappe();
-        }
-
-        // Komfortfunktion: direkt zu einer bestimmten Seite springen
-        private void ArbeitsmappeSeiteGehen_Click(object sender, RoutedEventArgs e)
-        {
-            int gewuenschteSeite;
-
-            if (int.TryParse(ArbeitsmappeSeiteZahlTextBox.Text.Trim(), out gewuenschteSeite))
-            {
-                arbeitsmappeSeite = gewuenschteSeite;
-                AktualisiereArbeitsmappe();
-            }
         }
 
         private static string ArbeitsmappeSymbolFuerDateityp(string dateityp)
@@ -595,9 +405,15 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeGrossBild.Source = null;
         }
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // treibt jetzt die komplette rechte Aktionsleiste anhand der EINEN
+        // gemeinsamen Markierung (amMarkierteErinnerungIds, MainWindow.
+        // ErinnerungsmodellZustand.cs) statt der alten, kachelspezifischen
+        // arbeitsmappeAusgewaehlt-Auswahl. Wird von AktualisiereAmMarkierungs-
+        // AbhaengigeAnzeige nach jeder Markierungsaenderung aufgerufen.
         private void AktualisiereArbeitsmappenWerkzeuge()
         {
-            int anzahl = arbeitsmappeAusgewaehlt.Count;
+            int anzahl = amMarkierteErinnerungIds.Count;
 
             ArbeitsmappeAuswahlText.Text = James.ArbeitsmappeAuswahlText(anzahl);
 
@@ -641,12 +457,22 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // "Markierung aufheben" ist jetzt der EINZIGE Button, der die
+        // Markierung loescht (ersetzt die entfernten, redundanten Buttons
+        // "Ausgewählte aus der Arbeitsauswahl entfernen"/"Arbeitsauswahl
+        // leeren" aus dem ehemals getrennten gruenen Bereich).
         private void ArbeitsmappeMarkierungAufheben_Click(object sender, RoutedEventArgs e)
         {
-            arbeitsmappeAusgewaehlt.Clear();
-            AktualisiereArbeitsmappe();
+            amMarkierteErinnerungIds.Clear();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): arbeitsmappeAusgewaehlt
+        // (altes Kachel-System) wird nicht mehr befuellt - diese Methode ist
+        // damit unbenutzt, wird aber NICHT geloescht, da nicht sicher
+        // ausgeschlossen werden kann, dass sie aus einer anderen, hier nicht
+        // vorliegenden Datei aufgerufen wird (z.B. Werkzeuge/Sehzentrum).
         private GefundeneDatei ArbeitsmappeEinzigAusgewaehlteDatei()
         {
             string pfad = arbeitsmappeAusgewaehlt.FirstOrDefault();
@@ -668,12 +494,22 @@ namespace DAS_LEBENSARCHIV
         // MainWindow.Sehzentrum.cs (dieselbe Logik wie der
         // Werkzeuge-Button "Kategorie testen...", nur dort mit genau
         // einem Bild).
+        //
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): liest die markierten
+        // Bilder jetzt aus dem neuen Modell (amMarkierteErinnerungIds ->
+        // erinnerungsmodellErinnerungen) statt aus dem alten arbeitsmappe-
+        // Ausgewaehlt/arbeitsmappeAlleDateien-Bestand, der seit dem Umbau
+        // nicht mehr befuellt wird.
         private void ArbeitsmappeJamesErkennt_Click(object sender, RoutedEventArgs e)
         {
-            List<string> bildPfade = arbeitsmappeAusgewaehlt
-                .Select(pfad => arbeitsmappeAlleDateien.FirstOrDefault(d => d.VollstaendigerPfad == pfad))
-                .Where(d => d != null && d.Dateityp == "Bilder" && File.Exists(d.VollstaendigerPfad))
-                .Select(d => d.VollstaendigerPfad)
+            LadeErinnerungsmodellFallsNoetig();
+
+            List<string> bildPfade = amMarkierteErinnerungIds
+                .Select(id => erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == id))
+                .Where(er => er != null && er.MedienTyp == MedienTyp.Bild
+                    && er.Fundorte != null && er.Fundorte.Count > 0
+                    && File.Exists(er.Fundorte[0].Pfad))
+                .Select(er => er.Fundorte[0].Pfad)
                 .ToList();
 
             if (bildPfade.Count == 0)

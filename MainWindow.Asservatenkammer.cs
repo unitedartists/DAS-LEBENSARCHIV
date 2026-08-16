@@ -586,7 +586,11 @@ namespace DAS_LEBENSARCHIV
                 SpeichereDaten();
                 arbeitsmappeAlleDateien = LadeErinnerungsverzeichnisDateien();
                 AktualisiereAsservatenkammerAnzeige();
-                AktualisiereArbeitsmappe();
+                // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): AktualisiereArbeitsmappe
+                // (altes Kachel-System) ist entfallen - das gruene Fenster wird
+                // stattdessen aktualisiert, damit automatisch verschobene
+                // Duplikate dort sofort korrekt erscheinen.
+                AktualisiereAmDirekteAuswahlListe();
 
                 int fehlgeschlagenBeimVerschieben = zuVerschieben.Count - verschoben;
 
@@ -617,20 +621,48 @@ namespace DAS_LEBENSARCHIV
             PruefeUndZeigeDuplikateInArbeitsmappe();
         }
         // Punkt 3 (Optimierung nach Test 2): eigenständiger Button - verschiebt
-        // NUR die eigens dafür markierten Erinnerungen (arbeitsmappeAusgewaehlt)
-        // in die Asservatenkammer, unabhängig von jeder Person-/Ereignis-/
+        // NUR die eigens dafür markierten Erinnerungen in die
+        // Asservatenkammer, unabhängig von jeder Person-/Ereignis-/
         // Sammlung-Zuordnung. Läuft nach demselben bewährten Muster wie das
         // automatische Verschieben erkannter Duplikate.
+        //
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+        // liest die Markierung jetzt aus der EINEN gemeinsamen amMarkierte-
+        // ErinnerungIds (MainWindow.ErinnerungsmodellZustand.cs) statt aus
+        // dem alten, seit dem Umbau nicht mehr befuellten arbeitsmappe-
+        // Ausgewaehlt/arbeitsmappeAlleDateien-System, und baut daraus die
+        // GefundeneDatei-Objekte, die VerschiebeInAsservatenkammer
+        // (unveraendert) erwartet. WICHTIG (offener Punkt, siehe
+        // Abschlussbericht): die zugehoerige Erinnerung wird NICHT aus
+        // erinnerungsmodell.json entfernt (keine Datenbereinigung laut
+        // Auftrag) - sie bleibt mit ihren bisherigen Zuordnungen bestehen,
+        // zeigt ab sofort aber ueberall (Person/Ereignis/Sammlung/
+        // Papierkorb/AM) den bereits bestehenden "Fundort nicht
+        // gefunden"-Platzhalter, genau wie bei jeder anderen fehlenden Datei.
         private async void ArbeitsmappeMarkierteInAsservatenkammer_Click(object sender, RoutedEventArgs e)
         {
-            List<GefundeneDatei> zuVerschieben = arbeitsmappeAlleDateien
-                .Where(d => arbeitsmappeAusgewaehlt.Contains(d.VollstaendigerPfad))
+            LadeErinnerungsmodellFallsNoetig();
+
+            List<Erinnerung> markierteErinnerungen = amMarkierteErinnerungIds
+                .Select(id => erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == id))
+                .Where(er => er != null && er.Fundorte != null && er.Fundorte.Count > 0 && File.Exists(er.Fundorte[0].Pfad))
                 .ToList();
 
-            if (zuVerschieben.Count == 0)
+            if (markierteErinnerungen.Count == 0)
             {
+                James.Hinweis("Keine der markierten Erinnerungen hat eine (noch vorhandene) Datei, die verschoben werden könnte.");
                 return;
             }
+
+            List<GefundeneDatei> zuVerschieben = markierteErinnerungen
+                .Select(er => new GefundeneDatei
+                {
+                    Dateiname = Path.GetFileName(er.Fundorte[0].Pfad),
+                    VollstaendigerPfad = er.Fundorte[0].Pfad,
+                    Dateityp = ErmittleAltenDateityp(er.MedienTyp),
+                    Hashwert = er.Hashwert
+                })
+                .ToList();
 
             ArbeitsmappeMarkierteInAsservatenkammerButton.IsEnabled = false;
 
@@ -660,12 +692,27 @@ namespace DAS_LEBENSARCHIV
                     }
                 }
 
+                // Rein vorsorglich (das Erinnerungsverzeichnis ist ein
+                // aelterer, separater Katalog) - entfernt die verschobenen
+                // Pfade dort, falls sie zufaellig auch dort noch gefuehrt
+                // werden. erinnerungsmodell.json selbst bleibt bewusst
+                // unangetastet (keine Datenbereinigung laut Auftrag).
                 EntferneMehrereAusErinnerungsverzeichnis(entferntePfade);
             });
 
-            foreach (string pfad in entferntePfade)
+            // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): erfolgreich
+            // verschobene Erinnerungen werden aus der Markierung entfernt -
+            // anders als bei "Neue Zuordnung anlegen"/"Markierte in den
+            // Papierkorb" (dort bleibt die Markierung fuer weitere Aktionen
+            // im selben Arbeitsgang bewusst bestehen), ist eine asservierte
+            // Erinnerung nicht mehr sinnvoll weiter bearbeitbar - ihre Datei
+            // ist aus dem aktiven Bestand entfernt.
+            foreach (Erinnerung erinnerung in markierteErinnerungen)
             {
-                arbeitsmappeAusgewaehlt.Remove(pfad);
+                if (erinnerung.Fundorte.Count > 0 && entferntePfade.Contains(erinnerung.Fundorte[0].Pfad))
+                {
+                    amMarkierteErinnerungIds.Remove(erinnerung.Id);
+                }
             }
 
             if (verschoben > 0)
@@ -691,8 +738,25 @@ namespace DAS_LEBENSARCHIV
                     " markierten Datei(en) konnte verschoben werden - vermutlich sind die zugehörigen Originaldateien nicht mehr auf der Festplatte vorhanden.";
             }
 
-            AktualisiereArbeitsmappe();
-            ArbeitsmappeMarkierteInAsservatenkammerButton.IsEnabled = arbeitsmappeAusgewaehlt.Count > 0;
+            AktualisiereAmDirekteAuswahlListe();
+            ArbeitsmappeMarkierteInAsservatenkammerButton.IsEnabled = amMarkierteErinnerungIds.Count > 0;
+        }
+
+        // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): kleine Bruecke
+        // zwischen dem neuen Erinnerung.MedienTyp-Enum und dem alten,
+        // string-basierten GefundeneDatei.Dateityp, den VerschiebeInAsservaten-
+        // kammer/ErstelleAsservatenkammerKachel weiterhin verwenden - keine
+        // Aenderung an diesen bereits bestehenden, getesteten Methoden noetig.
+        private static string ErmittleAltenDateityp(MedienTyp medienTyp)
+        {
+            switch (medienTyp)
+            {
+                case MedienTyp.Bild: return "Bilder";
+                case MedienTyp.Video: return "Videos";
+                case MedienTyp.Pdf: return "PDF";
+                case MedienTyp.Dokument: return "Dokumente";
+                default: return "Sonstige";
+            }
         }
     }
 }

@@ -215,8 +215,9 @@ namespace DAS_LEBENSARCHIV
 
         private void ArbeitsmappeNeuesFreiesEreignisAnlegen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -227,6 +228,10 @@ namespace DAS_LEBENSARCHIV
             FreiesEreignisTitelTextBox.Focus();
         }
 
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: Ereignis-Anlegen bleibt (schreibt
+        // weiterhin personen.json), Zuordnung der markierten Erinnerungen
+        // jetzt ueber FuehreZuordnungDurch statt physischer Kopie.
         private void FreiesEreignisSpeichernUndZuordnen_Click(object sender, RoutedEventArgs e)
         {
             string titel = FreiesEreignisTitelTextBox.Text.Trim();
@@ -234,6 +239,14 @@ namespace DAS_LEBENSARCHIV
             if (titel == "")
             {
                 James.Hinweis(James.BitteEreignisTitelEingeben);
+                return;
+            }
+
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) diesem neuen Ereignis zugeordnet werden sollen.");
                 return;
             }
 
@@ -256,17 +269,30 @@ namespace DAS_LEBENSARCHIV
             SpeichereDaten();
             AktualisiereFreieEreignisseAnzeige();
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
-            VerknuepfeArbeitsmappenDateienMitFreiemEreignis(zielEreignis, pfade);
+            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Ereignis, zielEreignis.Id, zielEreignis.Titel, out int anzahlBereitsVorhanden);
+
+            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
+
+            ArbeitsmappeStatusText.Text = gespeichertVerifiziert
+                ? "✓ Besonderes Ereignis \"" + zielEreignis.Titel + "\" angelegt, " + anzahlNeu + " Erinnerung(en) zugeordnet."
+                : "⚠ Ereignis angelegt, aber Zuordnung konnte nicht verifiziert werden - bitte prüfen.";
+
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe MainWindow.ArbeitsmappeZuordnung.cs, ArbeitsmappeTitelbildBestaetigen_Click.
+            if (gespeichertVerifiziert)
+            {
+                James.Hinweis("Besonderes Ereignis \"" + zielEreignis.Titel + "\" angelegt. " +
+                    (anzahlNeu == 1 ? "1 Erinnerung wurde " : anzahlNeu + " Erinnerungen wurden ") + "zugeordnet.");
+            }
 
             ArbeitsmappeNeuesFreiesEreignisPanel.Visibility = Visibility.Collapsed;
-            AktualisiereArbeitsmappe();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private void ArbeitsmappeFreiesEreignisZuordnen_Click(object sender, RoutedEventArgs e)
         {
-            if (arbeitsmappeAusgewaehlt.Count == 0)
+            if (ErmittleMarkierteGruenBereichErinnerungIds().Count == 0)
             {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) betroffen sein sollen.");
                 return;
             }
 
@@ -282,6 +308,10 @@ namespace DAS_LEBENSARCHIV
             ArbeitsmappeFreiesEreignisAuswahlPanel.Visibility = Visibility.Visible;
         }
 
+        // A/Opa-BAUAUFTRAG "AM: RECHTE AKTIONSLEISTE AUF DAS NEUE MODELL
+        // UMSTELLEN" (16.08.), Weg 2: statt physischer Kopie via
+        // VerknuepfeArbeitsmappenDateienMitFreiemEreignis (alt) jetzt
+        // FuehreZuordnungDurch je ausgewaehltem Ereignis (neues Modell).
         private void FreiesEreignisBestaetigen_Click(object sender, RoutedEventArgs e)
         {
             List<Ereignis> ausgewaehlteEreignisse = FreieEreignisseListe.SelectedItems.Cast<Ereignis>().ToList();
@@ -292,17 +322,33 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            List<string> pfade = arbeitsmappeAusgewaehlt.ToList();
+            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
+
+            if (markiert.Count == 0)
+            {
+                James.Hinweis("Bitte zuerst im grünen Bereich markieren, welche Erinnerung(en) zugeordnet werden sollen.");
+                return;
+            }
+
+            int gesamtNeu = 0;
+            int gesamtBereitsVorhanden = 0;
 
             foreach (Ereignis ereignis in ausgewaehlteEreignisse)
             {
-                List<string> pfadeKopie = new List<string>(pfade);
-                VerknuepfeArbeitsmappenDateienMitFreiemEreignis(ereignis, pfadeKopie);
+                FuehreZuordnungDurch(markiert, ZuordnungsZielTyp.Ereignis, ereignis.Id, ereignis.Titel, out int anzahlBereitsVorhanden);
+                gesamtNeu += markiert.Count - anzahlBereitsVorhanden;
+                gesamtBereitsVorhanden += anzahlBereitsVorhanden;
             }
 
-            ArbeitsmappeStatusText.Text = "Zugeordnet an " + ausgewaehlteEreignisse.Count + " besondere(s) Ereignis(se).";
+            ArbeitsmappeStatusText.Text = "✓ " + gesamtNeu + " Zuordnung(en) angelegt zu " + ausgewaehlteEreignisse.Count + " besondere(s) Ereignis(se)." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " bereits vorhanden, übersprungen.)" : "");
 
-            AktualisiereArbeitsmappe();
+            // A/Opa-REPARATURAUFTRAG "AM TEST 3" (16.08.): siehe MainWindow.ArbeitsmappeZuordnung.cs, ArbeitsmappeTitelbildBestaetigen_Click.
+            string zielNamen = string.Join(", ", ausgewaehlteEreignisse.Select(ev => ev.Titel));
+            James.Hinweis((markiert.Count == 1 ? "1 Erinnerung wurde " : markiert.Count + " Erinnerungen wurden ") + "dem besonderen Ereignis " + zielNamen + " zugeordnet." +
+                (gesamtBereitsVorhanden > 0 ? " (" + gesamtBereitsVorhanden + " war(en) bereits zugeordnet und wurde(n) übersprungen.)" : ""));
+
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         private void ArbeitsmappeFreiesEreignisAbbrechen_Click(object sender, RoutedEventArgs e)

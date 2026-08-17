@@ -89,166 +89,242 @@
              dadurch nie mehr als einen festen Anteil der Fensterhoehe
              beanspruchen, der Rest bleibt garantiert fuer das
              HauptTabControl (und damit alle acht Bereiche) erhalten. -->
-        <!-- A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.): die James-Suche
-             ist nicht mehr global ueber allen Bereichen sichtbar, sondern
-             Teil der Arbeitsmappen-Seite selbst (dort neu aufgebaut, siehe
-             TabItem "Arbeitsmappe"). Dieser Border enthaelt nur noch die
-             laengst stillgelegte alte Live-Trefferliste (JamesTrefferListe/
-             Erinnerungskarte) - bewusst NICHT geloescht, da ZeigeErinnerungs-
-             karte in einer hier nicht vorliegenden Datei definiert ist und
-             dortige Referenzen auf diese XAML-Elemente nicht geprueft werden
-             koennen. Komplett unsichtbar (Visibility="Collapsed" aussen,
-             kein Inhalt wird je wieder auf Visible geschaltet), null
-             sichtbarer Platzbedarf. -->
-        <Border DockPanel.Dock="Top" Visibility="Collapsed">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="320"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <Border
+            DockPanel.Dock="Top"
+            Background="#F5F5F5"
+            BorderBrush="#DDDDDD"
+            BorderThickness="0,0,0,1"
+            Padding="20,14,20,14"
+            MaxHeight="380">
 
-                <StackPanel Grid.Column="0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 
-                    <ListBox
-                        Name="JamesTrefferListe"
-                        MaxHeight="220"
-                        Visibility="Collapsed"
-                        SelectionChanged="JamesTrefferListe_SelectionChanged"/>
+            <StackPanel>
 
-                    <TextBlock
-                        Name="JamesSucheStatusText"
-                        Margin="0,8,0,0"
-                        TextWrapping="Wrap"
-                        Foreground="#555555"/>
+                <TextBlock
+                    FontWeight="Bold"
+                    FontSize="16"
+                    Margin="0,0,0,8"
+                    Text="James fragt: Womit kann ich heute dienen?"/>
 
+                <TextBox
+                    Name="JamesSucheTextBox"
+                    Padding="6"
+                    FontSize="14"
+                    TextChanged="JamesSucheTextBox_TextChanged"/>
+
+                <!-- Build 6.0, Punkt 7: Rahmen für Start/Abbrechen einer Suche.
+                     Die Suche selbst arbeitet weiterhin synchron (blitzschnell) -
+                     "Suche abbrechen" ist deshalb bewusst ohne Funktion. Die
+                     Oberfläche ist damit aber bereits vorbereitet für spätere,
+                     länger laufende Suchvorgänge (z.B. Bildanalyse). -->
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button
+                        Name="SucheStartenButton"
+                        Content="Suche starten"
+                        Width="140"
+                        Height="32"
+                        Margin="0,0,10,0"
+                        Click="SucheStarten_Click"/>
+                    <Button
+                        Name="SucheAbbrechenButton"
+                        Content="Suche abbrechen"
+                        Width="140"
+                        Height="32"
+                        IsEnabled="False"
+                        Click="SucheAbbrechen_Click"/>
                 </StackPanel>
 
-                <Border
-                    Grid.Column="2"
-                    Name="ErinnerungskartePanel"
-                    Visibility="Collapsed"
-                    Background="White"
-                    BorderBrush="#DDDDDD"
-                    BorderThickness="1"
-                    Padding="20">
+                <!-- A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 5:
+                     verbindliche Suchverlaufs-/Statusanzeige. Erscheint sofort
+                     bei "Suche starten", solange James tatsaechlich noch
+                     rechnet (echte Hintergrundarbeit via Task.Run in
+                     SucheStarten_Click, kein erfundener Fortschrittswert -
+                     IsIndeterminate zeigt ehrlich nur "James arbeitet noch"). -->
+                <ProgressBar
+                    Name="SucheFortschrittsanzeige"
+                    IsIndeterminate="True"
+                    Height="6"
+                    Margin="0,10,0,0"
+                    Visibility="Collapsed"/>
 
-                    <Grid>
+                <TextBlock
+                    Name="SucheNeuerStatusText"
+                    Margin="0,8,0,0"
+                    TextWrapping="Wrap"
+                    FontWeight="Bold"
+                    Foreground="#2E7D32"/>
 
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                <!-- A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 6: die
+                     alte Live-Trefferliste (JamesTrefferListe) samt
+                     Erinnerungskarte ist bewusst NICHT geloescht (ihre
+                     Logik/Bedienung koennte spaeter wieder gebraucht werden),
+                     aber aus dem sichtbaren Suchablauf genommen - James-
+                     SucheTextBox_TextChanged und SucheStarten_Click rufen
+                     FuehreJamesSucheAus() nicht mehr auf, wodurch dieser
+                     komplette Block dauerhaft bei seinem XAML-Standardwert
+                     Visibility="Collapsed" bleibt und nie mehr sichtbar
+                     wird. Einzige noch aktuelle, sichtbare Trefferdarstellung
+                     ist ab sofort ausschliesslich die AM. -->
+                <Grid Margin="0,10,0,0">
 
-                        <Border
-                            Grid.Column="0"
-                            BorderBrush="#CCCCCC"
-                            BorderThickness="1"
-                            Width="150"
-                            Height="150"
-                            VerticalAlignment="Top">
-                            <Image
-                                Name="ErinnerungskarteBild"
-                                Stretch="Uniform"/>
-                        </Border>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="320"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="2">
+                    <StackPanel Grid.Column="0">
 
-                            <TextBlock
-                                Name="ErinnerungskarteTitelText"
-                                FontSize="18"
-                                FontWeight="Bold"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,10"/>
+                        <ListBox
+                            Name="JamesTrefferListe"
+                            MaxHeight="220"
+                            Visibility="Collapsed"
+                            SelectionChanged="JamesTrefferListe_SelectionChanged"/>
 
-                            <TextBlock
-                                Name="ErinnerungskarteDatumText"
-                                Margin="0,0,0,4"/>
+                        <TextBlock
+                            Name="JamesSucheStatusText"
+                            Margin="0,8,0,0"
+                            TextWrapping="Wrap"
+                            Foreground="#555555"/>
 
-                            <TextBlock
-                                Name="ErinnerungskartePersonText"
-                                Margin="0,0,0,4"/>
+                    </StackPanel>
 
-                            <TextBlock
-                                Name="ErinnerungskarteOrtText"
-                                Margin="0,0,0,4"/>
+                    <!-- Erinnerungskarte (Build 1.6): erscheint, sobald eine gefundene
+                         Erinnerung in der Liste links angeklickt wird. Bewusst
+                         großzügig gestaltet - bildet später die Grundlage für das
+                         Lebensbuch. Zeigt ausschließlich bereits vorhandene Daten,
+                         keine neuen Felder. -->
+                    <Border
+                        Grid.Column="2"
+                        Name="ErinnerungskartePanel"
+                        Visibility="Collapsed"
+                        Background="White"
+                        BorderBrush="#DDDDDD"
+                        BorderThickness="1"
+                        Padding="20">
 
-                            <TextBlock
-                                Name="ErinnerungskarteStichwoerterText"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,4"/>
+                        <Grid>
 
-                            <TextBlock
-                                Name="ErinnerungskarteBewertungenText"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,4"/>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                            <TextBlock
-                                Name="ErinnerungskarteBeteiligteText"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,4"/>
+                            <Border
+                                Grid.Column="0"
+                                BorderBrush="#CCCCCC"
+                                BorderThickness="1"
+                                Width="150"
+                                Height="150"
+                                VerticalAlignment="Top">
+                                <Image
+                                    Name="ErinnerungskarteBild"
+                                    Stretch="Uniform"/>
+                            </Border>
 
-                            <TextBlock
-                                Name="ErinnerungskarteBemerkungenText"
-                                TextWrapping="Wrap"
-                                Foreground="#555555"
-                                Margin="0,8,0,0"/>
-
-                            <TextBlock
-                                Name="ErinnerungskarteWeitereFotosText"
-                                TextWrapping="Wrap"
-                                Foreground="#777777"
-                                FontStyle="Italic"
-                                Margin="0,4,0,0"/>
-
-                            <StackPanel
-                                Name="ErinnerungskarteVerknuepfungenPanel"
-                                Visibility="Collapsed"
-                                Margin="0,14,0,0">
+                            <StackPanel Grid.Column="2">
 
                                 <TextBlock
-                                    Text="Dazu könnten auch gehören"
+                                    Name="ErinnerungskarteTitelText"
+                                    FontSize="18"
                                     FontWeight="Bold"
-                                    Margin="0,0,0,6"/>
+                                    TextWrapping="Wrap"
+                                    Margin="0,0,0,10"/>
 
-                                <ListBox
-                                    Name="ErinnerungskarteVerknuepfungenListe"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    MaxHeight="140"
-                                    SelectionChanged="ErinnerungskarteVerknuepfungenListe_SelectionChanged">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock
-                                                Text="{Binding}"
-                                                TextWrapping="Wrap"
-                                                Margin="0,2,0,2"/>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
+                                <TextBlock
+                                    Name="ErinnerungskarteDatumText"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskartePersonText"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteOrtText"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteStichwoerterText"
+                                    TextWrapping="Wrap"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteBewertungenText"
+                                    TextWrapping="Wrap"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteBeteiligteText"
+                                    TextWrapping="Wrap"
+                                    Margin="0,0,0,4"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteBemerkungenText"
+                                    TextWrapping="Wrap"
+                                    Foreground="#555555"
+                                    Margin="0,8,0,0"/>
+
+                                <TextBlock
+                                    Name="ErinnerungskarteWeitereFotosText"
+                                    TextWrapping="Wrap"
+                                    Foreground="#777777"
+                                    FontStyle="Italic"
+                                    Margin="0,4,0,0"/>
+
+                                <!-- Build 1.8: Erinnerungen verknüpfen -->
+                                <StackPanel
+                                    Name="ErinnerungskarteVerknuepfungenPanel"
+                                    Visibility="Collapsed"
+                                    Margin="0,14,0,0">
+
+                                    <TextBlock
+                                        Text="Dazu könnten auch gehören"
+                                        FontWeight="Bold"
+                                        Margin="0,0,0,6"/>
+
+                                    <ListBox
+                                        Name="ErinnerungskarteVerknuepfungenListe"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        MaxHeight="140"
+                                        SelectionChanged="ErinnerungskarteVerknuepfungenListe_SelectionChanged">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock
+                                                    Text="{Binding}"
+                                                    TextWrapping="Wrap"
+                                                    Margin="0,2,0,2"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                </StackPanel>
 
                             </StackPanel>
 
-                        </StackPanel>
+                        </Grid>
 
-                    </Grid>
+                    </Border>
 
-                </Border>
+                    <TextBlock
+                        Grid.Column="2"
+                        Name="ErinnerungskartePlatzhalterText"
+                        Visibility="Collapsed"
+                        FontStyle="Italic"
+                        Foreground="#999999"
+                        TextWrapping="Wrap"
+                        VerticalAlignment="Top"
+                        Text="Wählen Sie eine gefundene Erinnerung aus der Liste aus, um sie hier anzusehen."/>
 
-                <TextBlock
-                    Grid.Column="2"
-                    Name="ErinnerungskartePlatzhalterText"
-                    Visibility="Collapsed"
-                    FontStyle="Italic"
-                    Foreground="#999999"
-                    TextWrapping="Wrap"
-                    VerticalAlignment="Top"
-                    Text="Wählen Sie eine gefundene Erinnerung aus der Liste aus, um sie hier anzusehen."/>
+                </Grid>
 
-            </Grid>
+            </StackPanel>
+
+            </ScrollViewer>
+
         </Border>
-
 
         <!-- Die sechs Bereiche -->
         <TabControl Name="HauptTabControl" SelectionChanged="HauptTabControl_SelectionChanged">
@@ -1279,63 +1355,6 @@
 
                     </Border>
 
-                    <!-- A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB = VOM ARBEITSTISCH
-                         WEGLEGEN" (17.08.): eigener, in sich geschlossener
-                         Abschnitt - beruehrt/dupliziert GemeinsamerPapierkorbListe
-                         nicht (deren Datenquelle liegt in einer mir nicht
-                         vorliegenden Datei). Zeigt Erinnerungen, die per AM-
-                         Papierkorb-Button aus der Arbeitsmappe entfernt wurden -
-                         reine Sichtbarkeits-Aenderung, keine Zuordnung/Datei
-                         betroffen (siehe MainWindow.ErinnerungsmodellZustand.cs). -->
-                    <Border
-                        Background="#F5F5F5"
-                        BorderBrush="#DDDDDD"
-                        BorderThickness="1"
-                        Padding="14"
-                        Margin="0,0,0,30">
-
-                        <StackPanel>
-
-                            <TextBlock
-                                FontSize="16"
-                                FontWeight="Bold"
-                                Margin="0,0,0,4"
-                                Text="🗄 Aus der Arbeitsmappe entfernt"/>
-
-                            <TextBlock
-                                FontStyle="Italic"
-                                Foreground="#777777"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,8"
-                                Text="Erinnerungen, die Sie in der Arbeitsmappe markiert und in den Papierkorb gelegt haben. Zuordnungen und Originaldateien wurden dabei nicht verändert."/>
-
-                            <TextBlock Name="AmPapierkorbAnzahlText" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                            <ListBox
-                                Name="AmPapierkorbListe"
-                                Height="220"
-                                Margin="0,0,0,10"
-                                SelectionMode="Extended"
-                                SelectionChanged="AmPapierkorbListe_SelectionChanged"
-                                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                <ListBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel/>
-                                    </ItemsPanelTemplate>
-                                </ListBox.ItemsPanel>
-                            </ListBox>
-
-                            <Button
-                                Name="AmPapierkorbWiederherstellenButton"
-                                Content="Wiederherstellen (zurück in die Arbeitsmappe)"
-                                Padding="14,6"
-                                IsEnabled="False"
-                                Click="AmPapierkorbWiederherstellen_Click"/>
-
-                        </StackPanel>
-
-                    </Border>
-
                     <!-- A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 7:
                          Opa soll vorne nur EINE sichtbare Tonne sehen
                          (GemeinsamerPapierkorbListe oben). Die vier
@@ -2023,16 +2042,7 @@
 
             </TabItem>
 
-            <!-- A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §1: "Einstellungen
-                 fliegt raus" aus der Navigation - TabItem bleibt technisch vollstaendig
-                 bestehen (keine Logik geloescht, keine Datei ausserhalb meines Zugriffs
-                 riskiert), nur per Visibility="Collapsed" aus der sichtbaren Tab-Leiste
-                 entfernt. Dadurch bleibt ArbeitsmappeTabIndex (=7, MainWindow.xaml.cs)
-                 unveraendert gueltig - ein Collapsed TabItem zaehlt in WPF weiterhin zur
-                 Items-Position, verschiebt also keine Indizes. Hinweis fuer den
-                 Abschlussbericht: die Einstellungen sind dadurch aktuell auf keinem Weg
-                 mehr erreichbar - falls das nicht gewollt ist, bitte Rueckmeldung. -->
-            <TabItem Header="Einstellungen" Visibility="Collapsed">
+            <TabItem Header="Einstellungen">
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
 
@@ -2286,21 +2296,14 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.):
-                         James-Suche zieht aus dem globalen Kopfbereich hierher
-                         um (linke Haelfte) - die AM ist jetzt der einzige Ort,
-                         an dem gesucht wird. AmDirekteSucheTextBox (im gruenen
-                         Bereich weiter unten) bleibt technisch bestehen und
-                         unveraendert die tatsaechliche Filterquelle, ist aber
-                         nicht mehr direkt sichtbar/editierbar - JamesSucheTextBox
-                         hier oben ist jetzt der einzige sichtbare Sucheingang,
-                         "Suche starten" schreibt das Ergebnis unveraendert ueber
-                         UebergibSucheAnArbeitsmappe dort hinein. Rechts daneben
-                         die 4 allgemeinen Werkzeuge (Import x2, James erkennt,
-                         Duplikate in AK) - unveraenderte Handler, nur Position. -->
+                    <!-- Kopfbereich: nur noch Titel/Zurueck-Link/Duplikat-Hinweis/Debug.
+                         A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
+                         die vormals hier zusaetzlich stehende zweite Suchflaeche (Filter-
+                         Buttons/Dateiname-Suche/Vorsammlung-Ordnerwahl) ist entfallen -
+                         das EINE gruene Fenster in Grid.Row="1" ist jetzt der einzige
+                         Suchen/Anzeigen/Markieren-Bereich der Arbeitsmappe. -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,14">
 
                         <TextBlock
@@ -2318,78 +2321,6 @@
                             TextWrapping="Wrap"
                             Margin="0,0,0,14"/>
 
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="210"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0">
-                                <TextBlock FontWeight="Bold" FontSize="16" Margin="0,0,0,8" Text="James fragt: Womit kann ich heute dienen?"/>
-                                <TextBox Name="JamesSucheTextBox" Padding="6" FontSize="14" TextChanged="JamesSucheTextBox_TextChanged"/>
-                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,4,0,0" Text="z.B. hund, Urlaub 2019, Max mit Auto ..."/>
-                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                    <Button
-                                        Name="SucheStartenButton"
-                                        Content="Suche starten"
-                                        Width="140"
-                                        Height="32"
-                                        Margin="0,0,10,0"
-                                        Click="SucheStarten_Click"/>
-                                    <Button
-                                        Name="SucheAbbrechenButton"
-                                        Content="Suche abbrechen"
-                                        Width="140"
-                                        Height="32"
-                                        IsEnabled="False"
-                                        Click="SucheAbbrechen_Click"/>
-                                </StackPanel>
-                                <ProgressBar
-                                    Name="SucheFortschrittsanzeige"
-                                    IsIndeterminate="True"
-                                    Height="6"
-                                    Margin="0,10,0,0"
-                                    Visibility="Collapsed"/>
-                                <TextBlock
-                                    Name="SucheNeuerStatusText"
-                                    Margin="0,8,0,0"
-                                    TextWrapping="Wrap"
-                                    FontWeight="Bold"
-                                    Foreground="#2E7D32"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2">
-                                <Button Name="AmTestimportDateiButton" Height="40" Margin="0,0,0,8" Click="AmTestimportDatei_Click">
-                                    <TextBlock Text="📄 Datei(en) importieren" TextWrapping="Wrap" TextAlignment="Center"/>
-                                </Button>
-                                <Button Name="AmTestimportOrdnerButton" Height="40" Margin="0,0,0,8" Click="AmTestimportOrdner_Click">
-                                    <TextBlock Text="📁 Ordner importieren" TextWrapping="Wrap" TextAlignment="Center"/>
-                                </Button>
-                                <Button
-                                    Name="ArbeitsmappeJamesErkenntButton"
-                                    Height="40"
-                                    Margin="0,0,0,8"
-                                    IsEnabled="False"
-                                    Click="ArbeitsmappeJamesErkennt_Click">
-                                    <TextBlock
-                                        Text="James erkennt auf diesem Bild ..."
-                                        TextWrapping="Wrap"
-                                        TextAlignment="Center"/>
-                                </Button>
-                                <Button
-                                    Name="ArbeitsmappeDuplikateVerschiebenButton"
-                                    Height="52"
-                                    Visibility="Collapsed"
-                                    Click="ArbeitsmappeDuplikateVerschieben_Click">
-                                    <TextBlock
-                                        Text="Alle (nahezu identischen) Erinnerungen in die AK verschieben"
-                                        TextWrapping="Wrap"
-                                        TextAlignment="Center"/>
-                                </Button>
-                            </StackPanel>
-                        </Grid>
-
                         <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
                              James erkennt automatisch exakte Duplikate und
                              bietet an, sie in die Asservatenkammer zu
@@ -2400,6 +2331,16 @@
                             Foreground="#B00020"
                             TextWrapping="Wrap"
                             Margin="0,0,0,8"/>
+
+                        <Button
+                            Name="ArbeitsmappeDuplikateVerschiebenButton"
+                            Content="Alle (nahezu) identischen Dateien in die Asservatenkammer verschieben"
+                            Width="420"
+                            Height="36"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,8"
+                            Visibility="Collapsed"
+                            Click="ArbeitsmappeDuplikateVerschieben_Click"/>
 
                         <!-- Optimierung (04.08.): sichtbarer Fortschrittsbalken
                              statt einer Zahl, die sich nur alle 200 Dateien
@@ -2423,7 +2364,37 @@
                             FontSize="11"
                             FontStyle="Italic"
                             Foreground="#B00020"
-                            Margin="0,0,0,0"/>
+                            Margin="0,0,0,14"/>
+
+                        <!-- A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 2:
+                             allgemeine Werkzeuge (Import, Bilderkennung) aus
+                             dem gruenen Erinnerungsbereich heraus in den
+                             weissen Bereich oberhalb - unveraenderte Funktion,
+                             nur andere Position. WEISS = allgemeine Werkzeuge,
+                             GRUEN = Erinnerungen ansehen/markieren/bearbeiten. -->
+                        <TextBlock FontWeight="Bold" Margin="0,0,0,4" Text="[ Neue Bilder/Ordner importieren ]"/>
+                        <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,0,0,6" Text="Kopiert zusätzliche, bisher unbekannte Dateien von einem beliebigen Laufwerk/Ordner in den Testbestand. Original bleibt unverändert."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <Button Name="AmTestimportDateiButton" Content="📄 Einzelne Datei(en)..." Padding="10,4" Margin="0,0,10,0" Click="AmTestimportDatei_Click"/>
+                            <Button Name="AmTestimportOrdnerButton" Content="📁 Ganzer Ordner..." Padding="10,4" Click="AmTestimportOrdner_Click"/>
+                        </StackPanel>
+
+                        <!-- Sprint C, Etappe 1b (05.08./06.08.): "James erkennt..." -
+                             betrifft dieselbe Markierung wie die gesamte
+                             rechte Aktionsleiste und die AM-eigenen Buttons. -->
+                        <Button
+                            Name="ArbeitsmappeJamesErkenntButton"
+                            Width="240"
+                            Height="40"
+                            HorizontalAlignment="Left"
+                            IsEnabled="False"
+                            Margin="0,0,0,4"
+                            Click="ArbeitsmappeJamesErkennt_Click">
+                            <TextBlock
+                                Text="James erkennt auf diesem Bild ..."
+                                TextWrapping="Wrap"
+                                TextAlignment="Center"/>
+                        </Button>
 
                     </StackPanel>
 
@@ -2447,25 +2418,17 @@
                             Padding="14">
 
                             <StackPanel>
-                                <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Erinnerungen"/>
-
-                                <!-- A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.):
-                                     nicht mehr direkt editierbar - JamesSucheTextBox
-                                     oben im weissen Bereich ist der einzige sichtbare
-                                     Sucheingang. Bleibt technisch unveraendert die
-                                     Filterquelle (TextChanged-Handler unangetastet),
-                                     wird nur programmatisch befuellt (UebergibSuche-
-                                     AnArbeitsmappe/SendeMarkierteZurArbeitsmappe/
-                                     SendeErinnerungsIdsZurArbeitsmappe). -->
-                                <TextBox Name="AmDirekteSucheTextBox" Visibility="Collapsed" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
+                                <TextBlock FontWeight="Bold" Margin="0,0,0,8" Text="Erinnerungen: suchen, importieren, markieren"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBox Name="AmDirekteSucheTextBox" Width="380" Padding="4" Margin="0,0,10,0" TextChanged="AmDirekteSucheTextBox_TextChanged"/>
                                     <TextBlock Text="Sortieren:" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <ComboBox Name="AmSortierungComboBox" Width="150" SelectedIndex="0" SelectionChanged="AmDirekteSucheTextBox_TextChanged">
                                         <ComboBoxItem Content="Datum (neueste zuerst)"/>
                                         <ComboBoxItem Content="Alphabetisch"/>
                                     </ComboBox>
                                 </StackPanel>
+                                <TextBlock FontStyle="Italic" Foreground="#999999" Margin="0,-4,0,6" Text="Nach Dateiname suchen (z.B. Teil des Namens oder Ordners) - leer lassen, um alle zu sehen"/>
                                 <TextBlock Name="AmDirekteTrefferAnzahlText" FontWeight="Bold" Margin="0,0,0,6"/>
 
                                 <!-- SICHERHEITSFIX (10.08., A/Opa-Integrationsauftrag Punkt 7),
@@ -2481,17 +2444,22 @@
                                     </ListBox.ItemsPanel>
                                 </ListBox>
 
-                                <!-- A/Opa-OPTIMIERUNG (17.08.): "Neue Zuordnung
-                                     anlegen" + Ziel-Auswahl + Markierungs-Hinweis
-                                     entfernt - redundant, die rechte Aktionsleiste
-                                     deckt Person/Ereignis/Sammlung/besonderes
-                                     Ereignis bereits vollstaendig ab (sogar mehr
-                                     Zieltypen als hier). "Markierte in den
-                                     Papierkorb" samt Ziel-Auswahl (AmZielTypCombo-
-                                     Box/AmZielObjektComboBox) ist NICHT geloescht,
-                                     sondern in die rechte Aktionsleiste umgezogen
-                                     (eigener Abschnitt dort) - unveraendert
-                                     dieselben Namen/Handler, keine Logik dupliziert. -->
+                                <TextBlock Name="AmMarkierungsHinweisText" FontStyle="Italic" Foreground="#B00020" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Neu zuordnen zu:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox Name="AmZielTypComboBox" Width="110" Margin="0,0,8,0" SelectedIndex="0" SelectionChanged="AmZielTypComboBox_SelectionChanged">
+                                        <ComboBoxItem Content="Person"/>
+                                        <ComboBoxItem Content="Ereignis"/>
+                                        <ComboBoxItem Content="Sammlung"/>
+                                    </ComboBox>
+                                    <ComboBox Name="AmZielObjektComboBox" Width="220"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                    <Button Name="AmZuordnenBestaetigenButton" Content="Neue Zuordnung anlegen" Padding="10,4" Margin="0,0,10,0" IsEnabled="False" Click="AmZuordnenBestaetigen_Click"/>
+                                    <Button Name="AmMarkierteInPapierkorbButton" Content="Markierte in den Papierkorb" Padding="10,4" IsEnabled="False" Click="AmMarkierteInPapierkorb_Click"/>
+                                </StackPanel>
 
                                 <TextBlock Name="AmStatusText" FontWeight="Bold" Foreground="#2E7D32" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -2501,7 +2469,7 @@
                     </ScrollViewer>
 
 
-                        <ScrollViewer Grid.Column="2" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer Grid.Column="2" Grid.RowSpan="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
 
                                 <!-- Komfort-Optimierung (31.07.): jedes
@@ -2785,113 +2753,6 @@
 
                                 </StackPanel>
 
-                                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
-                                 Sammlung - dritte Schublade für thematische
-                                 Erinnerungen ohne Person und ohne Datum. -->
-                                <TextBlock
-                                FontWeight="Bold"
-                                Margin="0,0,0,4"
-                                Text="Sammlung"/>
-                                <Button
-                                Name="ArbeitsmappeSammlungZuordnenButton"
-                                Content="Bestehender Sammlung zuordnen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,8"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeSammlungZuordnen_Click"/>
-                                <!-- Inline-Auswahl: Bestehende Sammlung zuordnen -
-                                 Neue Funktion (Generaltest 2): Mehrfachauswahl statt
-                                 einzelner ComboBox, plus Ansehen/Archivieren/Papierkorb
-                                 direkt hier - die früher ständig sichtbare Liste
-                                 "Meine Sammlungen" ist damit überflüssig geworden. -->
-                                <StackPanel Name="ArbeitsmappeSammlungAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Meine Sammlungen" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                    <ListBox
-                                    Name="FreieSammlungenListe"
-                                    Height="120"
-                                    Margin="0,0,0,10"
-                                    SelectionMode="Extended"
-                                    SelectionChanged="FreieSammlungenListe_SelectionChanged"/>
-
-                                    <Button
-                                    Name="SammlungZuordnenBestaetigenButton"
-                                    Content="Erinnerungen zuordnen"
-                                    Width="200"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Margin="0,0,0,8"
-                                    IsEnabled="False"
-                                    Click="SammlungBestaetigen_Click"/>
-
-                                    <Button
-                                    Name="SammlungErinnerungenAnsehenButton"
-                                    Content="Sammlung ansehen"
-                                    Width="200"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Margin="0,0,0,8"
-                                    IsEnabled="False"
-                                    Click="SammlungErinnerungenAnsehen_Click"/>
-
-                                    <Button
-                                    Name="SammlungArchivierenButton"
-                                    Content="Archivieren"
-                                    Width="200"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Margin="0,0,0,8"
-                                    IsEnabled="False"
-                                    Click="SammlungArchivieren_Click"/>
-
-                                    <Button
-                                    Name="SammlungInPapierkorbButton"
-                                    Content="In den Papierkorb legen"
-                                    Width="200"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Margin="0,0,0,8"
-                                    IsEnabled="False"
-                                    Click="SammlungInPapierkorb_Click"/>
-
-                                    <Button
-                                    Content="Abbrechen"
-                                    Width="140"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="ArbeitsmappeSammlungAbbrechen_Click"/>
-
-                                </StackPanel>
-
-                                <Button
-                                Name="ArbeitsmappeNeueSammlungButton"
-                                Content="Neue Sammlung anlegen"
-                                Width="200"
-                                Height="36"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,0,20"
-                                IsEnabled="False"
-                                Click="ArbeitsmappeNeueSammlungAnlegen_Click"/>
-                                <!-- Inline-Auswahl: Neue Sammlung -->
-                                <StackPanel Name="ArbeitsmappeNeueSammlungPanel" Visibility="Collapsed" Margin="0,20,0,0">
-
-                                    <TextBlock Text="Neue Sammlung" FontWeight="Bold" Margin="0,0,0,8"/>
-
-                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
-                                    <TextBox Name="SammlungTitelTextBox" Padding="4" Margin="0,0,0,10"/>
-
-                                    <Button
-                                    Name="SammlungSpeichernButton"
-                                    Content="Speichern und zuordnen"
-                                    Width="180"
-                                    Height="36"
-                                    HorizontalAlignment="Left"
-                                    Click="SammlungSpeichernUndZuordnen_Click"/>
-
-                                </StackPanel>
                                 <!-- Build 5.0 "Erinnerungen über Personen ODER Ereignisse":
                                  Ein "freies" Ereignis ist eigenständig, unabhängig von
                                  jeder Person. James macht dabei keine eigenen
@@ -3005,42 +2866,113 @@
 
                                 </StackPanel>
 
-                                <!-- A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB = VOM
-                                 ARBEITSTISCH WEGLEGEN" (17.08.), zweiter Anlauf:
-                                 "AM -> Papierkorb" aendert NICHTS an Zuordnungen,
-                                 Ordnern oder Dateien - es entfernt die markierten
-                                 Erinnerung(en) ausschliesslich aus der Arbeits-
-                                 mappen-ANSICHT (neuer, eigener AM-Papierkorb,
-                                 siehe MainWindow.ErinnerungsmodellZustand.cs).
-                                 Funktioniert jetzt auch fuer bisher unzugeordnete
-                                 Erinnerungen. Wiederherstellbar im Papierkorb-Tab,
-                                 Abschnitt "Aus der Arbeitsmappe entfernt". -->
+                                <!-- Neue Funktion (Generaltest 2, Wunsch von Oma+Opa):
+                                 Sammlung - dritte Schublade für thematische
+                                 Erinnerungen ohne Person und ohne Datum. -->
                                 <TextBlock
                                 FontWeight="Bold"
                                 Margin="0,0,0,4"
-                                Text="🗑 Markierte Erinnerungen in den Papierkorb"/>
-                                <TextBlock
-                                FontStyle="Italic"
-                                Foreground="#777777"
-                                TextWrapping="Wrap"
-                                Margin="0,0,0,8"
-                                Text="Entfernt die markierten Erinnerungen nur aus der Arbeitsmappe. Originaldateien und Zuordnungen bleiben erhalten."/>
+                                Text="Sammlung"/>
                                 <Button
-                                Name="AmMarkierteInPapierkorbButton"
-                                Content="🗑 Markierte Erinnerungen in den Papierkorb"
+                                Name="ArbeitsmappeSammlungZuordnenButton"
+                                Content="Bestehender Sammlung zuordnen"
                                 Width="200"
-                                Height="52"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,8"
+                                IsEnabled="False"
+                                Click="ArbeitsmappeSammlungZuordnen_Click"/>
+                                <!-- Inline-Auswahl: Bestehende Sammlung zuordnen -
+                                 Neue Funktion (Generaltest 2): Mehrfachauswahl statt
+                                 einzelner ComboBox, plus Ansehen/Archivieren/Papierkorb
+                                 direkt hier - die früher ständig sichtbare Liste
+                                 "Meine Sammlungen" ist damit überflüssig geworden. -->
+                                <StackPanel Name="ArbeitsmappeSammlungAuswahlPanel" Visibility="Collapsed" Margin="0,20,0,0">
+
+                                    <TextBlock Text="Meine Sammlungen" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                    <ListBox
+                                    Name="FreieSammlungenListe"
+                                    Height="120"
+                                    Margin="0,0,0,10"
+                                    SelectionMode="Extended"
+                                    SelectionChanged="FreieSammlungenListe_SelectionChanged"/>
+
+                                    <Button
+                                    Name="SammlungZuordnenBestaetigenButton"
+                                    Content="Erinnerungen zuordnen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungBestaetigen_Click"/>
+
+                                    <Button
+                                    Name="SammlungErinnerungenAnsehenButton"
+                                    Content="Sammlung ansehen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungErinnerungenAnsehen_Click"/>
+
+                                    <Button
+                                    Name="SammlungArchivierenButton"
+                                    Content="Archivieren"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungArchivieren_Click"/>
+
+                                    <Button
+                                    Name="SammlungInPapierkorbButton"
+                                    Content="In den Papierkorb legen"
+                                    Width="200"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,8"
+                                    IsEnabled="False"
+                                    Click="SammlungInPapierkorb_Click"/>
+
+                                    <Button
+                                    Content="Abbrechen"
+                                    Width="140"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="ArbeitsmappeSammlungAbbrechen_Click"/>
+
+                                </StackPanel>
+
+                                <Button
+                                Name="ArbeitsmappeNeueSammlungButton"
+                                Content="Neue Sammlung anlegen"
+                                Width="200"
+                                Height="36"
                                 HorizontalAlignment="Left"
                                 Margin="0,0,0,20"
                                 IsEnabled="False"
-                                Click="AmMarkierteInPapierkorb_Click">
-                                    <Button.ContentTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center"/>
-                                        </DataTemplate>
-                                    </Button.ContentTemplate>
-                                </Button>
+                                Click="ArbeitsmappeNeueSammlungAnlegen_Click"/>
+                                <!-- Inline-Auswahl: Neue Sammlung -->
+                                <StackPanel Name="ArbeitsmappeNeueSammlungPanel" Visibility="Collapsed" Margin="0,20,0,0">
 
+                                    <TextBlock Text="Neue Sammlung" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Titel" Margin="0,0,0,4"/>
+                                    <TextBox Name="SammlungTitelTextBox" Padding="4" Margin="0,0,0,10"/>
+
+                                    <Button
+                                    Name="SammlungSpeichernButton"
+                                    Content="Speichern und zuordnen"
+                                    Width="180"
+                                    Height="36"
+                                    HorizontalAlignment="Left"
+                                    Click="SammlungSpeichernUndZuordnen_Click"/>
+
+                                </StackPanel>
 
                                 <!-- Punkt 3 (Optimierung nach Test 2): eigenständige,
                                  von Person/Ereignis/Sammlung unabhängige Markierung -
@@ -3092,38 +3024,10 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                    <!-- A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.),
-                         §7: schmale Status-/Bedienleiste ganz unten, ueber
-                         die volle Breite (Grid.ColumnSpan="3"). "Arbeitsmappe
-                         leeren" raeumt NUR den Tisch ab (nichts geloescht,
-                         keine Zuordnung/Papierkorb/AK) - siehe amArbeitstisch-
-                         Geleert-Feld in MainWindow.ErinnerungsmodellZustand.cs. -->
-                    <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="0,10,0,0" Margin="0,10,0,0">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" Name="AmBottomAnzahlText" VerticalAlignment="Center" FontWeight="Bold"/>
-
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Name="AmBottomMarkiertText" VerticalAlignment="Center" Foreground="#2E7D32" FontWeight="Bold" Margin="0,0,14,0"/>
-                                <Button Name="AmAlleMarkierenButton" Content="Alle markieren" Padding="10,4" Click="AmAlleMarkieren_Click"/>
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Name="AmArbeitsmappeLeerenButton" Content="🧹 Arbeitsmappe leeren" Padding="10,4" Margin="0,0,10,0" Click="AmArbeitsmappeLeeren_Click"/>
-                                <TextBlock Text="Tisch abräumen - alle angezeigten Erinnerungen aus der Arbeitsmappe entfernen." FontStyle="Italic" Foreground="#999999" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="260"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-
                     <!-- Großansicht (nur für Bilder), deckt den ganzen Reiter ab -->
                     <Border
                         Grid.Row="0"
-                        Grid.RowSpan="3"
+                        Grid.RowSpan="2"
                         Name="ArbeitsmappeGrossansichtPanel"
                         Visibility="Collapsed"
                         Background="#F0000000">

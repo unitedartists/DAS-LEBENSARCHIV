@@ -56,45 +56,53 @@ namespace DAS_LEBENSARCHIV
         // kein zweiter "Arbeitsbereich" mit Markieren/Zuordnen, sondern
         // nur eine Kurzanzeige, und war nicht Gegenstand dieses Auftrags.
 
+        // A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 6: die Alt-Modell-
+        // Live-Suche (FuehreJamesSucheAus, JamesTrefferListe/Erinnerungskarte)
+        // wird bei jedem Tastendruck NICHT mehr aufgerufen - sie war fuer
+        // Opa ohnehin nicht mehr sichtbar gedacht (siehe MainWindow.xaml,
+        // Kommentar an dieser Stelle) und haette nur unnoetig bei jedem
+        // Buchstaben unsichtbare Arbeit verrichtet. Methode selbst bewusst
+        // NICHT geloescht (siehe dort).
         private void JamesSucheTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            FuehreJamesSucheAus();
         }
 
-        // A/Opa-BAUAUFTRAG "JAMES-SUCHE KLARER UND OPA-FREUNDLICHER" (16.08.),
-        // Punkt 4: JamesSucheStatusText wird nicht mehr durch FuehreJamesSucheAus
-        // (Alt-Modell-Live-Suche, laeuft bei jedem Tastendruck) ueberschrieben -
-        // dieser Text bezog sich auf die Trefferzahl im ALTEN Modell und hatte
-        // mit dem, was Opa tatsaechlich in der AM (neues Modell) sieht, nichts
-        // zu tun. Er blieb dadurch oft als irrefuehrendes "nichts gefunden"
-        // stehen, obwohl die eigentliche (neue) Suche durchaus Treffer hatte.
-        // JamesSucheStatusText zeigt jetzt ausschliesslich die von
-        // SucheStarten_Click gesetzte, auf dem neuen Modell basierende
-        // Kurzmeldung. Die Sichtbarkeits-Umschaltung der Alt-Modell-Liste
-        // (JamesTrefferListe/ErinnerungskartePanel/-PlatzhalterText) bleibt
-        // unveraendert - nur nicht mehr Gegenstand.
-        private void SucheStarten_Click(object sender, RoutedEventArgs e)
+        // A/Opa-BAUAUFTRAG "AM-ABSCHLUSS" (16.08.), Punkt 5+6: verbindliche,
+        // EHRLICHE Suchverlaufs-/Statusanzeige. Die eigentliche Suche
+        // (ZentraleErinnerungsSuche) beruehrt keine UI-Elemente und laeuft
+        // deshalb echt im Hintergrund (Task.Run) - kein erfundener
+        // Fortschrittsbalken, sondern eine unbestimmte Aktivitaetsanzeige
+        // waehrend tatsaechlich gerechnet wird. Die alte, jetzt stillgelegte
+        // Live-Suche (FuehreJamesSucheAus) wird hier nicht mehr aufgerufen.
+        private async void SucheStarten_Click(object sender, RoutedEventArgs e)
         {
             SucheStartenButton.IsEnabled = false;
             SucheAbbrechenButton.IsEnabled = true;
 
             string eingabe = JamesSucheTextBox.Text.Trim();
 
-            FuehreJamesSucheAus();
-
-            if (eingabe != "")
+            if (eingabe == "")
             {
-                int trefferAnzahl = ZentraleErinnerungsSuche(eingabe, SortierModus.DatumNeuesteZuerst).Count;
-
-                JamesSucheStatusText.Text = "James sucht: \"" + eingabe + "\" — " +
-                    (trefferAnzahl == 1 ? "1 Erinnerung gefunden." : trefferAnzahl + " Erinnerungen gefunden.");
-
-                UebergibSucheAnArbeitsmappe(eingabe);
+                SucheNeuerStatusText.Text = "";
+                SucheFortschrittsanzeige.Visibility = Visibility.Collapsed;
+                SucheStartenButton.IsEnabled = true;
+                SucheAbbrechenButton.IsEnabled = false;
+                return;
             }
-            else
-            {
-                JamesSucheStatusText.Text = "";
-            }
+
+            SucheNeuerStatusText.Text = "James sucht: \"" + eingabe + "\" ...";
+            SucheFortschrittsanzeige.Visibility = Visibility.Visible;
+
+            int trefferAnzahl = await System.Threading.Tasks.Task.Run(
+                () => ZentraleErinnerungsSuche(eingabe, SortierModus.DatumNeuesteZuerst).Count);
+
+            SucheFortschrittsanzeige.Visibility = Visibility.Collapsed;
+
+            SucheNeuerStatusText.Text = trefferAnzahl > 0
+                ? "James hat " + (trefferAnzahl == 1 ? "1 Erinnerung" : trefferAnzahl + " Erinnerungen") + " gefunden und in der Arbeitsmappe aufgelegt."
+                : "James hat nichts gefunden.";
+
+            UebergibSucheAnArbeitsmappe(eingabe);
 
             SucheStartenButton.IsEnabled = true;
             SucheAbbrechenButton.IsEnabled = false;
@@ -121,6 +129,10 @@ namespace DAS_LEBENSARCHIV
         private void UebergibSucheAnArbeitsmappe(string suchbegriff)
         {
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
+
+            // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: eine
+            // neue Suche beendet den "leer"-Zustand ("Arbeitsmappe leeren").
+            amArbeitstischGeleert = false;
 
             AmDirekteSucheTextBox.Text = suchbegriff;
         }

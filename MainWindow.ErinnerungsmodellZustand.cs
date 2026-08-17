@@ -270,6 +270,10 @@ namespace DAS_LEBENSARCHIV
 
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
 
+            // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: eine
+            // Erinnerung "ausgelegt" zu bekommen beendet den "leer"-Zustand.
+            amArbeitstischGeleert = false;
+
             if (AmDirekteSucheTextBox != null)
             {
                 AmDirekteSucheTextBox.Text = "";
@@ -534,12 +538,37 @@ namespace DAS_LEBENSARCHIV
             }
         }
 
+        // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: "Arbeitsmappe
+        // leeren" ist ein echter, eigener Anzeige-Zustand - unabhaengig vom
+        // Suchtext (der bei leerem Text normalerweise den GESAMTEN Bestand
+        // zeigt). Bleibt gesetzt, bis explizit wieder gesucht/importiert/
+        // ausgelegt wird (Reset-Stellen: UebergibSucheAnArbeitsmappe,
+        // AmTestimportDatei_Click, AmTestimportOrdner_Click, SendeMarkierte-
+        // ZurArbeitsmappe, SendeErinnerungsIdsZurArbeitsmappe). Aendert nur
+        // die ANZEIGE - keine Datei, Zuordnung, Papierkorb oder AK betroffen.
+        private bool amArbeitstischGeleert = false;
+
         private void AktualisiereAmDirekteAuswahlListe()
         {
             LadeErinnerungsmodellFallsNoetig();
 
             if (AmDirekteSucheTextBox == null || AmDirekteAuswahlListe == null)
             {
+                return;
+            }
+
+            if (amArbeitstischGeleert)
+            {
+                AmDirekteAuswahlListe.Items.Clear();
+
+                if (AmDirekteTrefferAnzahlText != null)
+                {
+                    AmDirekteTrefferAnzahlText.Text = "Die Arbeitsmappe ist leer - bitte suchen, importieren oder eine Erinnerung hierher schicken.";
+                }
+
+                AktualisiereAmBottomLeiste(0);
+                AktualisiereAmMarkierungsAbhaengigeAnzeige();
+                AktualisiereAmPapierkorbAnzeige();
                 return;
             }
 
@@ -550,6 +579,15 @@ namespace DAS_LEBENSARCHIV
             SortierModus sortierung = alphabetisch ? SortierModus.AlphabetischAufsteigend : SortierModus.DatumNeuesteZuerst;
 
             List<Erinnerung> treffer = ZentraleErinnerungsSuche(suchtext, sortierung, out Dictionary<Guid, SuchTrefferQuelle> trefferQuellen).ToList();
+
+            // A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB = VOM ARBEITSTISCH
+            // WEGLEGEN" (17.08.): Erinnerungen, die Opa aus der AM in den
+            // (neuen, eigenen) AM-Papierkorb gelegt hat, werden hier aus
+            // JEDER Ansicht der AM ausgeblendet - unabhaengig vom Suchtext.
+            // Nichts an den Daten selbst (Zuordnungen/Datei) ist dabei
+            // veraendert, nur die Sichtbarkeit in der AM.
+            LadeAmPapierkorbFallsNoetig();
+            treffer = treffer.Where(er => !amPapierkorbErinnerungIds.Contains(er.Id)).ToList();
 
             AmDirekteAuswahlListe.Items.Clear();
 
@@ -603,7 +641,52 @@ namespace DAS_LEBENSARCHIV
                     : "🔍 Suchergebnisse: \"" + suchtext.Trim() + "\" – " + treffer.Count + " Erinnerung(en):";
             }
 
+            AktualisiereAmBottomLeiste(treffer.Count);
             AktualisiereAmMarkierungsAbhaengigeAnzeige();
+            AktualisiereAmPapierkorbAnzeige();
+        }
+
+        // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: schmale
+        // Statusleiste ganz unten - Anzahl links. Der "N markiert"-Text
+        // wird separat von AktualisiereAmMarkierungsAbhaengigeAnzeige
+        // gepflegt (aktualisiert sich dadurch auch bei reinem Markieren,
+        // ohne dass die Liste neu aufgebaut werden muss).
+        private void AktualisiereAmBottomLeiste(int anzahl)
+        {
+            if (AmBottomAnzahlText != null)
+            {
+                AmBottomAnzahlText.Text = anzahl == 1 ? "1 Erinnerung" : anzahl + " Erinnerungen";
+            }
+        }
+
+        // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: markiert
+        // ALLE aktuell sichtbaren (nicht durch einen Suchbegriff
+        // weggefilterten) Kacheln - genau dieselbe Datenquelle, die auch
+        // die einzelne Markierung per Klick verwendet.
+        private void AmAlleMarkieren_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (Border kachel in AmDirekteAuswahlListe.Items.Cast<Border>())
+            {
+                if (kachel.Tag is Erinnerung erinnerung)
+                {
+                    amMarkierteErinnerungIds.Add(erinnerung.Id);
+                }
+            }
+
+            AktualisiereAmDirekteAuswahlListe();
+        }
+
+        // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: "Tisch
+        // abraeumen" - raeumt AUSSCHLIESSLICH die Anzeige der Arbeitsmappe
+        // leer. Loescht KEINE Datei, KEINE Zuordnung, verschiebt nichts in
+        // den Papierkorb oder die Asservatenkammer. Die Markierung wird mit
+        // aufgeraeumt (ein leerer Tisch kann nichts markiert haben) - das
+        // ist ein reiner Anzeige-/Arbeits-Zustand, keine Datenaenderung.
+        private void AmArbeitsmappeLeeren_Click(object sender, RoutedEventArgs e)
+        {
+            amArbeitstischGeleert = true;
+            amMarkierteErinnerungIds.Clear();
+            AktualisiereAmDirekteAuswahlListe();
         }
 
         // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): einzige Stelle, die
@@ -662,6 +745,10 @@ namespace DAS_LEBENSARCHIV
             }
 
             HauptTabControl.SelectedIndex = ArbeitsmappeTabIndex;
+
+            // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: eine
+            // Erinnerung "ausgelegt" zu bekommen beendet den "leer"-Zustand.
+            amArbeitstischGeleert = false;
 
             if (AmDirekteSucheTextBox != null)
             {
@@ -864,12 +951,14 @@ namespace DAS_LEBENSARCHIV
         private void AmTestimportDatei_Click(object sender, RoutedEventArgs e)
         {
             TestimportDateienWaehlenUndAusfuehren();
+            amArbeitstischGeleert = false;
             AktualisiereAmDirekteAuswahlListe();
         }
 
         private void AmTestimportOrdner_Click(object sender, RoutedEventArgs e)
         {
             TestimportOrdnerWaehlenUndAusfuehren();
+            amArbeitstischGeleert = false;
             AktualisiereAmDirekteAuswahlListe();
         }
 
@@ -914,49 +1003,13 @@ namespace DAS_LEBENSARCHIV
             fenster.ShowDialog();
         }
 
-        private void AmZielTypComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            AktualisiereAmZielAuswahl();
-        }
-
-        private void AktualisiereAmZielAuswahl()
-        {
-            if (AmZielTypComboBox == null || AmZielObjektComboBox == null)
-            {
-                return;
-            }
-
-            ComboBoxItem ausgewaehlterTyp = AmZielTypComboBox.SelectedItem as ComboBoxItem;
-            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
-
-            AmZielObjektComboBox.ItemsSource = null;
-
-            if (typText == "Ereignis")
-            {
-                AmZielObjektComboBox.ItemsSource = freieEreignisse
-                    .Concat(freieEreignisseArchiv)
-                    .ToList();
-            }
-            else if (typText == "Sammlung")
-            {
-                AmZielObjektComboBox.ItemsSource = sammlungen
-                    .Concat(sammlungenArchiv)
-                    .ToList();
-            }
-            else
-            {
-                AmZielObjektComboBox.ItemsSource = allePersonen
-                    .Concat(ArchivListe.Items.OfType<Person>())
-                    .ToList();
-            }
-
-            if (AmZielObjektComboBox.Items.Count > 0)
-            {
-                AmZielObjektComboBox.SelectedIndex = 0;
-            }
-
-            AktualisiereAmMarkierungsAbhaengigeAnzeige();
-        }
+        // A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB VERWENDET NOCH ALTE
+        // ZIELBEZOGENE LOGIK" (17.08.): AmZielTypComboBox_SelectionChanged
+        // und AktualisiereAmZielAuswahl sind komplett entfallen - die AM
+        // fragt beim Papierkorb-Vorgang kein Ziel mehr ab (siehe
+        // AmMarkierteInPapierkorb_Click). AmZielTypComboBox/AmZielObjekt-
+        // ComboBox wurden aus MainWindow.xaml entfernt, keine andere Stelle
+        // im Code verwendet sie noch (codegenau geprueft).
 
         // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU ZU EINEM ARBEITSBEREICH" (16.08.):
         // liest die Markierung jetzt direkt aus amMarkierteErinnerungIds -
@@ -984,23 +1037,24 @@ namespace DAS_LEBENSARCHIV
         private void AktualisiereAmMarkierungsAbhaengigeAnzeige()
         {
             int anzahl = amMarkierteErinnerungIds.Count;
-            bool zielVorhanden = AmZielObjektComboBox != null && AmZielObjektComboBox.Items.Count > 0;
 
-            if (AmZuordnenBestaetigenButton != null)
-            {
-                AmZuordnenBestaetigenButton.IsEnabled = anzahl > 0 && zielVorhanden;
-            }
-
+            // A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB VERWENDET NOCH ALTE
+            // ZIELBEZOGENE LOGIK" (17.08.): kein Ziel mehr noetig - nur
+            // noch von der Markierung selbst abhaengig.
             if (AmMarkierteInPapierkorbButton != null)
             {
-                AmMarkierteInPapierkorbButton.IsEnabled = anzahl > 0 && zielVorhanden;
+                AmMarkierteInPapierkorbButton.IsEnabled = anzahl > 0;
             }
 
-            if (AmMarkierungsHinweisText != null)
+            // A/Opa-UMBAU "AM GRUNDLEGEND VEREINFACHEN" (17.08.), §7: die
+            // "N markiert"-Anzeige in der unteren Statusleiste haengt
+            // ausschliesslich von der Markierung ab (nicht von der Anzahl
+            // sichtbarer Kacheln) - deshalb hier statt in Aktualisiere-
+            // AmBottomLeiste aktualisiert, wird von JEDER Markierungs-
+            // aenderung erreicht (auch reinem Klicken ohne Listen-Neuaufbau).
+            if (AmBottomMarkiertText != null)
             {
-                AmMarkierungsHinweisText.Text = anzahl == 0
-                    ? "Bitte oben in der Liste markieren, welche Erinnerung(en) betroffen sein sollen (Strg-/Umschalt-Klick für mehrere)."
-                    : anzahl + " Erinnerung(en) markiert - alle Aktionen rechts sowie \"Neue Zuordnung anlegen\"/\"Markierte in den Papierkorb\" betreffen nur diese.";
+                AmBottomMarkiertText.Text = anzahl == 0 ? "" : anzahl + " markiert";
             }
 
             AktualisiereArbeitsmappenWerkzeuge();
@@ -1053,115 +1107,42 @@ namespace DAS_LEBENSARCHIV
             return SpeichereErinnerungsmodell();
         }
 
-        private void AmZuordnenBestaetigen_Click(object sender, RoutedEventArgs e)
-        {
-            List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
-
-            if (markiert.Count == 0)
-            {
-                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) neu zugeordnet werden sollen (in einer der Listen oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
-                return;
-            }
-
-            ComboBoxItem ausgewaehlterTyp = AmZielTypComboBox.SelectedItem as ComboBoxItem;
-            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
-
-            ZuordnungsZielTyp zielTyp;
-            Guid zielId;
-            string zielBezeichnung;
-
-            if (typText == "Ereignis")
-            {
-                Ereignis ereignis = AmZielObjektComboBox.SelectedItem as Ereignis;
-                if (ereignis == null) { return; }
-                zielTyp = ZuordnungsZielTyp.Ereignis;
-                zielId = ereignis.Id;
-                zielBezeichnung = ereignis.Titel;
-            }
-            else if (typText == "Sammlung")
-            {
-                Sammlung sammlung = AmZielObjektComboBox.SelectedItem as Sammlung;
-                if (sammlung == null) { return; }
-                zielTyp = ZuordnungsZielTyp.Sammlung;
-                zielId = sammlung.Id;
-                zielBezeichnung = sammlung.Titel;
-            }
-            else
-            {
-                Person person = AmZielObjektComboBox.SelectedItem as Person;
-                if (person == null) { return; }
-                zielTyp = ZuordnungsZielTyp.Person;
-                zielId = person.Id;
-                zielBezeichnung = person.ToString();
-            }
-
-            bool ergebnis = James.FrageJaNein(
-                "Genau " + markiert.Count + " markierte Erinnerung(en) neu zuordnen zu \"" + zielBezeichnung + "\"?\n\n" +
-                "Nicht markierte Erinnerungen bleiben unverändert. Bisherige Zuordnungen der markierten Erinnerungen bleiben zusätzlich bestehen.",
-                James.TitelEntscheidung);
-
-            if (!ergebnis)
-            {
-                return;
-            }
-
-            bool gespeichertVerifiziert = FuehreZuordnungDurch(markiert, zielTyp, zielId, zielBezeichnung, out int anzahlBereitsVorhanden);
-
-            // A/Opa-BAUAUFTRAG "AM: GESAMTUMBAU" (16.08.): die Markierung
-            // bleibt nach dem Zuordnen bewusst bestehen (einheitlich mit
-            // der rechten Aktionsleiste, siehe Punkt 3/Optimierung nach
-            // Test 2) - so koennen dieselben markierten Erinnerungen im
-            // selben Arbeitsgang zusaetzlich einer weiteren Person/einem
-            // Ereignis/einer Sammlung zugeordnet werden. Nur der Button
-            // "Markierung aufheben" loescht die Markierung noch aktiv.
-
-            // A/Opa-SCHUTZAUFTRAG (13.08.): Ruecklmeldung, wenn Erinnerungen
-            // uebersprungen wurden, weil sie diesem Ziel bereits zugeordnet
-            // waren - statt stillschweigend nichts zu tun (A's Vorschlag:
-            // "Diese Erinnerung ist bereits der Sammlung X zugeordnet").
-            int anzahlNeu = markiert.Count - anzahlBereitsVorhanden;
-
-            AktualisiereAmDirekteAuswahlListe();
-
-            string hinweisBereitsVorhanden = anzahlBereitsVorhanden > 0
-                ? " (" + anzahlBereitsVorhanden + " war(en) \"" + zielBezeichnung + "\" bereits zugeordnet und wurde(n) übersprungen.)"
-                : "";
-
-            AmStatusText.Text = gespeichertVerifiziert
-                ? "✓ " + anzahlNeu + " markierte Erinnerung(en) zu \"" + zielBezeichnung + "\" neu zugeordnet und gespeichert." + hinweisBereitsVorhanden
-                : "⚠ Zuordnung angelegt, aber Speichern konnte nicht verifiziert werden - bitte prüfen.";
-        }
-
         // A/Opa-OPTIMIERUNGSAUFTRAG "Opa-freundliches James" (16.08.), Teil D:
-        // "Markierte Erinnerungen in den Papierkorb" - betrifft AUSSCHLIESSLICH
-        // die tatsaechlich markierten Erinnerungen (wiederverwendet
-        // ErmittleMarkierteArbeitsauswahl, dasselbe Schutzprinzip wie bei
-        // "Neue Zuordnung anlegen"), NIEMALS die gesamte Arbeitsauswahl/
-        // Sammlung/Ereignis/Person. Nutzt dieselbe Ziel-Auswahl (AmZielTyp-/
-        // AmZielObjektComboBox), die fuer das Zuordnen bereits existiert -
-        // die markierten Erinnerungen werden aus GENAU diesem Ziel entfernt,
-        // die Zuordnung landet im bereits bestehenden Zuordnungs-Papierkorb
-        // (VersucheAusNeuemModellEntfernen -> EntferneZuordnungenInPapierkorb,
-        // keine neue Papierkorb-Logik). Erinnerung selbst und alle anderen
-        // Zuordnungen bleiben unangetastet.
+        // urspruengliche Version dieses Buttons - siehe REPARATURAUFTRAG
+        // direkt darunter fuer die aktuelle Logik.
+        //
+        // A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB = VOM ARBEITSTISCH WEGLEGEN"
+        // (17.08.), zweiter, endgueltiger Anlauf: der vorherige Fix (Zuord-
+        // nungen der markierten Erinnerung(en) entfernen) traf den falschen
+        // Grundsatz - A/Opa stellten klar, dass "AM -> Papierkorb" NICHTS an
+        // Zuordnungen/Dateien aendern darf, sondern AUSSCHLIESSLICH die
+        // Sichtbarkeit in der Arbeitsmappe selbst betrifft ("vom Arbeitstisch
+        // weglegen", nicht "Zuordnung loeschen"). Neu: markierte Erinnerung(en)
+        // wandern in einen eigenen, neuen, dauerhaft gespeicherten AM-
+        // Papierkorb (amPapierkorbErinnerungIds, eigene Datei am_papierkorb.
+        // json - bewusst NICHT im bestehenden erinnerungsmodell.json, dessen
+        // Speicherklasse mir nicht vorliegt) und werden dadurch aus JEDER
+        // Ansicht der AM ausgeblendet (AktualisiereAmDirekteAuswahlListe
+        // filtert sie heraus). Zuordnungen, Ordner und Originaldatei(en)
+        // bleiben dabei zu 100% unangetastet - auch bei einer bisher
+        // UNZUGEORDNETEN Erinnerung funktioniert das jetzt. Im Papierkorb-Tab
+        // erscheinen sie im neuen Abschnitt "Aus der Arbeitsmappe entfernt"
+        // und koennen von dort jederzeit wiederhergestellt werden.
         private void AmMarkierteInPapierkorb_Click(object sender, RoutedEventArgs e)
         {
             List<Guid> markiert = ErmittleMarkierteGruenBereichErinnerungIds();
 
             if (markiert.Count == 0)
             {
-                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) in den Papierkorb sollen (in einer der Listen oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
+                James.Hinweis("Bitte zuerst markieren, welche Erinnerung(en) in den Papierkorb sollen (in der Liste oben Strg-/Umschalt-Klick). Ohne Markierung wird nichts verändert.");
                 return;
             }
 
-            if (!ErmittleAmZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung))
-            {
-                return;
-            }
+            LadeAmPapierkorbFallsNoetig();
 
             bool ergebnis = James.FrageJaNein(
-                markiert.Count + " markierte Erinnerung(en) aus \"" + zielBezeichnung + "\" in den Papierkorb legen?\n\n" +
-                "Die Erinnerung(en) selbst und alle anderen Zuordnungen bleiben bestehen - die Zuordnung(en) landen im Zuordnungs-Papierkorb (im Papierkorb-Tab wiederherstellbar).",
+                markiert.Count + " markierte Erinnerung(en) in den Papierkorb legen?\n\n" +
+                "Entfernt die markierten Erinnerungen nur aus der Arbeitsmappe. Zuordnungen, Ordner und Originaldateien bleiben vollständig unverändert. Im Papierkorb-Tab jederzeit wiederherstellbar.",
                 James.TitelEntscheidung, MessageBoxImage.Warning);
 
             if (!ergebnis)
@@ -1169,74 +1150,140 @@ namespace DAS_LEBENSARCHIV
                 return;
             }
 
-            int entfernt = 0;
-
             foreach (Guid id in markiert)
             {
-                Erinnerung erinnerung = erinnerungsmodellErinnerungen.FirstOrDefault(er => er.Id == id);
-                string pfad = erinnerung?.Fundorte != null && erinnerung.Fundorte.Count > 0 ? erinnerung.Fundorte[0].Pfad : null;
-
-                if (pfad != null && VersucheAusNeuemModellEntfernen(zielTyp, zielId, pfad))
-                {
-                    entfernt++;
-                }
+                amPapierkorbErinnerungIds.Add(id);
+                amMarkierteErinnerungIds.Remove(id);
             }
 
-            AktualisiereZuordnungsPapierkorbAnzeige();
+            SpeichereAmPapierkorb();
             AktualisiereAmDirekteAuswahlListe();
 
-            if (entfernt == markiert.Count)
+            AmStatusText.Text = "✓ " + markiert.Count + " Erinnerung(en) in den Papierkorb gelegt.";
+        }
+
+        // A/Opa-REPARATURAUFTRAG "AM-PAPIERKORB = VOM ARBEITSTISCH WEGLEGEN"
+        // (17.08.): eigene, unabhaengige Speicherdatei fuer die neue Liste
+        // "aus der AM entfernte Erinnerungen" - bewusst NICHT ein neues Feld
+        // in der bestehenden erinnerungsmodell.json-Speicherklasse
+        // (ArchivErinnerungsDaten), da deren Definition in einer Datei liegt,
+        // die mir nicht vorliegt und die ich deshalb nicht gefahrlos aendern
+        // kann. Diese eigene Datei beruehrt erinnerungsmodell.json in keiner
+        // Weise.
+        private string AmPapierkorbDateiPfad => Path.Combine(OrdnerPfad, "am_papierkorb.json");
+
+        private HashSet<Guid> amPapierkorbErinnerungIds = new HashSet<Guid>();
+        private bool amPapierkorbGeladen = false;
+
+        private void LadeAmPapierkorbFallsNoetig()
+        {
+            if (amPapierkorbGeladen)
             {
-                AmStatusText.Text = "✓ " + entfernt + " Zuordnung(en) zu \"" + zielBezeichnung + "\" in den Papierkorb gelegt.";
+                return;
             }
-            else if (entfernt > 0)
+
+            amPapierkorbErinnerungIds = new HashSet<Guid>();
+
+            try
             {
-                AmStatusText.Text = entfernt + " von " + markiert.Count + " in den Papierkorb gelegt - der Rest hatte keine Zuordnung zu \"" + zielBezeichnung + "\".";
+                if (File.Exists(AmPapierkorbDateiPfad))
+                {
+                    string json = File.ReadAllText(AmPapierkorbDateiPfad);
+                    List<Guid> geladen = JsonSerializer.Deserialize<List<Guid>>(json);
+
+                    if (geladen != null)
+                    {
+                        amPapierkorbErinnerungIds = new HashSet<Guid>(geladen);
+                    }
+                }
             }
-            else
+            catch
             {
-                James.Problem("Keine der markierten Erinnerungen war \"" + zielBezeichnung + "\" zugeordnet - nichts wurde entfernt.");
+            }
+
+            amPapierkorbGeladen = true;
+        }
+
+        private void SpeichereAmPapierkorb()
+        {
+            try
+            {
+                Directory.CreateDirectory(OrdnerPfad);
+                string json = JsonSerializer.Serialize(amPapierkorbErinnerungIds.ToList());
+                File.WriteAllText(AmPapierkorbDateiPfad, json);
+            }
+            catch
+            {
             }
         }
 
-        // Kleine Hilfsmethode, liest dieselbe AM-Ziel-Auswahl aus, die
-        // AmZuordnenBestaetigen_Click bereits verwendet - keine zweite
-        // Ziel-Auswahl-Logik.
-        private bool ErmittleAmZielAuswahl(out ZuordnungsZielTyp zielTyp, out Guid zielId, out string zielBezeichnung)
+        // Baut die Anzeige im Papierkorb-Tab, Abschnitt "Aus der Arbeitsmappe
+        // entfernt" - ein eigener, in sich geschlossener Bereich, der keine
+        // der bestehenden Papierkorb-Listen (GemeinsamerPapierkorbListe, in
+        // einer mir nicht vorliegenden Datei gepflegt) beruehrt oder
+        // dupliziert.
+        private void AktualisiereAmPapierkorbAnzeige()
         {
-            zielTyp = ZuordnungsZielTyp.Person;
-            zielId = Guid.Empty;
-            zielBezeichnung = null;
+            LadeErinnerungsmodellFallsNoetig();
+            LadeAmPapierkorbFallsNoetig();
 
-            ComboBoxItem ausgewaehlterTyp = AmZielTypComboBox.SelectedItem as ComboBoxItem;
-            string typText = ausgewaehlterTyp != null ? ausgewaehlterTyp.Content.ToString() : "Person";
-
-            if (typText == "Ereignis")
+            if (AmPapierkorbListe == null)
             {
-                Ereignis ereignis = AmZielObjektComboBox.SelectedItem as Ereignis;
-                if (ereignis == null) { return false; }
-                zielTyp = ZuordnungsZielTyp.Ereignis;
-                zielId = ereignis.Id;
-                zielBezeichnung = ereignis.Titel;
-            }
-            else if (typText == "Sammlung")
-            {
-                Sammlung sammlung = AmZielObjektComboBox.SelectedItem as Sammlung;
-                if (sammlung == null) { return false; }
-                zielTyp = ZuordnungsZielTyp.Sammlung;
-                zielId = sammlung.Id;
-                zielBezeichnung = sammlung.Titel;
-            }
-            else
-            {
-                Person person = AmZielObjektComboBox.SelectedItem as Person;
-                if (person == null) { return false; }
-                zielTyp = ZuordnungsZielTyp.Person;
-                zielId = person.Id;
-                zielBezeichnung = person.ToString();
+                return;
             }
 
-            return true;
+            AmPapierkorbListe.Items.Clear();
+
+            List<Erinnerung> eintraege = erinnerungsmodellErinnerungen
+                .Where(er => amPapierkorbErinnerungIds.Contains(er.Id))
+                .ToList();
+
+            foreach (Erinnerung erinnerung in eintraege)
+            {
+                string dateiname = erinnerung.Fundorte.Count > 0 ? Path.GetFileName(erinnerung.Fundorte[0].Pfad) : erinnerung.Id.ToString();
+                AmPapierkorbListe.Items.Add(ErstelleErinnerungsKachel(erinnerung, dateiname));
+            }
+
+            if (AmPapierkorbAnzahlText != null)
+            {
+                AmPapierkorbAnzahlText.Text = eintraege.Count == 0
+                    ? "Der Arbeitsmappen-Papierkorb ist leer."
+                    : eintraege.Count + " Erinnerung(en) aus der Arbeitsmappe entfernt:";
+            }
+        }
+
+        private void AmPapierkorbListe_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (AmPapierkorbWiederherstellenButton != null)
+            {
+                AmPapierkorbWiederherstellenButton.IsEnabled = AmPapierkorbListe.SelectedItems.Count > 0;
+            }
+        }
+
+        private void AmPapierkorbWiederherstellen_Click(object sender, RoutedEventArgs e)
+        {
+            List<Guid> ausgewaehlt = AmPapierkorbListe.SelectedItems
+                .Cast<Border>()
+                .Select(b => b.Tag as Erinnerung)
+                .Where(er => er != null)
+                .Select(er => er.Id)
+                .ToList();
+
+            if (ausgewaehlt.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Guid id in ausgewaehlt)
+            {
+                amPapierkorbErinnerungIds.Remove(id);
+            }
+
+            SpeichereAmPapierkorb();
+            AktualisiereAmPapierkorbAnzeige();
+            AktualisiereAmDirekteAuswahlListe();
+
+            James.Hinweis(ausgewaehlt.Count + " Erinnerung(en) wiederhergestellt - wieder sichtbar in der Arbeitsmappe.");
         }
 
         // ============================================================
